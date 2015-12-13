@@ -83,8 +83,9 @@ GlowWidget.prototype.callback = function (event) {
 GlowWidget.prototype.handler = function (msg) {
     "use strict";
     var data = msg.content.data;
-    //console.log('glow', data, data.length);
-    //console.log('JSON ' + JSON.stringify(data));
+    console.log('glow msg', msg, msg.content)
+    console.log('glow', data, data.length);
+    console.log('JSON ' + JSON.stringify(data));
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst, cnvsidx;
@@ -93,9 +94,10 @@ GlowWidget.prototype.handler = function (msg) {
         for (i = 0; i < len; i++) {
             cnvsidx = -1;
             cmd = data.shift();
+//            console.log(cmd.idx, cmd.attr, cmd.val, cmd.cmd)
             if (typeof cmd.cmd === 'undefined') {
                 if (typeof cmd.idx !== 'undefined') {
-                    vlst = ['pos', 'size', 'color', 'axis', 'up', 'axis_and_length', 'direction', 'texpos', 'normal', 'bumpaxis', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor'];
+                    vlst = ['pos', 'size', 'color', 'axis', 'up', 'axis_and_length', 'direction', 'texpos', 'normal', 'bumpaxis', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color'];
                     if (vlst.indexOf(cmd.attr) !== -1) {
                         if ((cmd.attr === 'size') && (glowObjs[cmd.idx] instanceof points)) {
                             glowObjs[cmd.idx][cmd.attr] = cmd.val;
@@ -109,6 +111,9 @@ GlowWidget.prototype.handler = function (msg) {
                                 glowObjs[cmd.idx]['size'].x = glowObjs[cmd.idx][cmd.attr].mag();
                             }
                         }
+                    } else if (cmd.attr == '_plot'){
+                        console.log('set val', cmd.idx, cmd.attr, cmd.val)
+                        glowObjs[cmd.idx].plot(cmd.val)
                     } else {
                         glowObjs[cmd.idx][cmd.attr] = cmd.val;
                     }
@@ -120,8 +125,14 @@ GlowWidget.prototype.handler = function (msg) {
                     console.log('JSON ' + JSON.stringify(data));
                 }
                 */
+                //assembling cfg
+//                console.log('assembling cfg', cmd.cmd, typeof cmd.attrs, cmd.attrs) //**************
+//                for (var i in cmd.attrs) { console.log(cmd.attrs[i]) }
                 if (typeof cmd.attrs !== 'undefined') {
-                    vlst = ['pos', 'size', 'color', 'axis', 'up', 'axis_and_length', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor'];
+                     vlst = ['pos', 'color', 'axis', 'up', 'axis_and_length', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color'];
+                    if ((cmd.cmd != 'gcurve') && ( cmd.cmd != 'gdots' ) ) {
+                        vlst.push( 'size' )
+                    }
                     trailAttrs = ['make_trail', 'type', 'interval', 'retain'];
                     triangle_quad = ['v0', 'v1', 'v2', 'v3'];
                     len2 = cmd.attrs.length;
@@ -140,6 +151,8 @@ GlowWidget.prototype.handler = function (msg) {
                         } else if (attr.attr === "size") {
                             if ((glowObjs[cmd.idx] instanceof points) || ((typeof cmd.idx !== 'undefined') && (cmd.cmd === 'points'))) {
                                cfg[attr.attr] = attr.value;
+                            } else if ( (cmd.cmd == 'gcurve') || ( cmd.cmd == 'gdots' ) ) {
+                                cfg[attr.attr] = attr.value;   // size is a scalar
                             } else {
                                cfg[attr.attr] = o2vec3(attr.value);
                             }
@@ -158,8 +171,12 @@ GlowWidget.prototype.handler = function (msg) {
                                 }
                             }
                             cfg[attr.attr] = vertex(cfg2);
-                        } else if (attr.attr === "canvas") {
+                        } else if (attr.attr === "canvas" ) {
                             cnvsidx = attr.value;
+                            if (attr.value >= 0) {
+                                cfg[attr.attr] = glowObjs[attr.value];
+                            }
+                        } else if (attr.attr === "graph" ) {
                             if (attr.value >= 0) {
                                 cfg[attr.attr] = glowObjs[attr.value];
                             }
@@ -174,6 +191,7 @@ GlowWidget.prototype.handler = function (msg) {
                             cfg[attr.attr] = attr.value;
                         }
                     }
+                    //making the objects
                     if (typeof cmd.idx !== 'undefined') {
                         if (cmd.cmd === 'box') {
                             glowObjs[cmd.idx] = box(cfg);
@@ -193,6 +211,16 @@ GlowWidget.prototype.handler = function (msg) {
                             glowObjs[cmd.idx] = pyramid(cfg);
                         } else if (cmd.cmd === 'ring') {
                             glowObjs[cmd.idx] = ring(cfg);
+						} else if  (cmd.cmd === 'gcurve') {
+							glowObjs[cmd.idx] = gcurve(cfg)
+						} else if  (cmd.cmd === 'gdots') {
+							glowObjs[cmd.idx] = gdots(cfg)
+						} else if  (cmd.cmd === 'gvbars') {
+							glowObjs[cmd.idx] = gvbars(cfg)
+						} else if  (cmd.cmd === 'ghbars') {
+							glowObjs[cmd.idx] = ghbars(cfg)
+                        } else if (cmd.cmd == 'graph') {
+                            glowObjs[cmd.idx] = vp_graph(cfg)
                         } else if (cmd.cmd === 'curve') {
                             glowObjs[cmd.idx] = curve(cfg);
                             if (typeof cfg.pnts !== 'undefined') {

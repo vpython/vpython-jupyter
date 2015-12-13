@@ -1,0 +1,12 @@
+{
+ "language": "python",
+ "argv": [
+  "python",
+  "-m",
+  "ipykernel",
+  "--InteractiveShellApp.exec_lines=['from __future__ import division, print_function','from math import *']",
+  "-f",
+  "{connection_file}"
+ ],
+ "display_name": "VPython"
+}

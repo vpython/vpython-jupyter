@@ -1,7 +1,7 @@
 from __future__ import print_function, division, absolute_import
-from . import crayola as color
+from . import crayola as color   #### should rename to color
 from . import materials
-import numpy as np
+import numpy as np   #### should get rid of this; no longer needed with GlowScript engine
 from .rate_control import *
 import IPython
 if IPython.__version__ >= '4.0.0' :
@@ -28,7 +28,11 @@ import copy
 import sys
 import weakref
 
-from numpy import zeros, random
+# To print immediately, do this:
+#    print(.....)
+#    sys.stdout.flush()
+
+from numpy import zeros, random   #### namespace conflict here; numpy should not be imported here
 import platform
 
 glowlock = threading.Lock()
@@ -188,7 +192,6 @@ def commsend():
             if (baseObj.glow != None):
 
                 if (len(baseObj.cmds) > 0) and (not rate.active):
-                    #print("commsend len(baseObj.cmds) > 0")
                     a = copy.copy(baseObj.cmds)
                     l = len(a)
                     baseObj.glow.comm.send(list(a))
@@ -243,6 +246,16 @@ def commsend():
                                                 commcmds[l]['idx'] = ob.idx
                                                 commcmds[l]['attr'] = attr
                                                 commcmds[l]['val'] = attrvalues
+                                        elif attr == '_plot':
+                                            commcmds[l]['idx'] = ob.idx
+                                            commcmds[l]['attr'] = attr
+                                            commcmds[l]['val'] = attrval
+                                            ob.clearData()
+                                        elif attr == 'dot_color': # color needs to be changed to be a vector, not a tuple
+                                            commcmds[l]['idx'] = ob.idx
+                                            commcmds[l]['attr'] = attr
+                                            commcmds[l]['val'] = [attrval[0], attrval[1], attrval[2]]
+                                            ob.clearData()
                                         else:
                                             commcmds[l]['idx'] = ob.idx
                                             commcmds[l]['attr'] = attr
@@ -1479,7 +1492,219 @@ class curve(baseAttrs2):
      
     def __del__(self):
         pass
+
+class gobj(baseObj):
+    def setup(self, color = (0,0,0), pos=[], objName = "" , graph = None , objAttrs = []):
+        super(gobj, self).__init__(color=color)
+        self._plot = pos[:] # not clear why it is necessary to make a copy of this mutable variable
+        self.graph = graph
+        if len(pos) > 0:
+            self.addattr('_plot')
+        cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, 
+               "attrs": [ { "attr": "color", "value": self.color } ] }
+        for aa in objAttrs:
+            cmd["attrs"].append( { "attr": aa[0], "value": aa[1] } )
+        if graph is not None:
+            cmd["attrs"].append( {"attr": "graph", "value": graph.idx } )
+        self.appendcmd(cmd)
+         
+    @property
+    def color(self): return self._color
+    @color.setter
+    def color(self,val): 
+        self._color = val
+        self.addattr('color')
+
+    def __del__(self):
+        cmd = {"cmd": "delete", "idx": self.idx}
+        self.appendcmd(cmd)
+        super(gcurve, self).__del__()
+        
+    def resolveargs(self, *vars):
+        ret = []
+        if isinstance(vars[0], list) or isinstance(vars[0],tuple):
+            if not isinstance(vars[0][0], list) and not isinstance(vars[0][0],tuple):  # plot([x,y], [x,y])
+                for v in vars:
+                    if isinstance(v,tuple): v = list(v)
+                    if isinstance(v, list) and len(v) == 2: ret.append(v)
+                    else: raise AttributeError("Plot data must be 2-dimensional, like [x,y].")
+            else:                           # plot([ [x,y], [x,y] ]
+                for v in vars[0]:
+                    if isinstance(v,tuple): v = list(v)
+                    if isinstance(v, list) and len(v) == 2: ret.append(v)
+                    else: raise AttributeError("Plot data must be 2-dimensional, like [x,y].")
+        return ret
+
+    def preresolve1(self, *args):
+        if isinstance(args[0], list) or isinstance(args[0], tuple):
+            if len(args) == 1 and len(args[0]) == 1: return self.resolveargs(args[0][0])
+            a = []
+            for arg in args[0]: a.append(arg)
+            return self.resolveargs(a)
+        else:
+            return self.resolveargs(args) # plot(x,y)
+
+    def preresolve2(self, args):
+        if 'color' in args:
+            raise AttributeError("Cannot currently change color in a plot statement.")
+        if 'pos' in args:
+            return self.resolveargs(args['pos'])
+        else:
+            raise AttributeError("Must be plot(x,y) or plot(pos=[x,y]) or plot([x,y]) or plot([x,y], ...) or plot([ [x,y], ... ])")
+
+    def plot(self, *args1, **args2):
+        if len(args1) > 0:
+            p = self.preresolve1(args1)
+        else:
+            p = self.preresolve2(args2)
+        self._plot.extend(p)
+        self.addattr('_plot')
+        
+    def clearData(self):
+        self._plot = []
+        
+class gcurve(gobj):
+    def __init__(self, pos=[], color=(0,0,0), dot=False, shape="round", size=8, dot_color=None, graph=None):
+        if dot_color is None: 
+            dot_color = color
+        attributes = [ ["dot", dot],  ["dot_color", dot_color],  [ "size", size] ]
+        self.setup(color = color, pos = pos, objName = "gcurve", graph = graph, objAttrs = attributes)
+        
+    @property
+    def size(self): return self._size
+    @size.setter
+    def size(self,val): 
+        self._size = val
+        self.addattr('size')
+        
+    @property
+    def dot(self): return self._dot
+    @dot.setter
+    def dot(self,val): 
+        self._dot = val
+        self.addattr('dot')
+        
+    @property
+    def dot_color(self): return self._dot_color
+    @dot_color.setter
+    def dot_color(self,val): 
+        self._dot_color = val
+        self.addattr('dot_color')
+        
+class gdots(gobj):
+    def __init__(self, pos=[], color=(0,0,0), size=5, graph=None):
+       attributes = [["size", size]] 
+       self.setup(color = color, pos = pos, objName = "gdots", graph = graph, objAttrs = attributes)
+       
+    @property
+    def size(self): return self._size
+    @size.setter
+    def size(self,val): 
+        self._size = val
+        self.addattr('size')
+        
+    @property
+    def shape(self): return self._shape
+    @shape.setter
+    def shape(self,val): 
+        self._shape = val
+        self.addattr('shape')
+        
+class gvbars(gobj):
+    def __init__(self, pos=[], color=(0,0,0), delta = 1, graph=None):
+        attributes = [["delta", delta]] 
+        self.setup(color = color, pos = pos, objName = "gvbars", graph = graph, objAttrs = attributes)
+        
+    @property
+    def delta(self): return self._delta
+    @delta.setter
+    def delta(self,val): 
+        self._delta = val
+        self.addattr('delta')
+
+class ghbars(gvbars):
+    def __init__(self, pos=[], color=(0,0,0), delta = 1, graph=None):
+        attributes = [["delta", delta]] 
+        self.setup(color = color, pos = pos, objName = "ghbars", graph = graph, objAttrs = attributes)
+
+class graph(baseObj):
+    def __init__( self, width=640, height=400, title="", xtitle="", ytitle="", 
+        foreground=(0.0, 0.0, 0.0), background=(1.0, 1.0, 1.0) ):       
+        super(graph, self).__init__()        
+        self.width = width
+        self.height = height
+        self.title = title
+        self.xtitle = xtitle
+        self.ytitle = ytitle
+        self.foreground = foreground
+        self.background = background
+ 
+        cmd = {"cmd": "graph", "idx": self.idx, "guid": self.guid, 
+               "attrs": [ { "attr": "width", "value": self.width },
+                           {"attr": "height", "value": self.height },
+                           {"attr": "title", "value": self.title},
+                           {"attr": "xtitle", "value": self.xtitle},
+                           {"attr": "ytitle", "value": self.ytitle},
+                           {"attr": "foreground", "value": self.foreground},
+                           {"attr": "background", "value": self.background} ] }
+        self.appendcmd(cmd)
+        
+    @property
+    def width(self): return self._width
+    @width.setter
+    def width(self,val): 
+        self._width = val
+        self.addattr('width')
+
+    @property
+    def height(self): return self._height
+    @height.setter
+    def height(self,val): 
+        self._height = val
+        self.addattr('height')
+
+    @property
+    def title(self): 
+        return self._title
+    @title.setter
+    def title(self,val): 
+        self._title = val
+        self.addattr('title')              
+
+    @property
+    def xtitle(self): return self._xtitle
+    @xtitle.setter
+    def xtitle(self,val): 
+        self._xtitle = val
+        self.addattr('xtitle')
+
+    @property
+    def ytitle(self): return self._ytitle
+    @ytitle.setter
+    def ytitle(self,val): 
+        self._ytitle = val
+        self.addattr('ytitle')
+
+    @property
+    def foreground(self): return self._foreground
+    @foreground.setter
+    def foreground(self,val): 
+        self._foreground = val
+        self.addattr('foreground')
+
+    @property
+    def background(self): return self._background
+    @background.setter
+    def background(self,val): 
+        self._background = val
+        self.addattr('background')
     
+#    def __del__(self):
+#        cmd = {"cmd": "delete", "idx": self.idx}
+#        self.appendcmd(cmd)
+#        super(graph, self).__del__()
+
+        
 class points(baseAttrs2):
     """see points documentation at http://vpython.org/contents/docs/points.html"""
 
