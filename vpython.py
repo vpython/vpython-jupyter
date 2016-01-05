@@ -1,6 +1,6 @@
 from __future__ import print_function, division, absolute_import
-from . import crayola as color   #### should rename to color
 from . import materials
+import colorsys
 import numpy as np   #### should get rid of this; no longer needed with GlowScript engine
 from .rate_control import *
 import IPython
@@ -54,15 +54,15 @@ class RateKeeper2(RateKeeper):
                 try:
                     if (len(baseObj.cmds) > 0):
                         a = copy.copy(baseObj.cmds)
-                        l = len(a)
+                        L = len(a)
                         baseObj.glow.comm.send(list(a))
                         a.clear()
-                        while l > 0:
+                        while L > 0:
                             del baseObj.cmds[0]
-                            l -= 1                
+                            L -= 1                
 
-                    l = self.sz
-                    req = commcmds[:l]
+                    L = self.sz
+                    req = commcmds[:L]
                     baseObj.glow.comm.send(req)
                 finally:
                     self.send = False
@@ -94,7 +94,7 @@ display(HTML("""<div id="scene0"><div id="glowscript" class="glowscript"></div><
 package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow.1.1.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow.1.2.min.js",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 elif IPython.__version__ >= '3.0.0' :
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
@@ -116,7 +116,6 @@ def remember(obj):
 
 def id2obj(oid):
     return _id2obj_dict[oid]
-
 
 class baseObj(object):
     txtime = 0.0
@@ -163,7 +162,7 @@ class baseObj(object):
         #with glowlock:
         self.attrsupdt.add(name)
         baseObj.updtobjs.add(self.oid)
-    
+            
     @classmethod
     def incrObjCnt(cls):
         cls.objCnt += 1
@@ -190,18 +189,17 @@ def commsend():
     with glowlock:
         try:
             if (baseObj.glow != None):
-
                 if (len(baseObj.cmds) > 0) and (not rate.active):
                     a = copy.copy(baseObj.cmds)
-                    l = len(a)
+                    L = len(a)
                     baseObj.glow.comm.send(list(a))
                     a.clear()
-                    while l > 0:
+                    while L > 0:
                         del baseObj.cmds[0]
-                        l -= 1 
+                        L -= 1 
 
-                l = rate.sz if (rate.send == True) else 0
-                if (l > 0):
+                L = rate.sz if (rate.send == True) else 0
+                if (L > 0):
                     rate.sendcnt += 1
                     thresh = math.ceil(30.0/rate.rval) * 2 + 1
                     if (rate.sendcnt > thresh ):
@@ -213,7 +211,7 @@ def commsend():
                 if(len(updtobjs2) == 0):
                     updtobjs2 = baseObj.updtobjs.copy()
                     baseObj.updtobjs.clear()
-                if l < baseObj.qSize:
+                if L < baseObj.qSize:
                     while updtobjs2:
                         oid = updtobjs2.pop()
                         ob = id2obj(oid)
@@ -223,57 +221,69 @@ def commsend():
                                 if attr is not None:
                                     attrval = getattr(ob,attr)
                                     if attrval is not None:
-                                        if attr in ['axis','pos','up','axis_and_length','center','forward','origin']:
+                                        if attr == 'pos' and isinstance(attrval, list):  ## curve or points
+                                            poslist = []
+                                            for aa in attrval:
+                                                poslist.append(aa.value)
+                                            commcmds[L]['idx'] = ob.idx
+                                            commcmds[L]['attr'] = attr
+                                            commcmds[L]['val'] = poslist                                                
+                                        elif attr in ['axis','pos', 'up','color','center','forward',
+                                                      'background','origin', 'trail_color', 'dot_color']:
                                             attrvalues = attrval.value
                                             if attrvalues is not None:
-                                                commcmds[l]['idx'] = ob.idx
-                                                commcmds[l]['attr'] = attr
-                                                commcmds[l]['val'] = attrvalues
+                                                commcmds[L]['idx'] = ob.idx
+                                                commcmds[L]['attr'] = attr
+                                                commcmds[L]['val'] = attrvalues
                                         elif attr == 'size':
                                             if hasattr(ob,'size_units'):
-                                                commcmds[l]['idx'] = ob.idx
-                                                commcmds[l]['attr'] = attr
-                                                commcmds[l]['val'] = attrval
+                                                commcmds[L]['idx'] = ob.idx
+                                                commcmds[L]['attr'] = attr
+                                                commcmds[L]['val'] = attrval
                                             else:
                                                 attrvalues = attrval.value
                                                 if attrvalues is not None:
-                                                    commcmds[l]['idx'] = ob.idx
-                                                    commcmds[l]['attr'] = attr
-                                                    commcmds[l]['val'] = attrvalues
+                                                    commcmds[L]['idx'] = ob.idx
+                                                    commcmds[L]['attr'] = attr
+                                                    commcmds[L]['val'] = attrvalues
                                         elif attr in ['range','scale']:
                                             attrvalues = attrval[0]
                                             if attrvalues is not None:
-                                                commcmds[l]['idx'] = ob.idx
-                                                commcmds[l]['attr'] = attr
-                                                commcmds[l]['val'] = attrvalues
+                                                commcmds[L]['idx'] = ob.idx
+                                                commcmds[L]['attr'] = attr
+                                                commcmds[L]['val'] = attrvalues
                                         elif attr == '_plot':
-                                            commcmds[l]['idx'] = ob.idx
-                                            commcmds[l]['attr'] = attr
-                                            commcmds[l]['val'] = attrval
+                                            commcmds[L]['idx'] = ob.idx
+                                            commcmds[L]['attr'] = attr
+                                            commcmds[L]['val'] = attrval
                                             ob.clearData()
-                                        elif attr == 'dot_color': # color needs to be changed to be a vector, not a tuple
-                                            commcmds[l]['idx'] = ob.idx
-                                            commcmds[l]['attr'] = attr
-                                            commcmds[l]['val'] = [attrval[0], attrval[1], attrval[2]]
+                                        elif attr == '_cpos':
+                                            commcmds[L]['idx'] = ob.idx
+                                            commcmds[L]['attr'] = attr
+                                            commcmds[L]['val'] = attrval[:]
                                             ob.clearData()
                                         else:
-                                            commcmds[l]['idx'] = ob.idx
-                                            commcmds[l]['attr'] = attr
-                                            commcmds[l]['val'] = attrval
-                                        l += 1
-                                        if l >= baseObj.qSize:
+                                            commcmds[L]['idx'] = ob.idx
+                                            commcmds[L]['attr'] = attr
+                                            commcmds[L]['val'] = attrval
+                                        L += 1
+                                        if L >= baseObj.qSize:
                                             if (len(ob.attrsupdt) > 0):
                                                 updtobjs2.add(ob.oid)
                                             break
-                        if l >= baseObj.qSize:
-                            #l = 0
+                                    elif attr == 'clear_trail':
+                                        commcmds[L]['idx'] = ob.idx
+                                        commcmds[L]['attr'] = attr
+                                        commcmds[L]['val'] = 0  # will be ignored
+                        if L >= baseObj.qSize:
+                            #L = 0
                             break
-                if l > 0:
+                if L > 0:
                     if not rate.active:
-                        l = l if (l <= baseObj.qSize) else baseObj.qSize
-                        baseObj.glow.comm.send(commcmds[:l])
+                        L = L if (L <= baseObj.qSize) else baseObj.qSize
+                        baseObj.glow.comm.send(commcmds[:L])
                     else:
-                        rate.sz = l if (l <= baseObj.qSize) else baseObj.qSize
+                        rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
                         rate.send = True
 
         finally:
@@ -304,7 +314,7 @@ class GlowWidget(object):
         if 'callback' in data:
             guid = data['callback']
             callback = callback_registry[guid]
-            args = data['arguments']
+            args = data['arguments']        
             #args = json.loads(data['arguments'])
             #args = [self.parse_object(a) for a in args]
             #self.comm.send([{'cmd': 'debug', 'data': data}])
@@ -571,6 +581,9 @@ class vector(object):
 
     def set_values(self, xyz=(0.,0.,0.)):
         self._value = [value[0], value[1], value[2]]
+        
+    def mag(self):
+        return math.sqrt(self.x**2+self.y**2+self.z**2)
    
     @property
     def value(self):
@@ -612,7 +625,7 @@ class vector(object):
 
     @property
     def mag(self):
-        return np.linalg.norm(np.array(self._value))
+        return math.sqrt(self.x**2+self.y**2+self.z**2)
 
     @mag.setter
     def mag(self,value):
@@ -624,7 +637,7 @@ class vector(object):
 
     @property
     def mag2(self):
-        return self.mag*self.mag
+        return self.x**2+self.y**2+self.z**2
 
     @mag2.setter
     def mag2(self,value):
@@ -697,18 +710,507 @@ def astuple(A):
     else:
         return A.astuple()
 
+class standard_colors(object):
+    black = vector(0,0,0)
+    white = vector(1,1,1)
 
+    red = vector(1,0,0)
+    green = vector(0,1,0)
+    blue = vector(0,0,1)
+
+    yellow = vector(1,1,0)
+    cyan = vector(0,1,1)
+    magenta = vector(1,0,1)
+
+    orange = vector(1,0.6,0)
+
+    def gray(self,luminance):
+      return vector(luminance,luminance,luminance)
+
+    def rgb_to_hsv(self,T):
+      if len(T) > 3:
+        T = T[:3]
+      return vector(colorsys.rgb_to_hsv(*T))
+
+    def hsv_to_rgb(self,T):
+      if len(T) > 3:
+        T = T[:3]
+      return vector(colorsys.hsv_to_rgb(*T))
+
+    def rgb_to_grayscale(self,T):
+      if len(T) > 3:
+        T = T[:3]
+      luminance = 0.21*T[0] + 0.71*T[1] + 0.07*T[2]
+      return vector(luminance, luminance, luminance)
+
+color = standard_colors()
+
+class standardAttributes(baseObj):
+# vector-no-interactions, vector-interactions, scalar-no-interactions, scalar-interactions
+
+    attrLists = {'box':[['pos', 'up', 'color', 'trail_color'], 
+                        ['axis', 'size'],
+                        ['visible', 'opacity','shininess', 'emissive', 'canvas', 
+                         'make_trail', 'trail_type', 'interval', 
+                         'retain', 'trail_color', 'trail_radius'],
+                        ['red', 'green', 'blue','length', 'width', 'height']],
+                 'sphere':[['pos', 'up', 'color', 'trail_color'], 
+                        ['axis', 'size'],
+                        ['visible', 'opacity','shininess', 'emissive', 'canvas', 
+                         'make_trail', 'trail_type', 'interval', 
+                         'retain', 'trail_color', 'trail_radius'],
+                        ['red', 'green', 'blue','length', 'width', 'height', 'radius']],                        
+                 'arrow':[['pos', 'up', 'color', 'trail_color'],
+                         ['axis', 'size'],
+                         ['visible', 'opacity',
+                          'shininess', 'emissive', 'canvas', 'texture', 'frame', 'material',
+                          'make_trail', 'trail_type', 'interval', 
+                          'retain', 'trail_color', 'trail_radius',
+                          'shaftwidth', 'headwidth', 'headlength'],
+                         ['red', 'green', 'blue','length', 'width', 'height']],
+                 'ring':[['pos', 'up', 'color', 'trail_color', 'axis', 'size'],  
+                        [],
+                        ['visible', 'opacity','shininess', 'emissive', 'canvas', 
+                         'make_trail', 'trail_type', 'interval', 
+                         'retain', 'trail_color', 'trail_radius'],
+                        ['red', 'green', 'blue','length', 'width', 'height', 'thickness']],                       
+                 'helix':[['pos', 'up', 'color', 'trail_color'],
+                         ['axis', 'size'],
+                         ['visible', 'opacity','shininess', 'emissive', 'canvas', 
+                         'make_trail', 'trail_type', 'interval', 
+                         'retain', 'trail_color', 'trail_radius', 'coils', 'thickness'],
+                         ['red', 'green', 'blue','length', 'width', 'height']],
+                 'curve':[['origin', 'up', 'color'],  
+                         ['axis', 'size'],
+                         ['visible', 'shininess', 'emissive', 'canvas', 'radius', 'retain', 'pos'],
+                         ['red', 'green', 'blue','length', 'width', 'height']]}
+    attrLists['pyramid'] = attrLists['box']
+    attrLists['cylinder'] = attrLists['sphere']
+    attrLists['cone'] = attrLists['sphere']
+    attrLists['ellipsoid'] = attrLists['sphere']
+    attrLists['points'] = attrLists['curve']
+
+    def setup(self, args):
+        super(standardAttributes, self).__init__() 
+        self._constructing = True  ## calls to setters are from constructor
+
+        objName = args['_objName']  ## identifies object type
+        del args['_objName']
+        
+    # default values
+        self._pos = vector(0,0,0)  
+        self._axis = vector(1,0,0)
+        self._up = vector(0,1,0)
+        self._color = vector(1,1,1)
+        self._size = args['_default_size']  ## because VP differs from JS
+        del args['_default_size']        
+        self._texture = None
+        self._opacity = 1.0
+        self._shininess = 0.6
+        self._emissive = False
+        self._material = None       
+        self._make_trail = False
+        self._trail_type = 'curve'
+        self._trail_color = self._color
+        self._interval = 1
+        self._retain = -1
+        self._trail_radius = None  # set by default after size set
+        self._canvas = None
+        self._visible = True
+        self._frame = None
+        self._size_units = 'pixels'
+        
+        argsToSend = []  ## send to GlowScript only attributes specified in constructor
+        
+    ## override defaults for vector attributes without side effects 
+        attrs = standardAttributes.attrLists[objName][0]
+        for a in attrs:
+            if a in args:
+                argsToSend.append(a)
+                val = args[a]
+                if isinstance(val, vector): setattr(self, '_'+a, val)
+                else: raise AttributeError(a+' must be a vector')
+                del args[a]
+                
+        vectorInteractions = {'size':'axis', 'axis':'size'}
+                
+    # override defaults for vector attributes with side effects
+        attrs = standardAttributes.attrLists[objName][1]
+        for a in attrs:
+            if a in args:
+                val = args[a]
+                if isinstance(val, vector): 
+                    setattr(self, a, val)
+                    if a not in argsToSend:
+                        argsToSend.append(a)
+                    if vectorInteractions[a] not in argsToSend:
+                        argsToSend.append(vectorInteractions[a])  
+                elif objName == 'points' and a == 'size':  ## in this case size is a scalar
+                    argsToSend.append(a)
+                else: raise AttributeError(a+' must be a vector')
+                del args[a]
+    
+        if 'size' not in argsToSend:  ## always send size because Python size differs from JS size
+            argsToSend.append('size')
+        self._trail_radius = 0.1 * self._size.y  ## default depends on size
+                
+    # override defaults for scalar attributes without side effects       
+        attrs = standardAttributes.attrLists[objName][2]
+        for a in attrs:
+            if a in args:
+                argsToSend.append(a)
+                setattr(self, '_'+a, args[a])
+                # if isinstance(args[a], list):
+                    # while len(args[a]) > 0 :
+                        # del args[a][-1]
+                del args[a] 
+
+        scalarInteractions={'red':'color', 'green':'color', 'blue':'color', 'radius':'size', 'thickness':'size',
+                                'length':'size', 'height':'size', 'width':'size'}
+    
+    # override defaults for scalar attributes with side effects       
+        attrs = standardAttributes.attrLists[objName][3]
+        for a in attrs:
+            if a in args:
+                setattr(self, a, args[a])
+                if scalarInteractions[a] not in argsToSend:
+                    argsToSend.append(scalarInteractions[a])  # e.g. if a is radius, send size
+                del args[a]                
+                 
+    # set values of user-defined attributes
+        for key, value in args.items(): # Assign all other properties
+            setattr(self, key, value)
+            
+        cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, 
+           "attrs":[]}
+           
+        for a in argsToSend:
+            aval = getattr(self,a)
+            if isinstance(aval, vector):
+                aval = aval.value
+            cmd["attrs"].append({"attr":a, "value": aval})
+            
+        if self.canvas != None:
+            cvs = self.canvas.idx
+        elif canvas.get_selected() != None:
+            cvs = canvas.get_selected().idx
+        else:
+            cvs = None
+        if cvs is not None:
+            cmd["attrs"].append({"attr": 'canvas', "value": cvs})
+                    
+        self._constructing = False  ## from now on any setter call will not be from constructor        
+        self.appendcmd(cmd)
+       
+        if ('frame' in args and args['frame'] != None):
+            frame.objects.append(self)
+            frame.update_obj_list()
+
+    # attribute vectors have these methods which call self.addattr()
+        self._axis.on_change = self._on_axis_change
+        self._size.on_change = self._on_size_change
+        self._up.on_change = self._on_up_change
+        if objName != 'curve':
+            self._pos.on_change = self._on_pos_change
+        else:
+            self._origin.on_change = self._on_origin_change
+            
+    @property
+    def size(self):
+        return self._size   
+    @size.setter
+    def size(self,value):
+        self._axis.value = self.axis.norm() * value.x
+        self._size.value = value
+        if not self._constructing:
+            self.addattr('size')
+
+    @property
+    def axis(self):
+        return self._axis
+    @axis.setter
+    def axis(self,value):
+        self._axis.value = value
+        self._size.x = mag(value)
+        if not self._constructing:
+            self.addattr('axis')
+
+    @property
+    def length(self): 
+        return self._size.x    
+    @length.setter
+    def length(self,value):
+        self._axis = self._axis.norm() * value
+        self._size.x = value
+        if not self._constructing:
+            self.addattr('size')
+
+    @property
+    def height(self): 
+        return self._size.y    
+    @height.setter
+    def height(self,value):
+        self._size.y = value
+        if not self._constructing:
+            self.addattr('size')
+
+    @property
+    def width(self): 
+        return self._size.z   
+    @width.setter
+    def width(self,value):
+        self._size.z = value
+        if not self._constructing:
+            self.addattr('size')
+
+    def _on_size_change(self):
+        self._axis.value = self._axis.norm() * self._size.x           # update axis length when box.size.x is changed
+        self.addattr('size')
+
+    def _on_pos_change(self):
+        self.addattr('pos')
+
+    def _on_axis_change(self):
+        self._size.x = self._axis.mag()
+        self.addattr('axis')
+
+    def _on_up_change(self):
+        self.addattr('up')
+        
+    def _on_origin_change(self):  ## for curve and points
+        self.addattr('origin')
+
+        
+    @property
+    def up(self):
+        return self._up  
+    @up.setter
+    def up(self,value):
+        self._up.value = value
+        if not self._constructing:
+            self.addattr('up')
+
+    @property
+    def pos(self):
+        return self._pos    
+    @pos.setter
+    def pos(self,value):
+        self._pos.value = value
+        if not self._constructing:
+            self.addattr('pos')
+        
+    @property    
+    def color(self):
+        return self._color    
+    @color.setter
+    def color(self,value):
+        self._color.value = value
+        if not self._constructing:
+            self.addattr('color')
+
+    @property
+    def red(self):
+        return self._color[0]    
+    @red.setter
+    def red(self,value):
+        self._color = (value,self.green,self.blue)
+        if not self._constructing:
+            self.addattr('color')
+
+    @property
+    def green(self):
+        return self._color[1]    
+    @green.setter
+    def green(self,value):
+        self._color = (self.red,value,self.blue)
+        if not self._constructing:
+            self.addattr('color')
+
+    @property
+    def blue(self):
+        return self._color[2]    
+    @blue.setter
+    def blue(self,value):
+        self._color = (self.red,self.green,value)
+        if not self._constructing:
+            self.addattr('color')
+
+    @property
+    def visible(self):
+        return self._visible    
+    @visible.setter
+    def visible(self,value):
+        self._visible = value
+        if not self._constructing:
+            self.addattr('visible')
+
+    @property
+    def canvas(self):
+        return self._canvas    
+    @canvas.setter
+    def canvas(self,value):
+        if not self._constructing:
+            raise AttributeError('canvas cannot be modified')
+
+
+    @property
+    def frame(self):
+        return self._frame    
+    @frame.setter
+    def frame(self,value):
+        self._frame = value
+
+    
+    def rotate(self, angle=math.pi/4, axis=None, origin=None):
+        if axis == None:
+            rotaxis = self.axis
+        else:
+            if not isinstance(axis, vector): raise TypeError('axis must be a vector')
+            rotaxis = axis
+        if origin == None:
+            rorigin = self.pos
+        else:
+            if not isinstance(origin, vector): raise TypeError('origin must be a vector')
+            rorigin = origin
+            self.pos = rorigin+(self.pos-rorigin).rotate(angle, rotaxis)
+        axis = self.axis
+        X = norm(axis)
+        Y = self.up
+        Z = X.cross(Y)
+        if Z.dot(Z) < 1e-10:
+            Y = vector(1,0,0)
+            Z = X.cross(Y)
+            if Z.dot(Z) < 1e-10:
+                Y = vector(0,1,0)            
+        self.axis = axis.rotate(angle, rotaxis)          
+        self.up = Y.rotate(angle, rotaxis)
+        
+       
+    @property
+    def opacity(self):
+        return self._opacity    
+    @opacity.setter
+    def opacity(self,value):
+        self._opacity = value
+        if not self._constructing:
+            self.addattr('opacity')
+
+    @property
+    def emissive(self):
+        return self._emissive    
+    @emissive.setter
+    def emissive(self,value):
+        self._emissive = value
+        if not self._constructing:
+            self.addattr('emissive')
+
+    @property
+    def texture(self):
+        return self._texture    
+    @texture.setter
+    def texture(self,value):
+        self._texture = value
+        if not self._constructing:
+            self.addattr('texture')
+
+    @property
+    def shininess(self):
+        return self._shininess    
+    @shininess.setter
+    def shininess(self,value):
+        self._shininess = value
+        if not self._constructing:
+            self.addattr('shininess')
+
+    @property
+    def material(self):
+        return self._material    
+    @material.setter
+    def material(self,value):
+        self._material = value
+        if (value == materials.emissive):
+            self.emissive = True
+        elif (value == materials.plastic):
+            self.emissive = False
+        else:
+            self.emissive = False
+            
+    @property
+    def make_trail(self):
+        return self._make_trail    
+    @make_trail.setter
+    def make_trail(self,value):
+        self._make_trail = value
+        if not self._constructing:
+            self.addattr('make_trail')
+
+    @property
+    def trail_type(self):
+        return self._trail_type    
+    @trail_type.setter
+    def trail_type(self,value):
+        if not self._constructing: raise AttributeError('"trail_type" cannot be modified')
+        if (value not in ['curve', 'points']):
+            raise Exception("ArgumentError: trail_type must be 'curve' or 'points'")
+        self._trail_type = value   
+        
+    @property
+    def trail_color(self):
+        return self._trail_color
+    @trail_color.setter
+    def trail_color(self, value):
+        if not self._constructing: raise AttributeError('"trail_color" cannot be modified')
+        if isinstance(value, vector):
+            self._trail_color = value
+        else:
+            raise TypeError('trail_color must be a vector')
+
+    @property
+    def interval(self):
+        return self._interval    
+    @interval.setter
+    def interval(self,value):
+        if not self._constructing: raise AttributeError('"interval" cannot be modified')
+        self._interval = value
+
+    @property
+    def retain(self):
+        return self._retain    
+    @retain.setter
+    def retain(self,value):
+        if not self._constructing: raise AttributeError('"retain" cannot be modified')
+        self._retain = value
+
+    @property
+    def trail_radius(self):
+        return self._trail_radius    
+    @trail_radius.setter
+    def trail_radius(self,value):
+        if not self._constructing: raise AttributeError('"trail_radius" cannot be modified')
+        self._trail_radius = value
+        
+    @property
+    def pps(self):
+        return self._pps
+    @pps.setter
+    def pps(self, value):
+        if not self._constructing: raise AttributeError('"pps" cannot be modified')
+        self._pps = value
+        
+    def clear_trail(self):
+        self.addattr('clear_trail')
+           
+    def __del__(self):
+        super(standardAttributes, self).__del__()
+        
 class baseAttrs(baseObj):
     
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), size=(1.,1.,1.), visible=True,
-                 up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1., frame=None, display=None, **kwargs):
+    def __init__(self, pos=vector(0.,0.,0.), axis=vector(1.,0.,0.), size=vector(1.,1.,1.), visible=True,
+                 up=vector(0.,1.,0.), color=vector(1.,1.,1.), red=1., green=1., blue=1., frame=None, canvas=None, **kwargs):
         super(baseAttrs, self).__init__(**kwargs)
-        if (x != 0.) or (y != 0.) or (z != 0.):
-            pos = vector(x,y,z) if type(pos) is tuple else pos
-        else:
-            x = pos[0]
-            y = pos[1]
-            z = pos[2]
+        x = pos[0]
+        y = pos[1]
+        z = pos[2]
         if (red != 1.) or (green != 1.) or (blue != 1.):
             color = (red,green,blue)
         else:
@@ -716,19 +1218,16 @@ class baseAttrs(baseObj):
             green = color[1]
             blue = color[2]
         
-        self._pos = vector(pos) if type(pos) in [tuple, list, np.ndarray] else pos
-        self._x = x
-        self._y = y
-        self._z = z
-        self._axis = vector(axis) if type(axis) in [tuple, list, np.ndarray] else axis
-        self._size = vector(size) if type(size) in [tuple, list, np.ndarray] else size
-        self._up = vector(up) if type(up) in [tuple, list, np.ndarray] else up
-        self._color = color
+        self._pos = vector(pos)
+        self._axis = vector(axis)
+        self._size = vector(size)
+        self._up = vector(up)
+        self._color = vector(color)
         self._red = red
         self._green = green
         self._blue = blue        
         self._visible = visible
-        self._display = display
+        self._canvas = canvas
         self._frame = frame
  
         self._pos.on_change = self._on_pos_change
@@ -770,33 +1269,6 @@ class baseAttrs(baseObj):
     @pos.setter
     def pos(self,value):
         self._pos.value = value
-        self.addattr('pos')
-
-    @property
-    def x(self):
-        return self._pos[0]
-    
-    @x.setter
-    def x(self,value):
-        self._pos[0] = value
-        self.addattr('pos')
-
-    @property
-    def y(self):
-        return self._pos[1]
-    
-    @y.setter
-    def y(self,value):
-        self._pos[1] = value
-        self.addattr('pos')
-
-    @property
-    def z(self):
-        return self._pos[2]
-    
-    @z.setter
-    def z(self,value):
-        self._pos[2] = value
         self.addattr('pos')
 
     @property
@@ -845,12 +1317,12 @@ class baseAttrs(baseObj):
         self.addattr('visible')
 
     @property
-    def display(self):
-        return self._display
+    def canvas(self):
+        return self._canvas
     
-    @display.setter
-    def display(self,value):
-        self._display = value
+    @canvas.setter
+    def canvas(self,value):
+        self._canvas = value
 
     @property
     def frame(self):
@@ -898,11 +1370,11 @@ class baseAttrs(baseObj):
         
 class baseAttrs2(baseAttrs):
     
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), size=(1.,1.,1.), visible=True,
-                 up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1., frame=None, display=None, material=None,
+    def __init__(self, pos=vector(0.,0.,0.), axis=vector(1.,0.,0.), size=vector(1.,1.,1.), visible=True,
+                 up=vector(0.,1.,0.), color=vector(1.,1.,1.), red=1., green=1., blue=1., frame=None, canvas=None, material=None,
                  opacity=1.0, **kwargs):
         super(baseAttrs2, self).__init__(pos=pos, axis=axis, size=size, up=up, color=color, red=red, green=green, blue=blue,
-                                         x=x, y=y, z=z, frame=frame, display=display, visible=visible, **kwargs)
+                                         frame=frame, canvas=canvas, visible=visible, **kwargs)
 
         self._texture = None
         self._opacity = opacity
@@ -970,550 +1442,435 @@ class baseAttrs2(baseAttrs):
     def __del__(self):
         super(baseAttrs2, self).__del__()
 
-class trailAttrs(baseAttrs2):
-    
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), size=(1.,1.,1.), visible=True,
-                 up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1., frame=None, display=None, material=None,
-                 opacity=1.0, make_trail=False, trail_type="curve", interval=1, retain=-1, **kwargs):
-        super(trailAttrs, self).__init__(pos=pos, axis=axis, size=size, up=up, color=color, red=red, green=green, 
-                                         blue=blue, x=x, y=y, z=z, frame=frame, display=display, visible=visible, 
-                                         material=material, opacity=opacity, **kwargs)
+
+class box(standardAttributes):
+    def __init__(self, **args):
+        args['_default_size'] = vector(1,1,1)
+        args['_objName'] = "box"
+        super(box, self).setup(args)
         
-        self._make_trail = make_trail
-        if (trail_type not in ['curve', 'points']):
-            raise Exception("ArgumentError: trail_type must be 'curve' or 'points'")
-        self._trail_type = trail_type
-        self._interval = interval
-        self._retain = retain
+class sphere(standardAttributes):
+    def __init__(self, **args):
+        args['_default_size'] = vector(2,2,2)
+        args['_objName'] = "sphere"
+        super(sphere, self).setup(args)
+        
+    @property
+    def radius(self):
+        return self._size.y/2
+    @radius.setter
+    def radius(self,value):
+        d = 2*value
+        self.size = vector(d,d,d) # size will call addattr
+        
+class cylinder(standardAttributes):
+    def __init__(self, **args):
+        args['_default_size'] = vector(1,2,2)
+        args['_objName'] = "cylinder"
+        super(cylinder, self).setup(args)
+        
+    @property
+    def radius(self):
+        return self._size.y/2
+    @radius.setter
+    def radius(self,value):
+        d = 2*value
+        self.size = vector(self._size.x,d,d) # size will call addattr
+        
+class cone(standardAttributes):
+    def __init__(self, **args):
+        args['_default_size'] = vector(1,2,2)
+        args['_objName'] = "cone"
+        super(cone, self).setup(args)
+        
+    @property
+    def radius(self):
+        return self._size.y/2
+    @radius.setter
+    def radius(self,value):
+        d = 2*value
+        self.size = vector(self._size.x,d,d) # size will call addattr
+        
+class pyramid(standardAttributes):
+    def __init__(self, **args):
+        args['_default_size'] = vector(1,1,1)
+        args['_objName'] = "pyramid"
+        super(pyramid, self).setup(args)
+        
+class ellipsoid(standardAttributes):
+    def __init__(self, **args):
+        args['_default_size'] = vector(1,1,1)
+        args['_objName'] = "ellipsoid"
+        super(ellipoid, self).setup(args)
+        
+    @property
+    def radius(self):
+        return self._size.y/2
+    @radius.setter
+    def radius(self,value):
+        d = 2*value
+        self.size = vector(d,d,d) # size will call addattraddattr
+        
+class ring(standardAttributes):
+    def __init__(self, **args):
+        args['_default_size'] = vector(0.2,2.2,2.2)
+        args['_objName'] = "ring"
+        super(ring, self).setup(args)
+        
+    @property
+    def thickness(self):
+        return self._size.x/2
+    @thickness.setter
+    def thickness(self,value):
+        R1 = self.radius
+        self._size.x = 2*value
+        self._size.y = self._size.z = 2*(R1+value)
+        if not self._constructing:
+            self.addattr('size')
+        
+    @property
+    def radius(self):
+        return (self._size.y-self._size.x)/2
+    @radius.setter
+    def radius(self,value):
+        R2 = self.thickness
+        self._size.y = self._size.z = 2*(value+R2)
+        if not self._constructing:
+            self.addattr('size')
+    
+    @property        ## override methods of parent class
+    def axis(self):
+        return self._axis
+    @axis.setter
+    def axis(self,value):
+        if not isinstance(value, vector): raise TypeError('axis must be a vector')
+        self._axis = value
+        if not self._constructing:
+            self.addattr('axis')
  
-    @property
-    def make_trail(self):
-        return self._make_trail
-    
-    @make_trail.setter
-    def make_trail(self,value):
-        self._make_trail = value
-        self.addattr('make_trail')
-
-    @property
-    def trail_type(self):
-        return self._trail_type
-    
-    @trail_type.setter
-    def trail_type(self,value):
-        if (value not in ['curve', 'points']):
-            raise Exception("ArgumentError: trail_type must be 'curve' or 'points'")
-        self._trail_type = value
-        self.addattr('trail_type')
-
-    @property
-    def interval(self):
-        return self._interval
-    
-    @interval.setter
-    def interval(self,value):
-        self._interval = value
-        self.addattr('interval')
-
-    @property
-    def retain(self):
-        return self._retain
-    
-    @retain.setter
-    def retain(self,value):
-        self._retain = value
-        self.addattr('retain')
-           
-    def __del__(self):
-        super(trailAttrs, self).__del__()
-
-
-class box(trailAttrs):
-    """see box documentation at http://vpython.org/contents/docs/box.html"""
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), size=None,
-                 length=None, width=1., height=1., up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1.,
-                 frame=None, material=None, opacity=1.0, display=None, visible=True,
-                 make_trail=False, trail_type="curve", interval=1, retain=-1, **kwargs):
-        axis = vector(axis) if type(axis) in [tuple, list, np.ndarray] else axis
-        if (length == None) and (size == None):
-            length = axis.mag
-            size = vector(length, height, width)
-        elif (length == None):
-            length = size[0]
-            height = size[1]
-            width = size[2]
-        else:
-            size = vector(length, height, width)
-        size = vector(size) if type(size) in [tuple, list, np.ndarray] else size
-        axis = axis.norm() * length
-        super(box, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, size=size, up=up, color=color, red=red, green=green, blue=blue,
-                                  material=material, opacity=opacity, frame=frame, display=display, visible=visible,
-                                  make_trail=make_trail, trail_type=trail_type, interval=interval, retain=retain, **kwargs)
-        
-        self._width = width
-        self._height = height
-                
-        cmd = {"cmd": "box", "idx": self.idx, "guid": self.guid, 
-               "attrs": [{"attr": "pos", "value": self.pos.value},
-                         {"attr": "axis", "value": self.axis.value},
-                         {"attr": "size", "value": self.size.value},
-                         {"attr": "up", "value": self.up.value},
-                         {"attr": "color", "value": self.color},
-                         {"attr": "opacity", "value": self.opacity},
-                         {"attr": "shininess", "value": self.shininess},
-                         {"attr": "emissive", "value": self.emissive},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else
-                          canvas.get_selected().idx if canvas.get_selected() != None else -1},
-                         {"attr": "make_trail", "value": self.make_trail},
-                         {"attr": "type", "value": 'curve' if self.trail_type == 'curve' else 'spheres'},
-                         {"attr": "interval", "value": self.interval},
-                         {"attr": "visible", "value": self.visible},
-                         {"attr": "retain", "value": self.retain}]}
-        self.appendcmd(cmd)
-        if (frame != None):
-            frame.objects.append(self)
-            frame.update_obj_list()
-    
-    @property
-    def length(self): 
-        return self.axis.mag
-    
-    @length.setter
-    def length(self,value):
-        self.axis = self.axis.norm() * value
-
-    @property
-    def height(self): 
-        return self._size[1]
-    
-    @height.setter
-    def height(self,value):
-        self._size[1] = value
-
-    @property
-    def width(self): 
-        return self._size[2]
-    
-    @width.setter
-    def width(self,value):
-        self._size[2] = value
-
-    @property
+    @property        ## override methods of parent class
     def size(self):
-        self._size[0] = self._axis.mag
         return self._size
-    
     @size.setter
     def size(self,value):
-        self._axis.value = self.axis.norm() * value[0]
-        self._size.value = value
-        self.addattr('size')
-
-    def _on_size_change(self):
-        self._axis.value = self.axis.norm() * self._size[0]           # update axis length when box.size.x is changed
-        self.addattr('size')
-
-    def __del__(self):
-        cmd = {"cmd": "delete", "idx": self.idx}
-        self.appendcmd(cmd)
-        super(box, self).__del__()
-
-    
-class cone(trailAttrs):
-    """see cone documentation at http://vpython.org/contents/docs/cone.html"""    
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), length=-1., radius=1.,
-                 frame=None, up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1., material=None, opacity=1.0,
-                 display=None, visible=True, make_trail=False, trail_type="curve", interval=1, retain=-1, **kwargs):
-        axis = vector(axis) if type(axis) in [tuple, list, np.ndarray] else axis
-        if (length == -1.):
-            length = axis.mag
-        else:
-            axis = axis.norm() * length
-        size = vector(length,radius*2,radius*2)
-        super(cone, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, size=size, up=up, color=color, red=red, green=green, blue=blue,
-                                   material=material, opacity=opacity, frame=frame, display=display, visible=visible,
-                                   make_trail=make_trail, trail_type=trail_type, interval=interval, retain=retain, **kwargs)
+        if not isinstance(value, vector): raise TypeError('axis must be a vector')
+        self._size = value
+        if not self._constructing:
+            self.addattr('size') 
         
-        cmd = {"cmd": "cone", "idx": self.idx, "guid": self.guid, 
-               "attrs": [{"attr": "pos", "value": self.pos.value},
-                         {"attr": "axis", "value": self.axis.value},
-                         {"attr": "size", "value": self.size.value},
-                         {"attr": "up", "value": self.up.value},
-                         {"attr": "color", "value": self.color},
-                         {"attr": "opacity", "value": self.opacity},
-                         {"attr": "shininess", "value": self.shininess},
-                         {"attr": "emissive", "value": self.emissive},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1},
-                         {"attr": "make_trail", "value": self.make_trail},
-                         {"attr": "type", "value": 'curve' if self.trail_type == 'curve' else 'spheres'},
-                         {"attr": "interval", "value": self.interval},
-                         {"attr": "visible", "value": self.visible},
-                         {"attr": "retain", "value": self.retain}]}
-
-        self.appendcmd(cmd)
-        if (frame != None):
-            frame.objects.append(self)
-            frame.update_obj_list()
+class arrow(standardAttributes): 
+    def __init__(self, **args):
+        args['_default_size'] = vector(1,0.2,0.2)
+        args['_objName'] = "arrow"
+        self._shaftwidth = 0
+        self._headwidth = 0
+        self._headlength = 0
+        
+        super(arrow, self).setup(args)
 
     @property
-    def length(self): 
-        return self.axis.mag
-    
-    @length.setter
-    def length(self,value):
-        self.axis = self.axis.norm() * value
-
+    def shaftwidth(self): 
+        return self._shaftwidth
+    @shaftwidth.setter
+    def shaftwidth(self,value):
+        self._shaftwidth = value
+        if not self._constructing:
+            self.addattr('shaftwidth')
+        
     @property
-    def radius(self): 
-        return self._size[1]/2.0
-    
+    def headwidth(self): 
+        return self._headwidth
+    @headwidth.setter
+    def headwidth(self,value):
+        self._headwidth =value
+        if not self._constructing:
+            self.addattr('headwidth')
+        
+    @property
+    def headlength(self): 
+        return self._headlength
+    @headlength.setter
+    def headlength(self,value):
+        self._headlength =value
+        if not self._constructing:
+            self.addattr('headlength')
+        
+class helix(standardAttributes):
+    def __init__(self,**args):
+        args['_objName'] = 'helix'
+        args['_default_size'] = vector(1,2,2)
+        self._coils = 5
+        self._thickness = 1/20  ## radius/20
+            
+        super(helix, self).setup(args)
+        
+    @property
+    def thickness(self): 
+        return self._thickness
+    @thickness.setter
+    def thickness(self,value):
+        self._thickness =value
+        if not self._constructing:
+            self.addattr('thickness')
+            
+    @property
+    def coils(self): 
+        return self._coils
+    @coils.setter
+    def coils(self,value):
+        self._coils =value
+        if not self._constructing:
+            self.addattr('coils')   
+            
+    @property
+    def radius(self):
+        return self._size.y/2
     @radius.setter
     def radius(self,value):
-        self._size[1] = value * 2.0
-        self._size[2] = value * 2.0
+        d = 2*value
+        self.size = vector(self._size.x,d,d) # size will call addattr if appropriate
+        
+class curve(standardAttributes):
+    def __init__(self,**args):
+        args['_objName'] = "curve"
+        args['_default_size'] = vector(1,1,1)
+        self._origin = vector(0,0,0)  
+        self._cpos = []  ## temporary list of dicts containing lists, not vectors, to be sent to commsend
+        self._pts = []  ## cumulative list of dicts of the form {pos:vec, color=vec, radius=r, visible=T/F} python side
+     
+        pos = []  ## default
+        if 'pos' in args:
+            pos = args['pos']
+            pos = self.parse_pos(pos)  ## resolve pos arguments into a list of vectors
+            
+        ptcolor = ptradius = ptvisible = ptretain = None
+        if 'color' in args: ptcolor = args['color']
+        if 'radius' in args: ptradius = args['radius']
+        if 'visible' in args: ptvisible = args['visible']
+        if 'retain' in args: ptretain = args['retain']
+        tpos = []
+        for p in pos:
+            pt = {'pos': p}
+            if ptcolor != None: pt['color'] = ptcolor
+            if ptradius != None: pt['radius'] = ptradius
+            if ptvisible != None: pt['visible'] = ptvisible
+            if ptretain != None: pt['retain'] = ptretain
+            self._pts.append(pt)
+            tpos.append(p.value)
+        args['pos'] = tpos
+        super(curve, self).setup(args)
+        
+        #tpos = pos
+        # while len(pos) > 0:
+            # del pos[-1]
+
+
+    def append(self, *args1, **args):
+        c = None
+        r = None
+        vis = None
+        ret = None
+        if 'color' in args:
+            c = args['color']
+        if 'radius' in args:
+            r = args['radius']
+        if 'visible' in args:
+            vis = args['visible']
+        if 'retain' in args:
+            ret = args['retain']
+        if len(args1) > 0:
+            tpos = self.parse_pos(args1)
+        elif 'pos' in args:
+            pos = args['pos']
+            tpos = self.parse_pos(pos)  ## resolve pos arguments into a list
+        if len(tpos) == 0:
+            raise AttributeError("To append a point to a curve or points object, specify pos information.")
+        for p in tpos:
+            pt = {'pos':p}
+            cp = {'pos':p.value}
+            if c is not None:
+                cp['color'] = c.value
+                pt['color'] = c
+            if r is not None: cp['radius'] = pt['radius'] = r
+            if vis is not None: cp['visible'] = pt['visible'] = vis
+            if ret is not None: cp['retain'] = pt['ret'] = ret
+            self._pts.append(pt)
+            self._cpos.append(cp)          
+        self.addattr('_cpos')
+        
+    def clearData(self):
+        while len( self._cpos ) > 0:
+            del self._cpos[-1]
+            
     
+    def _on_origin_change(self):
+        self.addattr('origin')
+
     @property
-    def size(self):
-        self._size[0] = self._axis.mag
-        return self._size
+    def npoints(self):
+        return len(self._pts)
+    @npoints.setter
+    def npoints(self,value):
+        raise ValueError('npoints cannot be set')
+                             
+    def pop(self):
+        if len(self._pts) == 0: return None
+        val = self._pts[-1]
+        self._pts = self._pts[0:-1]
+        return val
+
+    def point(self,N):
+        if N >= len(self._pts) or (N < 0 and -N >= len(self.pts)):
+            raise ValueError('N = {} is outside the bounds 0-{} of the curve points'.format(N, len(self._pos)))
+        return self._pts[N]
+
+    def clear(self):
+        self._pts = []
+
+    def shift(self):
+        if len(self._pts) == 0: return None
+        val = self._pts[0]
+        self._pts = self._pts[1:]
+        return val
+
+    def unshift(self, pts):
+        # process pts into a list; need to check whether pts is a list of positions or pts such as {pos:..., color...}
+        gather = []
+        for p in pts:
+            gather.append({'pos':p, 'color':self._color, 'radius':self._radius, 'visible':self._visible})
+        gather.extend(self._pts)
+        self._pts = gather
+
+    def splice(self, start, howmany, args): # args could be p1, p2, p3 or [p1, p2, p3]
+        # process args into a list
+        if howmany < 0:
+            raise ValueError('You cannot delete a negative number of points'.format(howmany))
+        if start >= len(self._pts) or (start < 0 and -start >= len(self._pts)):
+            raise ValueError('The starting location, {}, is outside the bounds of the list of points'.format(start))
+        if start >= 0:
+            if start+howmany >= len(self._pts):
+                raise ValueError('The starting position plus deletions is beyond the list of points'.format(howmany))
+        else:
+            if start+howmany >= 0:
+                raise ValueError('The starting position plus deletions is beyond the list of points'.format(howmany))
+        gather = self._pts[:start]
+        for p in args:
+            gather.append({'pos':p, 'color':self._color, 'radius':self._radius, 'visible':self._visible})
+        gather.extend(self._pts[start+howmany:])
+        self._pts = gather
     
-    @size.setter
-    def size(self,value):
-        self._axis.value = self.axis.norm() * value[0]
-        self._size.value = value
-        self.addattr('size')
-
-    def _on_size_change(self):
-        self._axis.value = self.axis.norm() * self._size[0]           # update axis length when box.size.x is changed
-        self.addattr('size')
-
-    def __del__(self):
-        cmd = {"cmd": "delete", "idx": self.idx}
-        self.appendcmd(cmd)
-        super(cone, self).__del__()
-
-class curve(baseAttrs2):
-    """see curve documentation at http://vpython.org/contents/docs/curve.html"""
-
-    def __init__(self, pos=[], x=[], y=[], z=[], axis=(1.,0.,0.), radius=0., display=None, visible=True,
-                 up=(0.,1.,0.), color=[], red=[], green=[], blue=[], frame=None, material=None, **kwargs):
-        if type(pos) is list:
-            for idx, val in enumerate(pos):
-                if type(val) is not tuple:
-                    pos[idx] = astuple(val)
-        posns = np.array(pos, dtype=('f4,f4,f4')) if type(pos) is list and (len(pos) == 0 or len(pos[0]) == 3) else np.array(pos, dtype=('f4,f4')) if type(pos) is list and len(pos[0]) == 2 else pos
-        if len(posns) > 0:
-            xs = posns['f0']
-            ys = posns['f1']
-            if(len(posns[0]) == 3):
-                zs = posns['f2']
+    def modify(self, N, *arg1, **args):
+        attrs = ['color', 'radius', 'visible']
+        if N >= len(self._pts) or (N < 0 and -N >= len(self._pts)):
+            raise ValueError('N = {} is outside the bounds 0-{} of the curve points'.format(N, len(self._pts)))
+        p = self._pts[N]
+        if len(arg1) == 1 and isinstance(arg1[0], vector):
+            p['pos'] = arg1[0]
+        else:
+            for a in args:
+                if a == 'x':
+                    p['pos'].x = args[a]
+                elif a == 'y':
+                    p['pos'].y = args[a]
+                elif a == 'z':
+                    p['pos'].z = args[a]
+                elif a in attrs:
+                    p[a] = args[a]
+        
+    def parse_pos(self, *vars):
+        ret = []
+        if (isinstance(vars[0], list) or isinstance(vars[0], tuple)):
+            if len(vars) == 1: # ([vector, vector, ....])
+                for v in vars[0]:
+                    if isinstance(v, vector):
+                        ret.append(v)
+                    else: raise AttributeError("Point pos must be a vector")
             else:
-                zs = np.zeros(len(posns))
-        elif (len(x) > 0) or (len(y) > 0) or (len(z) > 0):
-            lsz = max(len(x),len(y),len(z))
-            if len(x) < lsz:
-                if len(x) > 0:
-                    a = np.array(x, float) if type(x) is list or tuple else np.array([x], float) if type(x) is float or int else x
-                    b = np.zeros(lsz-len(a))
-                    x = np.concatenate(a,b)
-                else:
-                    x = np.zeros(lsz)
-            if len(y) < lsz:
-                if len(y) > 0:
-                    a = np.array(y, float) if type(y) is list or tuple else np.array([y], float) if type(y) is float or int else y
-                    b = np.zeros(lsz-len(a))
-                    y = np.concatenate(a,b)
-                else:
-                    y = np.zeros(lsz)
-            if len(z) < lsz:
-                if len(z) > 0:
-                    a = np.array(z, float) if type(z) is list or tuple else np.array([z], float) if type(z) is float or int else z
-                    b = np.zeros(lsz-len(a))
-                    z = np.concatenate(a,b)
-                else:
-                    z = np.zeros(lsz)
-            posns = np.zeros(lsz, dtype=('f4,f4,f4'))
-            posns['f0'] = x
-            posns['f1'] = y
-            posns['f2'] = z
-        xs = np.array(x, float) if type(x) is list or tuple else np.array([x], float) if type(x) is float or int else x
-        ys = np.array(y, float) if type(y) is list or tuple else np.array([y], float) if type(y) is float or int else y
-        zs = np.array(z, float) if type(z) is list or tuple else np.array([z], float) if type(z) is float or int else z
-
-        colors = np.array(color, dtype=('f4,f4,f4')) if type(color) is list else np.array([color], dtype=('f4,f4,f4')) if type(color) is tuple else color
-        if len(colors) > 0:
-            reds = colors['f0']
-            greens = colors['f1']
-            blues = colors['f2']
-        elif (len(red) > 0) or (len(green) > 0) or (len(blue) > 0):
-            lsz = max(len(red),len(green),len(blue))
-            if len(red) < lsz:
-                if len(red) > 0:
-                    a = np.array(red, float) if type(red) is list or tuple else np.array([red], float) if type(red) is float or int else red
-                    b = np.zeros(lsz-len(a))
-                    red = np.concatenate(a,b)
-                else:
-                    red = np.zeros(lsz)
-            if len(green) < lsz:
-                if len(green) > 0:
-                    a = np.array(green, float) if type(green) is list or tuple else np.array([green], float) if type(green) is float or int else green
-                    b = np.zeros(lsz-len(a))
-                    green = np.concatenate(a,b)
-                else:
-                    green = np.zeros(lsz)
-            if len(blue) < lsz:
-                if len(blue) > 0:
-                    a = np.array(blue, float) if type(blue) is list or tuple else np.array([blue], float) if type(blue) is float or int else blue
-                    b = np.zeros(lsz-len(a))
-                    blue = np.concatenate(a,b)
-                else:
-                    blue = np.zeros(lsz)
-            colors = np.zeros(lsz, dtype = ('f4,f4,f4'))
-            colors['f0'] = red
-            colors['f1'] = green
-            colors['f2'] = blue
-        else:
-            colors = np.ones(1, dtype = ('f4,f4,f4'))
-            reds = colors['f0']
-            greens = colors['f1']
-            blues = colors['f2']
-
-        reds = np.array(red, float) if type(red) is list or tuple else np.array([red], float) if type(red) is float or int else red
-        greens = np.array(green, float) if type(green) is list or tuple else np.array([green], float) if type(green) is float or int else green
-        blues = np.array(blue, float) if type(blue) is list or tuple else np.array([blue], float) if type(blue) is float or int else blue
-        
-        pnts = []
-        cols = []
-        if len(posns) > 0:
-            i = 0
-            col = colors[-1]
-            for posn in posns:
-                col = colors[i] if len(colors) > i else colors[-1]
-                if i >= len(colors):
-                    cols.append(col)
-                if (len(posn) == 3):
-                    pnts.append({"pos": posn.tolist(), "color": col.tolist()})
-                elif(len(posn) == 2):
-                    p3 = list(posn)
-                    p3.append(0.0)
-                    p3a = np.array([tuple(p3)], dtype=('f4,f4,f4'))
-                    pnts.append({"pos": p3a[0].tolist(), "color": col.tolist()})
-                    
-                i += 1
-            if len(cols) > 0:
-                colors = np.append(colors, np.array(cols, dtype=colors.dtype))
-
-        super(curve, self).__init__(axis=axis, up=up, material=material, frame=frame, display=display, visible=visible, **kwargs)
-        
-        self._radius = radius
-        self._color = colors
-        self._pos = posns
-        self._x = xs
-        self._y = ys
-        self._z = zs
-        self._red = reds
-        self._green = greens
-        self._blue = blues
-        
-        cmd = {"cmd": "curve", "idx": self.idx, "guid": self.guid, 
-               "attrs": [#{"attr": "pos", "value": self.pos.value},
-                         #{"attr": "axis", "value": self.axis.value},
-                         #{"attr": "size", "value": self.size.value},
-                         #{"attr": "up", "value": self.up.value},
-                         #{"attr": "color", "value": self.color},
-                         #{"attr": "shininess", "value": self.shininess},
-                         #{"attr": "emissive", "value": self.emissive},
-                         #{"attr": "pnts", "value": [{"pos": [0, 0, 0]}, {"pos": [1, 0, 0]}]},
-                         #{"attr": "pnts", "value": pntsa.tolist()},
-                         {"attr": "pnts", "value": pnts},
-                         {"attr": "radius", "value": self.radius},
-                         {"attr": "visible", "value": self.visible},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else
-                          canvas.get_selected().idx if canvas.get_selected() != None else -1}
-            ]}
-
-        self.appendcmd(cmd)
-    
-    def append(self, pos = None, color = None, red = None, green = None, blue = None):
-
-        if (red is not None) and (green is not None) and (blue is not None):
-            color = (red,green,blue)
-
-        if (pos is not None) and (color is not None):
-            if type(pos) is not tuple:
-                pos = astuple(pos)
-            self._pos = np.append(self.pos, np.array([pos], dtype=self.pos.dtype))
-            self._color = np.append(self.color, np.array([color], dtype=self.color.dtype))
-            pos = list(pos)
-            if len(pos) == 2:
-                pos.append(0.0)
-            cmd = {"cmd": "push", "idx": self.idx, 
-                    "attrs":[{"attr": "pos", "value": pos},{"attr": "color", "value": list(color)}]}
-            baseObj.cmds.append(cmd)
-        elif (pos is not None):
-            if type(pos) is not tuple:
-                pos = astuple(pos)
-            self._pos = np.append(self.pos, np.array([pos], dtype=self.pos.dtype))
-            color = self.color[-1]
-            self._color = np.append(self.color, np.array([color], dtype=self.color.dtype))
-            pos = list(pos)
-            if len(pos) == 2:
-                pos.append(0.0)
-            cmd = {"cmd": "push", "idx": self.idx, 
-                    "attrs":[{"attr": "pos", "value": pos},{"attr": "color", "value": self.color[-1].tolist()}]}
-            baseObj.cmds.append(cmd)
-
-    @property
-    def radius(self): 
-        return self._radius
-    
-    @radius.setter
-    def radius(self,value):
-        self._radius = value
-        self.addattr('radius')
-    
-    @property
-    def pos(self):
-        return self._pos
-    
-    @pos.setter
-    def pos(self,value):
-        if type(value) is list:
-            for idx, val in enumerate(value):
-                if type(val) is not tuple:
-                    value[idx] = astuple(val)
-        self._pos = np.array(value, dtype = ('f4,f4,f4')) if type(value) is list and (len(value) == 0 or len(value[0]) == 3) else np.array(value, dtype=('f4,f4')) if type(value) is list and len(value[0]) == 2 else value
-        self._x = self._pos['f0']
-        self._y = self._pos['f1']
-        if len(value[0]) == 3:
-            self._z = self._pos['f2']
-            cmd = {"cmd": "modify", "idx": self.idx, 
-                   "attrs":[{"attr": 'posns', "value": self._pos.tolist()}]}
-            baseObj.cmds.append(cmd)
-        else:
-            posns = []
-            if len(self._pos) > 0:
-                for posn in self._pos:
-                    p3 = list(posn)
-                    p3.append(0.0)
-                    posns.append(tuple(p3))
-                    posns2 = np.array(posns, dtype = ('f4,f4,f4'))
-                    cmd = {"cmd": "modify", "idx": self.idx, 
-                           "attrs":[{"attr": 'posns', "value": posns2.tolist()}]}
-                    baseObj.cmds.append(cmd)
-
-    @property
-    def x(self): 
-        return self._x
-    
-    @x.setter
-    def x(self,value):
-        self._x = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._pos['f0'] = self._x
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._x.tolist()}]}
-        baseObj.cmds.append(cmd)
-    
-    @property
-    def y(self): 
-        return self._y
-    
-    @y.setter
-    def y(self,value):
-        self._y = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._pos['f1'] = self._y
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._y.tolist()}]}
-        baseObj.cmds.append(cmd)
+                raise AttributeError("Point pos is not a list or vectors")
+        else:                           # (vector, vector, ....)
+            for v in vars:
+                if isinstance(v,vector): ret.append(v)
+                else: raise AttributeError("Point pos data must be vectors")
+        return ret
         
     @property
-    def z(self): 
-        return self._z
-    
-    @z.setter
-    def z(self,value):
-        self._z = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._pos['f2'] = self._z
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._z.tolist()}]}
-        baseObj.cmds.append(cmd)
-
-        
-    @property
-    def color(self):
-        return self._color
-    
-    @color.setter
-    def color(self,value):
-        self._color = np.array(value, dtype=('f4,f4,f4')) if type(value) is list and (len(value) == 0 or len(value[0]) == 3) else np.array(value, dtype=('f4,f4')) if type(value) is list and len(value[0]) == 2 else value
-        self._red = self._color['f0']
-        self._green = self._color['f1']
-        self._blue = self._color['f2']
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": 'colors', "value": self.color.tolist()}]}
-        baseObj.cmds.append(cmd)
-
-    @property
-    def red(self):
-        return self._red
-    
-    @red.setter
-    def red(self,value):
-        self._red = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._color['f0'] = self._red
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._red.tolist()}]}
-        baseObj.cmds.append(cmd)
-
-    @property
-    def green(self):
-        return self._green
-    
-    @green.setter
-    def green(self,value):
-        self._green = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._color['f1'] = self._green
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._green.tolist()}]}
-        baseObj.cmds.append(cmd)
-
-    @property
-    def blue(self):
-        return self._blue
-    
-    @blue.setter
-    def blue(self,value):
-        self._blue = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._color['f2'] = self._blue
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._blue.tolist()}]}
-        baseObj.cmds.append(cmd)
+    def origin(self):
+        return self._origin    
+    @origin.setter
+    def origin(self,value):
+        self._origin.value = value
+        if not self._constructing:
+            self.addattr('origin')
 
      
-    def __del__(self):
-        pass
+    # def __del__(self):
+        # pass
 
 class gobj(baseObj):
-    def setup(self, color = (0,0,0), pos=[], objName = "" , graph = None , objAttrs = []):
-        super(gobj, self).__init__(color=color)
-        self._plot = pos[:] # not clear why it is necessary to make a copy of this mutable variable
-        self.graph = graph
-        if len(pos) > 0:
-            self.addattr('_plot')
+    def setup(self, args):
+        super(gobj, self).__init__()
+    ## default values of shared attributes
+        self._color = vector(0,0,0)
+        self._graph = None
+        self._plot = []
+        objName = args['_objName']
+        del args['_objName']
+        self._constructing = True ## calls are from constructor
+        
+        argsToSend = [] ## send to GlowScript only attributes specified in constructor
+                        ## default values will be used for others    
+
+        ## process pos here   
+        if 'pos' in args:
+            postemp = args['pos'][:] ## make a copy
+            self.plot(postemp)  ## call plot to resolve pos arguments into self._plot
+            del args['pos']
+
+        ## override default vector attributes        
+        vectorAttributes = ['color', 'dot_color']        
+        for a in vectorAttributes:
+            if a in args:
+                argsToSend.append(a)
+                val = args[a]
+                if isinstance(val, vector): setattr(self, '_'+a, val)
+                else: raise AttributeError(a+' must be a vector')
+                del args[a]
+        
+        ## override default scalar attributes
+        for a,val in args.items():
+            argsToSend.append(a)
+            if a == 'graph':
+                val = val.idx
+            setattr(self, '_'+a, val)
+                
         cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, 
-               "attrs": [ { "attr": "color", "value": self.color } ] }
-        for aa in objAttrs:
-            cmd["attrs"].append( { "attr": aa[0], "value": aa[1] } )
-        if graph is not None:
-            cmd["attrs"].append( {"attr": "graph", "value": graph.idx } )
-        self.appendcmd(cmd)
+           "attrs":[]}
+           
+        for a in argsToSend:
+            aval = getattr(self,a)
+            if isinstance(aval, vector):
+                aval = aval.value
+            cmd["attrs"].append({"attr":a, "value": aval})
+            
+        self._constructing = False
+        self.appendcmd(cmd)        
          
     @property
     def color(self): return self._color
     @color.setter
     def color(self,val): 
+        if not isinstance(val, vector): raise TypeError('color must be a vector')
         self._color = val
         self.addattr('color')
+        
+    @property
+    def graph(self): return self._graph
+    @graph.setter
+    def graph(self,val):
+        if not self._constructing:
+            raise AttributeError('graph cannot be modified')
+        else:
+            self._graph = val.idx
 
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
@@ -1558,18 +1915,22 @@ class gobj(baseObj):
         else:
             p = self.preresolve2(args2)
         self._plot.extend(p)
+ #       if not self._constructing:
         self.addattr('_plot')
         
     def clearData(self):
         self._plot = []
         
 class gcurve(gobj):
-    def __init__(self, pos=[], color=(0,0,0), dot=False, shape="round", size=8, dot_color=None, graph=None):
-        if dot_color is None: 
-            dot_color = color
-        attributes = [ ["dot", dot],  ["dot_color", dot_color],  [ "size", size] ]
-        self.setup(color = color, pos = pos, objName = "gcurve", graph = graph, objAttrs = attributes)
+    def __init__(self, **args):
+        args['_objName'] = "gcurve"
+    ## default values of unshared attributes
+        self._dot = False
+        self._dot_color = vector(0,0,0)
+        self._size = 8
         
+        super(gcurve, self).setup(args)
+
     @property
     def size(self): return self._size
     @size.setter
@@ -1588,13 +1949,15 @@ class gcurve(gobj):
     def dot_color(self): return self._dot_color
     @dot_color.setter
     def dot_color(self,val): 
+        if not isinstance(val, vector): raise TypeError('dot_color must be a vector')
         self._dot_color = val
         self.addattr('dot_color')
         
 class gdots(gobj):
-    def __init__(self, pos=[], color=(0,0,0), size=5, graph=None):
-       attributes = [["size", size]] 
-       self.setup(color = color, pos = pos, objName = "gdots", graph = graph, objAttrs = attributes)
+    def __init__(self, **args):
+        args['_objName'] = "gdots"
+        self._size = 5
+        super(gdots, self).setup(args)
        
     @property
     def size(self): return self._size
@@ -1603,17 +1966,11 @@ class gdots(gobj):
         self._size = val
         self.addattr('size')
         
-    @property
-    def shape(self): return self._shape
-    @shape.setter
-    def shape(self,val): 
-        self._shape = val
-        self.addattr('shape')
-        
 class gvbars(gobj):
-    def __init__(self, pos=[], color=(0,0,0), delta = 1, graph=None):
-        attributes = [["delta", delta]] 
-        self.setup(color = color, pos = pos, objName = "gvbars", graph = graph, objAttrs = attributes)
+    def __init__(self, **args):
+        args['_objName'] = "gvbars"
+        self._delta = 1
+        super(gvbars, self).setup(args)
         
     @property
     def delta(self): return self._delta
@@ -1623,31 +1980,60 @@ class gvbars(gobj):
         self.addattr('delta')
 
 class ghbars(gvbars):
-    def __init__(self, pos=[], color=(0,0,0), delta = 1, graph=None):
-        attributes = [["delta", delta]] 
-        self.setup(color = color, pos = pos, objName = "ghbars", graph = graph, objAttrs = attributes)
+    def __init__(self, **args):
+        args['_objName'] = "ghbars"
+        self._delta = 1
+        super(ghbars, self).setup(args)
 
-class graph(baseObj):
-    def __init__( self, width=640, height=400, title="", xtitle="", ytitle="", 
-        foreground=(0.0, 0.0, 0.0), background=(1.0, 1.0, 1.0) ):       
-        super(graph, self).__init__()        
-        self.width = width
-        self.height = height
-        self.title = title
-        self.xtitle = xtitle
-        self.ytitle = ytitle
-        self.foreground = foreground
-        self.background = background
- 
-        cmd = {"cmd": "graph", "idx": self.idx, "guid": self.guid, 
-               "attrs": [ { "attr": "width", "value": self.width },
-                           {"attr": "height", "value": self.height },
-                           {"attr": "title", "value": self.title},
-                           {"attr": "xtitle", "value": self.xtitle},
-                           {"attr": "ytitle", "value": self.ytitle},
-                           {"attr": "foreground", "value": self.foreground},
-                           {"attr": "background", "value": self.background} ] }
-        self.appendcmd(cmd)
+
+class graph(baseObj):  
+    def __init__(self, **args):
+        objName = 'graph'
+        super(graph,self).__init__()
+        
+    ## default values
+        self._width = 640
+        self._height = 400
+        self._foreground = vector(0,0,0)
+        self._background = vector(1,1,1)
+        self._title = ""
+        self._xtitle = ""
+        self._ytitle = ""
+        argsToSend = []
+
+        ## override default vector attributes        
+        vectorAttributes = ['foreground', 'background']        
+        for a in vectorAttributes:
+            if a in args:
+                argsToSend.append(a)
+                val = args[a]
+                if isinstance(val, vector): setattr(self, '_'+a, val)
+                else: raise AttributeError(a+' must be a vector')
+                del args[a]
+        
+        ## override default scalar attributes
+        scalarAttributes = ['width', 'height', 'title', 'xtitle', 'ytitle']
+        for a in scalarAttributes:
+            if a in args:
+                argsToSend.append(a)
+                setattr(self, '_'+a, args[a])
+                del args[a]
+                
+        # user defined attributes
+        for a in args:
+            setattr(self, '_'+a, args[a])
+
+        cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, 
+           "attrs":[]}
+        
+        ## send only args specified in constructor
+        for a in argsToSend:
+            aval = getattr(self,a)
+            if isinstance(aval, vector):
+                aval = aval.value
+            cmd["attrs"].append({"attr":a, "value": aval})
+            
+        self.appendcmd(cmd)                
         
     @property
     def width(self): return self._width
@@ -1689,6 +2075,7 @@ class graph(baseObj):
     def foreground(self): return self._foreground
     @foreground.setter
     def foreground(self,val): 
+        if not isinstance(val, vector): raise TypeError('foreground must be a vector')
         self._foreground = val
         self.addattr('foreground')
 
@@ -1696,6 +2083,7 @@ class graph(baseObj):
     def background(self): return self._background
     @background.setter
     def background(self,val): 
+        if not isinstance(val,vector): raise TypeError('background must be a vector')
         self._background = val
         self.addattr('background')
     
@@ -1705,337 +2093,14 @@ class graph(baseObj):
 #        super(graph, self).__del__()
 
         
-class points(baseAttrs2):
-    """see points documentation at http://vpython.org/contents/docs/points.html"""
-
-    def __init__(self, pos=[], x=[], y=[], z=[], size=5, size_units="pixels", shape="round", 
-                 display=None, visible=True, color=[], red=[], green=[], blue=[], frame=None, **kwargs):
-        if type(pos) is list:
-            for idx, val in enumerate(pos):
-                if type(val) is not tuple:
-                    pos[idx] = astuple(val)
-        posns = np.array(pos, dtype=('f4,f4,f4')) if type(pos) is list and (len(pos) == 0 or len(pos[0]) == 3) else np.array(pos, dtype=('f4,f4')) if type(pos) is list and len(pos[0]) == 2 else pos
-        if len(posns) > 0:
-            xs = posns['f0']
-            ys = posns['f1']
-            if(len(posns[0]) == 3):
-                zs = posns['f2']
-            else:
-                zs = np.zeros(len(posns))
-        elif (len(x) > 0) or (len(y) > 0) or (len(z) > 0):
-            lsz = max(len(x),len(y),len(z))
-            if len(x) < lsz:
-                if len(x) > 0:
-                    a = np.array(x, float) if type(x) is list or tuple else np.array([x], float) if type(x) is float or int else x
-                    b = np.zeros(lsz-len(a))
-                    x = np.concatenate(a,b)
-                else:
-                    x = np.zeros(lsz)
-            if len(y) < lsz:
-                if len(y) > 0:
-                    a = np.array(y, float) if type(y) is list or tuple else np.array([y], float) if type(y) is float or int else y
-                    b = np.zeros(lsz-len(a))
-                    y = np.concatenate(a,b)
-                else:
-                    y = np.zeros(lsz)
-            if len(z) < lsz:
-                if len(z) > 0:
-                    a = np.array(z, float) if type(z) is list or tuple else np.array([z], float) if type(z) is float or int else z
-                    b = np.zeros(lsz-len(a))
-                    z = np.concatenate(a,b)
-                else:
-                    z = np.zeros(lsz)
-            posns = np.zeros(lsz, dtype=('f4,f4,f4'))
-            posns['f0'] = x
-            posns['f1'] = y
-            posns['f2'] = z
-        xs = np.array(x, float) if type(x) is list or tuple else np.array([x], float) if type(x) is float or int else x
-        ys = np.array(y, float) if type(y) is list or tuple else np.array([y], float) if type(y) is float or int else y
-        zs = np.array(z, float) if type(z) is list or tuple else np.array([z], float) if type(z) is float or int else z
-
-        colors = np.array(color, dtype=('f4,f4,f4')) if type(color) is list else np.array([color], dtype=('f4,f4,f4')) if type(color) is tuple else color
-        if len(colors) > 0:
-            reds = colors['f0']
-            greens = colors['f1']
-            blues = colors['f2']
-        elif (len(red) > 0) or (len(green) > 0) or (len(blue) > 0):
-            lsz = max(len(red),len(green),len(blue))
-            if len(red) < lsz:
-                if len(red) > 0:
-                    a = np.array(red, float) if type(red) is list or tuple else np.array([red], float) if type(red) is float or int else red
-                    b = np.zeros(lsz-len(a))
-                    red = np.concatenate(a,b)
-                else:
-                    red = np.zeros(lsz)
-            if len(green) < lsz:
-                if len(green) > 0:
-                    a = np.array(green, float) if type(green) is list or tuple else np.array([green], float) if type(green) is float or int else green
-                    b = np.zeros(lsz-len(a))
-                    green = np.concatenate(a,b)
-                else:
-                    green = np.zeros(lsz)
-            if len(blue) < lsz:
-                if len(blue) > 0:
-                    a = np.array(blue, float) if type(blue) is list or tuple else np.array([blue], float) if type(blue) is float or int else blue
-                    b = np.zeros(lsz-len(a))
-                    blue = np.concatenate(a,b)
-                else:
-                    blue = np.zeros(lsz)
-            colors = np.zeros(lsz, dtype=('f4,f4,f4'))
-            colors['f0'] = red
-            colors['f1'] = green
-            colors['f2'] = blue
-        else:
-            colors = np.ones(1, dtype=('f4,f4,f4'))
-            reds = colors['f0']
-            greens = colors['f1']
-            blues = colors['f2']
-
-        reds = np.array(red, float) if type(red) is list or tuple else np.array([red], float) if type(red) is float or int else red
-        greens = np.array(green, float) if type(green) is list or tuple else np.array([green], float) if type(green) is float or int else green
-        blues = np.array(blue, float) if type(blue) is list or tuple else np.array([blue], float) if type(blue) is float or int else blue
-        
-        pnts = []
-        cols = []
-        if len(posns) > 0:
-            i = 0
-            col = colors[-1]
-            for posn in posns:
-                col = colors[i] if len(colors) > i else colors[-1]
-                if i >= len(colors):
-                    cols.append(col)
-                if (len(posn) == 3):
-                    pnts.append({"pos": posn.tolist(), "color": col.tolist()})
-                elif(len(posn) == 2):
-                    p3 = list(posn)
-                    p3.append(0.0)
-                    p3a = np.array([tuple(p3)], dtype=('f4,f4,f4'))
-                    pnts.append({"pos": p3a[0].tolist(), "color": col.tolist()})
-                    
-                i += 1
-            if len(cols) > 0:
-                colors = np.append(colors, np.array(cols, dtype=colors.dtype))
-
-        super(points, self).__init__(frame=frame, display=display, visible=visible, **kwargs)
-                
-        self._size = size
-        self._size_units = size_units
-        self._shape = shape
-        self._color = colors
-        self._pos = posns
-        self._x = xs
-        self._y = ys
-        self._z = zs
-        self._red = reds
-        self._green = greens
-        self._blue = blues
-
-        cmd = {"cmd": "points", "idx": self.idx, "guid": self.guid, 
-               "attrs": [#{"attr": "pos", "value": self.pos.value},
-                         #{"attr": "axis", "value": self.axis.value},
-                         #{"attr": "size", "value": self.size.value},
-                         #{"attr": "up", "value": self.up.value},
-                         #{"attr": "color", "value": self.color},
-                         #{"attr": "shininess", "value": self.shininess},
-                         #{"attr": "emissive", "value": self.emissive},
-                         #{"attr": "pnts", "value": [{"pos": [0, 0, 0]}, {"pos": [1, 0, 0]}]},
-                         #{"attr": "pnts", "value": pntsa.tolist()},
-                         {"attr": "visible", "value": self.visible},
-                         {"attr": "pnts", "value": pnts},
-                         {"attr": "size", "value": self.size},
-                         {"attr": "size_units", "value": self.size_units},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else
-                          canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
-
-        self.appendcmd(cmd)
-        
-    
-    def append(self, pos = None, color = None, red = None, green = None, blue = None):
-
-        if (red is not None) and (green is not None) and (blue is not None):
-            color = (red,green,blue)
-
-        if (pos is not None) and (color is not None):
-            if type(pos) is not tuple:
-                pos = astuple(pos)
-            self._pos = np.append(self.pos, np.array([pos], dtype=self.pos.dtype))
-            self._color = np.append(self.color, np.array([color], dtype=self.color.dtype))
-            pos = list(pos)
-            if len(pos) == 2:
-                pos.append(0.0)
-            cmd = {"cmd": "push", "idx": self.idx, 
-                    "attrs":[{"attr": "pos", "value": pos},{"attr": "color", "value": list(color)}]}
-            baseObj.cmds.append(cmd)
-        elif (pos is not None):
-            if type(pos) is not tuple:
-                pos = astuple(pos)
-            self._pos = np.append(self.pos, np.array([pos], dtype=self.pos.dtype))
-            color = self.color[-1]
-            self._color = np.append(self.color, np.array([color], dtype=self.color.dtype))
-            pos = list(pos)
-            if len(pos) == 2:
-                pos.append(0.0)
-            cmd = {"cmd": "push", "idx": self.idx, 
-                    "attrs":[{"attr": "pos", "value": pos},{"attr": "color", "value": self.color[-1].tolist()}]}
-            baseObj.cmds.append(cmd)
-
-    @property
-    def shape(self): 
-        return self._shape
-    
-    @shape.setter
-    def shape(self,value):
-        if value in ['round','square']:
-            self._shape = value
-            self.addattr('shape')
-
-    @property
-    def size(self): 
-        return self._size
-    
-    @size.setter
-    def size(self,value):
-        self._size = value
-        self.addattr('size')
-
-    @property
-    def size_units(self): 
-        return self._size_units
-    
-    @size_units.setter
-    def size_units(self,value):
-        if value in ['pixels','world']:
-            self._size_units = value
-            self.addattr('size_units')
-
-    @property
-    def pos(self):
-        return self._pos
-    
-    @pos.setter
-    def pos(self,value):
-        if type(value) is list:
-            for idx, val in enumerate(value):
-                if type(val) is not tuple:
-                    value[idx] = astuple(val)
-        self._pos = np.array(value, dtype = ('f4,f4,f4')) if type(value) is list and (len(value) == 0 or len(value[0]) == 3) else np.array(value, dtype=('f4,f4')) if type(value) is list and len(value[0]) == 2 else value
-        self._x = self._pos['f0']
-        self._y = self._pos['f1']
-        if len(value[0]) == 3:
-            self._z = self._pos['f2']
-            cmd = {"cmd": "modify", "idx": self.idx, 
-                   "attrs":[{"attr": 'posns', "value": self._pos.tolist()}]}
-            baseObj.cmds.append(cmd)
-        else:
-            posns = []
-            if len(self._pos) > 0:
-                for posn in self._pos:
-                    p3 = list(posn)
-                    p3.append(0.0)
-                    posns.append(tuple(p3))
-                    posns2 = np.array(posns, dtype = ('f4,f4,f4'))
-                    cmd = {"cmd": "modify", "idx": self.idx, 
-                           "attrs":[{"attr": 'posns', "value": posns2.tolist()}]}
-                    baseObj.cmds.append(cmd)
-
-    @property
-    def x(self): 
-        return self._x
-    
-    @x.setter
-    def x(self,value):
-        self._x = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._pos['f0'] = self._x
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._x.tolist()}]}
-        baseObj.cmds.append(cmd)
-    
-    @property
-    def y(self): 
-        return self._y
-    
-    @y.setter
-    def y(self,value):
-        self._y = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._pos['f1'] = self._y
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._y.tolist()}]}
-        baseObj.cmds.append(cmd)
-        
-    @property
-    def z(self): 
-        return self._z
-    
-    @z.setter
-    def z(self,value):
-        self._z = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._pos['f2'] = self._z
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._z.tolist()}]}
-        baseObj.cmds.append(cmd)
-
-        
-    @property
-    def color(self):
-        return self._color
-    
-    @color.setter
-    def color(self,value):
-        self._color = np.array(value, dtype=('f4,f4,f4')) if type(value) is list and (len(value) == 0 or len(value[0]) == 3) else np.array(value, dtype=('f4,f4')) if type(value) is list and len(value[0]) == 2 else value
-        self._red = self._color['f0']
-        self._green = self._color['f1']
-        self._blue = self._color['f2']
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": 'colors', "value": self.color.tolist()}]}
-        baseObj.cmds.append(cmd)
-
-    @property
-    def red(self):
-        return self._red
-    
-    @red.setter
-    def red(self,value):
-        self._red = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._color['f0'] = self._red
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._red.tolist()}]}
-        baseObj.cmds.append(cmd)
-
-    @property
-    def green(self):
-        return self._green
-    
-    @green.setter
-    def green(self,value):
-        self._green = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._color['f1'] = self._green
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._green.tolist()}]}
-        baseObj.cmds.append(cmd)
-
-    @property
-    def blue(self):
-        return self._blue
-    
-    @blue.setter
-    def blue(self,value):
-        self._blue = np.array(value, float) if type(value) is list or tuple else np.array([value], float) if type(value) is float or int else value
-        self._color['f2'] = self._blue
-        cmd = {"cmd": "modify", "idx": self.idx, 
-               "attrs":[{"attr": name, "value": self._blue.tolist()}]}
-        baseObj.cmds.append(cmd)
-
-     
-    def __del__(self):
-        pass
     
 
 class faces(baseAttrs2):
-    """see faces documentation at http://vpython.org/contents/docs/faces.html"""    
+    """see faces documentation at http://www.glowscript.org/docs/VPythonDocs/index.html"""    
     xs = np.array([],float)
     ys = np.array([],float)
     zs = np.array([],float)
-    def __init__(self, pos=[], x=[], y=[], z=[], axis=(1.,0.,0.), radius=0., display=None, visible=True,
+    def __init__(self, pos=[], x=[], y=[], z=[], axis=(1.,0.,0.), radius=0., canvas=None, visible=True,
                  up=(0.,1.,0.), color=[], red=[], green=[], blue=[], normal=[], frame=None, material=None, **kwargs):
         if type(pos) is list:
             for idx, val in enumerate(pos):
@@ -2145,7 +2210,7 @@ class faces(baseAttrs2):
             if len(cols) > 0:
                 colors = np.append(colors, np.array(cols, dtype=colors.dtype))
 
-        super(faces, self).__init__(axis=axis, up=up, material=material, display=display, visible=visible, **kwargs)
+        super(faces, self).__init__(axis=axis, up=up, material=material, canvas=canvas, visible=visible, **kwargs)
         object.__setattr__(self, 'radius', radius)
         object.__setattr__(self, 'color', colors)
         object.__setattr__(self, 'pos', posns)
@@ -2169,7 +2234,7 @@ class faces(baseAttrs2):
                          #{"attr": "pnts", "value": pntsa.tolist()},
                          {"attr": "pnts", "value": pnts},
                          {"attr": "radius", "value": self.radius},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
+                         {"attr": "canvas", "value": self.canvas.idx if self.canvas != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
         """
         if (baseObj.glow != None):
             baseObj.glow.comm.send([cmd])
@@ -2295,656 +2360,18 @@ class faces(baseAttrs2):
     
     def __del__(self):
         pass
-
-
-class helix(baseAttrs2):
-    """see helix documentation at http://vpython.org/contents/docs/helix.html"""    
-    
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), length=-1., radius=1., thickness=0., coils=5,
-                 up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1., frame=None, visible=True, display=None,
-                 material=None, **kwargs):
-        axis = vector(axis) if type(axis) in [tuple, list, np.ndarray] else axis
-        if (length == -1.):
-            length = axis.mag
-        else:
-            axis = axis.norm() * length
-        if (thickness == 0.):
-            thickness = radius/20.
-        size = vector(length,radius*2,radius*2)
-        super(helix, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, size=size, up=up, color=color, red=red, green=green, 
-                                    blue=blue, material=material, frame=frame, display=display, visible=visible, **kwargs)
         
-        self._thickness = thickness
-        self._coils = coils
-        
-        cmd = {"cmd": "helix", "idx": self.idx, "guid": self.guid, 
-               "attrs": [{"attr": "pos", "value": self.pos.value},
-                         {"attr": "axis", "value": self.axis.value},
-                         {"attr": "size", "value": self.size.value},
-                         {"attr": "up", "value": self.up.value},
-                         {"attr": "color", "value": self.color},
-                         {"attr": "thickness", "value": self.thickness},
-                         {"attr": "coils", "value": self.coils},
-                         {"attr": "visible", "value": self.visible},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else
-                          canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
-
-        self.appendcmd(cmd)
-        
-    
-    @property
-    def length(self): 
-        return self.axis.mag
-    
-    @length.setter
-    def length(self,value):
-        self.axis = self.axis.norm() * value
-
-    @property
-    def radius(self): 
-        return self._size[1]/2.0
-    
-    @radius.setter
-    def radius(self,value):
-        self._size[1] = value * 2.0
-        self._size[2] = value * 2.0
-
-    @property
-    def thickness(self): 
-        return self._thickness
-    @thickness.setter
-    def thickness(self,value):
-        self._thickness =value
-        self.addattr('thickness')
-
-    @property
-    def coils(self): 
-        return self._coils
-    @coils.setter
-    def coils(self,value):
-        self._coils =value
-        self.addattr('coils')
-
-    @property
-    def size(self):
-        self._size[0] = self._axis.mag
-        return self._size
-    
-    @size.setter
-    def size(self,value):
-        self._axis.value = self.axis.norm() * value[0]
-        self._size.value = value
-        self.addattr('size')
-
-    def _on_size_change(self):
-        self._axis.value = self.axis.norm() * self._size[0]           # update axis length when box.size.x is changed
-        self.addattr('size')
-
-    def __del__(self):
-        cmd = {"cmd": "delete", "idx": self.idx}
-        self.appendcmd(cmd)
-        #baseObj.cmds.append(cmd)
-        super(helix, self).__del__()
-
-class arrow(trailAttrs):
-    """see arrow documentation at http://vpython.org/contents/docs/arrow.html"""    
-    
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), length=None, 
-                 shaftwidth=None, headwidth=None, headlength=None, fixedwidth=False,
-                 frame=None, up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1., material=None, opacity=1.0,
-                 display=None, visible=True, make_trail=False, trail_type="curve", interval=1, retain=-1, **kwargs):
-        axis = vector(axis) if type(axis) in [tuple, list, np.ndarray] else axis
-        shaftwidth_provided = headwidth_provided = headlength_provided = True
-        if (length == None):
-            length = axis.mag
-        else:
-            axis = axis.norm() * length
-        if (shaftwidth == None):
-            shaftwidth_provided = False
-            shaftwidth = 0.1*length
-        elif (shaftwidth == 0.):
-            shaftwidth = 0.1*length
-        if (headwidth == None):
-            headwidth_provided = False
-            headwidth = 2.*shaftwidth
-        if (headlength == None):
-            headlength_provided = False
-            headlength = 3.*shaftwidth
-        super(arrow, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, up=up, color=color, red=red, green=green, blue=blue, 
-                                    material=material, opacity=opacity, frame=frame, display=display, visible=visible, 
-                                    make_trail=make_trail, trail_type=trail_type, interval=interval, retain=retain, **kwargs)
-        
-        self._axis_and_length = axis
-        self._shaftwidth = shaftwidth
-        self._headwidth = headwidth
-        self._headlength = headlength
-
-        if ((shaftwidth_provided == True) or (headwidth_provided == True) or (headlength_provided == True)):
-            cmd = {"cmd": "arrow", "idx": self.idx, "guid": self.guid, 
-                   "attrs": [{"attr": "pos", "value": self.pos.value},
-                             {"attr": "axis_and_length", "value": self.axis.value},
-                             {"attr": "up", "value": self.up.value},
-                             {"attr": "color", "value": self.color},
-                             {"attr": "opacity", "value": self.opacity},
-                             {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1},
-                             {"attr": "visible", "value": self.visible},
-                             {"attr": "make_trail", "value": self.make_trail},
-                             {"attr": "type", "value": 'curve' if self.trail_type == 'curve' else 'spheres'},
-                             {"attr": "interval", "value": self.interval},
-                             {"attr": "shaftwidth", "value": self.shaftwidth},
-                             {"attr": "headwidth", "value": self.headwidth},
-                             {"attr": "headlength", "value": self.headlength},
-                             {"attr": "retain", "value": self.retain}]}
-
-            self.appendcmd(cmd)
-        else:
-            cmd = {"cmd": "arrow", "idx": self.idx, "guid": self.guid, 
-                   "attrs": [{"attr": "pos", "value": self.pos.value},
-                             {"attr": "axis_and_length", "value": self.axis.value},
-                             {"attr": "up", "value": self.up.value},
-                             {"attr": "color", "value": self.color},
-                             {"attr": "opacity", "value": self.opacity},
-                             {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1},
-                             {"attr": "visible", "value": self.visible},
-                             {"attr": "make_trail", "value": self.make_trail},
-                             {"attr": "type", "value": 'curve' if self.trail_type == 'curve' else 'spheres'},
-                             {"attr": "interval", "value": self.interval},
-                             {"attr": "retain", "value": self.retain}]}
-
-            self.appendcmd(cmd)
-                
-        self._axis_and_length.on_change = self._on_axis_and_length_change
-        
-        if (frame != None):
-            frame.objects.append(self)
-            frame.update_obj_list()
-        
-    
-    @property
-    def length(self): 
-        return self._axis_and_length.mag
-    
-    @length.setter
-    def length(self,value):
-        self._axis_and_length.value = self.axis_and_length.norm() * value
-        self.addattr('axis_and_length')
-
-    @property
-    def axis_and_length(self): 
-        return self._axis_and_length
-    
-    @axis_and_length.setter
-    def axis_and_length(self,value):
-        self._axis_and_length.value = value
-        self.addattr('axis_and_length')
-
-    @property
-    def axis(self): 
-        return self._axis_and_length
-    
-    @axis.setter
-    def axis(self,value):
-        self._axis_and_length.value = value
-        self.addattr('axis_and_length')
-
-    @property
-    def shaftwidth(self): 
-        return self._shaftwidth
-    
-    @shaftwidth.setter
-    def shaftwidth(self,value):
-        self._shaftwidth =value
-        self.addattr('shaftwidth')
-        
-    @property
-    def headwidth(self): 
-        return self._headwidth
-    
-    @headwidth.setter
-    def headwidth(self,value):
-        self._headwidth =value
-        self.addattr('headwidth')
-        
-    @property
-    def headlength(self): 
-        return self._headlength
-    
-    @headlength.setter
-    def headlength(self,value):
-        self._headlength =value
-        self.addattr('headlength')
-
-    
-    def _on_axis_and_length_change(self):
-        self.addattr('axis_and_length')
-        
-    def __del__(self):
-        cmd = {"cmd": "delete", "idx": self.idx}
-        self.appendcmd(cmd)
-        super(arrow, self).__del__()
-
-
-class cylinder(trailAttrs):
-    """see cylinder documentation at http://vpython.org/contents/docs/cylinder.html"""    
-    
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), 
-                 length=None, radius=1., frame=None, up=(0.,1.,0.), 
-                 color=(1.,1.,1.), red=1., green=1., blue=1., material=None, 
-                 opacity=1.0, display=None, visible=True, make_trail=False, 
-                 trail_type="curve", interval=1, retain=-1, **kwargs):
-        axis = vector(axis) if type(axis) in [tuple, list, np.ndarray] else axis
-        if (length == None):
-            length = axis.mag
-        else:
-            axis = axis.norm() * length
-        size = vector(length,radius*2,radius*2)
-        super(cylinder, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, size=size, up=up, color=color, red=red, green=green, blue=blue,
-                                       material=material, opacity=opacity, frame=frame, display=display, visible=visible,
-                                       make_trail=make_trail, trail_type=trail_type, interval=interval, retain=retain, **kwargs)
-        
-        cmd = {"cmd": "cylinder", "idx": self.idx, "guid": self.guid, 
-               "attrs": [{"attr": "pos", "value": self.pos.value},
-                         {"attr": "axis", "value": self.axis.value},
-                         {"attr": "size", "value": self.size.value},
-                         {"attr": "up", "value": self.up.value},
-                         {"attr": "color", "value": self.color},
-                         {"attr": "opacity", "value": self.opacity},
-                         {"attr": "shininess", "value": self.shininess},
-                         {"attr": "emissive", "value": self.emissive},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1},
-                         {"attr": "make_trail", "value": self.make_trail},
-                         {"attr": "type", "value": 'curve' if self.trail_type == 'curve' else 'spheres'},
-                         {"attr": "interval", "value": self.interval},
-                         {"attr": "visible", "value": self.visible},
-                         {"attr": "retain", "value": self.retain}]}
-
-        self.appendcmd(cmd)
-        if (frame != None):
-            frame.objects.append(self)
-            frame.update_obj_list()
-    
-    @property
-    def length(self): 
-        return self.axis.mag
-    
-    @length.setter
-    def length(self,value):
-        self.axis = self.axis.norm() * value
-
-    @property
-    def radius(self): 
-        return self._size[1]/2.0
-    
-    @radius.setter
-    def radius(self,value):
-        self._size[1] = value * 2.0
-        self._size[2] = value * 2.0
-    
-    @property
-    def size(self):
-        self._size[0] = self._axis.mag
-        return self._size
-    
-    @size.setter
-    def size(self,value):
-        self._axis.value = self.axis.norm() * value[0]
-        self._size.value = value
-        self.addattr('size')
-
-    def _on_size_change(self):
-        self._axis.value = self.axis.norm() * self._size[0]           # update axis length when box.size.x is changed
-        self.addattr('size')
-
-    def __del__(self):
-        cmd = {"cmd": "delete", "idx": self.idx}
-        self.appendcmd(cmd)
-        super(cylinder, self).__del__()
-
-
-class pyramid(trailAttrs):
-    """see pyramid documentation at http://vpython.org/contents/docs/pyramid.html"""    
-    
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), size=(1.,1.,1.),
-                 length=-1., width=1., height=1., up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1.,
-                 frame=None, material=None, opacity=1.0, display=None, visible=True,
-                 make_trail=False, trail_type="curve", interval=1, retain=-1, **kwargs):
-        axis = vector(axis) if type(axis) in [tuple, list, np.ndarray] else axis
-        size = vector(size) if type(size) in [tuple, list, np.ndarray] else size
-        if (length == -1.):
-            if size[0] == 1. and size[1] == 1. and size[2] == 1.:
-                length = axis.mag
-                size[0] = length
-            else:
-                length = size[0]
-                height = size[1]
-                width = size[2]
-        if (length != 1.0) or (width != 1.0) or (height != 1.0):
-            size = vector(length,height,width)
-        else:
-            length = size[0]
-            height = size[1]
-            width = size[2]
-        axis = axis.norm() * length
-        super(pyramid, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, size=size, up=up, color=color, red=red, green=green, blue=blue,
-                                      material=material, opacity=opacity, frame=frame, display=display, visible=visible,
-                                      make_trail=make_trail, trail_type=trail_type, interval=interval, retain=retain, **kwargs)
-        
-        cmd = {"cmd": "pyramid", "idx": self.idx, "guid": self.guid, 
-               "attrs": [{"attr": "pos", "value": self.pos.value},
-                         {"attr": "axis", "value": self.axis.value},
-                         {"attr": "size", "value": self.size.value},
-                         {"attr": "up", "value": self.up.value},
-                         {"attr": "color", "value": self.color},
-                         {"attr": "opacity", "value": self.opacity},
-                         {"attr": "shininess", "value": self.shininess},
-                         {"attr": "emissive", "value": self.emissive},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1},
-                         {"attr": "make_trail", "value": self.make_trail},
-                         {"attr": "type", "value": 'curve' if self.trail_type == 'curve' else 'spheres'},
-                         {"attr": "interval", "value": self.interval},
-                         {"attr": "visible", "value": self.visible},
-                         {"attr": "retain", "value": self.retain}]}
-
-        self.appendcmd(cmd)
-        if (frame != None):
-            frame.objects.append(self)
-            frame.update_obj_list()
-       
-    
-    @property
-    def length(self): 
-        return self.axis.mag
-    
-    @length.setter
-    def length(self,value):
-        self.axis = self.axis.norm() * value
-        self.size[0] = value
-
-    @property
-    def height(self): 
-        return self._size[1]
-    
-    @height.setter
-    def height(self,value):
-        self._size[1] = value
-
-    @property
-    def width(self): 
-        return self.size[2]
-    
-    @width.setter
-    def width(self,value):
-        self._size[2] = value
-
-    @property
-    def size(self):
-        self._size[0] = self._axis.mag
-        return self._size
-    
-    @size.setter
-    def size(self,value):
-        self._axis.value = self.axis.norm() * value[0]
-        self._size.value = value
-        self.addattr('size')
-
-    def _on_size_change(self):
-        self._axis.value = self.axis.norm() * self._size[0]           # update axis length when box.size.x is changed
-        self.addattr('size')
-
-    def __del__(self):
-        cmd = {"cmd": "delete", "idx": self.idx}
-        self.appendcmd(cmd)
-        super(pyramid, self).__del__()
-
-
-class sphere(trailAttrs):
-    """see sphere documentation at http://vpython.org/contents/docs/sphere.html"""    
-    
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), radius=1.0,
-                 frame=None, up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1., material=None, opacity=1.0,
-                 display=None, visible=True, make_trail=False, trail_type="curve", interval=1, retain=-1, **kwargs):
-        size = vector(radius*2,radius*2,radius*2)
-        super(sphere, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, size=size, up=up, color=color, red=red, green=green, blue=blue,
-                                     material=material, opacity=opacity, frame=frame, display=display, visible=visible,
-                                     make_trail=make_trail, trail_type=trail_type, interval=interval, retain=retain, **kwargs)
-
-        cmd = {"cmd": "sphere", "idx": self.idx, "guid": self.guid, 
-               "attrs": [{"attr": "pos", "value": self.pos.value},
-                         {"attr": "axis", "value": self.axis.value},
-                         {"attr": "size", "value": self.size.value},
-                         {"attr": "up", "value": self.up.value},
-                         {"attr": "color", "value": self.color},
-                         {"attr": "opacity", "value": self.opacity},
-                         {"attr": "shininess", "value": self.shininess},
-                         {"attr": "emissive", "value": self.emissive},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1},
-                         {"attr": "make_trail", "value": self.make_trail},
-                         {"attr": "type", "value": 'curve' if self.trail_type == 'curve' else 'spheres'},
-                         {"attr": "interval", "value": self.interval},
-                         {"attr": "visible", "value": self.visible},
-                         {"attr": "retain", "value": self.retain}]}
-        self.appendcmd(cmd)
-        if (frame != None):
-            frame.objects.append(self)
-            frame.update_obj_list()
-
-    @property
-    def radius(self): 
-        return self.size[0]
-    
-    @radius.setter
-    def radius(self,value):
-        self._size.value = (value*2,value*2,value*2)
-        self.addattr('size')
-
-    def __del__(self):
-        cmd = {"cmd": "delete", "idx": self.idx}
-        self.appendcmd(cmd)
-        super(sphere, self).__del__()
-
-
-class ellipsoid(trailAttrs):
-    """see ellipsoid documentation at http://vpython.org/contents/docs/ellipsoid.html"""    
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), 
-                 size=None, length=None, width=1., height=1., up=(0.,1.,0.), 
-                 color=(1.,1.,1.), red=1., green=1., blue=1.,
-                 frame=None, material=None, opacity=1.0, display=None, visible=True,
-                 make_trail=False, trail_type="curve", interval=1, retain=-1, **kwargs):
-        axis = vector(axis) if type(axis) in [tuple, list, np.ndarray] else axis
-        if (length == None) and (size == None):
-            length = axis.mag
-            size = vector(length, height, width)
-        elif (length == None):
-            length = size[0]
-            height = size[1]
-            width = size[2]
-        else:
-            size = vector(length, height, width)
-        size = vector(size) if type(size) in [tuple, list, np.ndarray] else size
-        axis = axis.norm() * length
-
-        super(ellipsoid, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, size=size, up=up, color=color, red=red, green=green, blue=blue,
-                                  material=material, opacity=opacity, frame=frame, display=display, visible=visible,
-                                  make_trail=make_trail, trail_type=trail_type, interval=interval, retain=retain, **kwargs)
-
-        cmd = {"cmd": "ellipsoid", "idx": self.idx, "guid": self.guid, 
-               "attrs": [{"attr": "pos", "value": self.pos.value},
-                         {"attr": "axis", "value": self.axis.value},
-                         {"attr": "size", "value": self.size.value},
-                         {"attr": "up", "value": self.up.value},
-                         {"attr": "color", "value": self.color},
-                         {"attr": "opacity", "value": self.opacity},
-                         {"attr": "shininess", "value": self.shininess},
-                         {"attr": "emissive", "value": self.emissive},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else
-                          canvas.get_selected().idx if canvas.get_selected() != None else -1},
-                         {"attr": "make_trail", "value": self.make_trail},
-                         {"attr": "type", "value": 'curve' if self.trail_type == 'curve' else 'spheres'},
-                         {"attr": "interval", "value": self.interval},
-                         {"attr": "visible", "value": self.visible},
-                         {"attr": "retain", "value": self.retain}]}
-
-        self.appendcmd(cmd)
-        if (frame != None):
-            frame.objects.append(self)
-            frame.update_obj_list()
-    
-    @property
-    def length(self): 
-        return self.axis.mag
-    
-    @length.setter
-    def length(self,value):
-        self.axis = self.axis.norm() * value
-
-    @property
-    def height(self): 
-        return self._size[1]
-    
-    @height.setter
-    def height(self,value):
-        self._size[1] = value
-
-    @property
-    def width(self): 
-        return self._size[2]
-    
-    @width.setter
-    def width(self,value):
-        self._size[2] = value
-
-    @property
-    def size(self):
-        self._size[0] = self._axis.mag
-        return self._size
-    
-    @size.setter
-    def size(self,value):
-        self._axis.value = self.axis.norm() * value[0]
-        self._size.value = value
-        self.addattr('size')
-
-    def _on_size_change(self):
-        self._axis.value = self.axis.norm() * self._size[0]           # update axis length when box.size.x is changed
-        self.addattr('size')
-
-    
-    def __del__(self):
-        cmd = {"cmd": "delete", "idx": self.idx}
-        self.appendcmd(cmd)
-        super(ellipsoid, self).__del__()
-
-
-class ring(baseAttrs):
-    """see ring documentation at http://vpython.org/contents/docs/ring.html"""    
-    
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.),
-                 length=1., radius=1., thickness=0.0, frame=None, display=None, visible=True,
-                 up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1.,
-                 make_trail=False, trail_type="curve", interval=1, retain=-1, **kwargs):
-        if (thickness == 0.0):
-            thickness = radius/10.0
-        
-        size = vector(thickness,radius+thickness,radius+thickness)*2.0
-        super(ring, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, size=size, up=up, color=color, red=red, green=green,
-                                   blue=blue, frame=frame, display=display, visible=visible, **kwargs)
-        self._make_trail = make_trail
-        if (trail_type not in ['curve', 'points']):
-            raise Exception("ArgumentError: trail_type must be 'curve' or 'points'")
-        self._trail_type = trail_type
-        self._interval = interval
-        self._retain = retain
-            
-        cmd = {"cmd": "ring", "idx": self.idx, "guid": self.guid, 
-               "attrs": [{"attr": "pos", "value": self.pos.value},
-                         {"attr": "axis", "value": self.axis.value},
-                         {"attr": "size", "value": self.size.value},
-                         {"attr": "up", "value": self.up.value},
-                         {"attr": "color", "value": self.color},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else
-                          canvas.get_selected().idx if canvas.get_selected() != None else -1},
-                         {"attr": "make_trail", "value": self.make_trail},
-                         {"attr": "type", "value": 'curve' if self.trail_type == 'curve' else 'spheres'},
-                         {"attr": "interval", "value": self.interval},
-                         {"attr": "visible", "value": self.visible},
-                         {"attr": "retain", "value": self.retain}]}
-
-        self.appendcmd(cmd)
-    
-    @property
-    def length(self): 
-        return self.size[0]
-    @length.setter
-    def length(self,value):
-        self.size[0] = value
-        self.addattr('size')        
-    
-    @property
-    def thickness(self): 
-        return self.size[0]/2.0
-    @thickness.setter
-    def thickness(self,value):
-        self.size[0] = value*2.0
-        self.addattr('size')
-    
-    @property
-    def radius(self): 
-        return self.size[1]/2.0 - self.thickness
-    @radius.setter
-    def radius(self,value):
-        self.size[1] = (value + self.thickness)*2.0
-        self.size[2] = (value + self.thickness)*2.0
-        self.addattr('size')
-    
-    @property
-    def make_trail(self):
-        return self._make_trail
-    @make_trail.setter
-    def make_trail(self,value):
-        self._make_trail = value
-        self.addattr('make_trail')
-
-    @property
-    def trail_type(self):
-        return self._trail_type
-    @trail_type.setter
-    def trail_type(self,value):
-        if (value not in ['curve', 'points']):
-            raise Exception("ArgumentError: trail_type must be 'curve' or 'points'")
-        self._trail_type = value
-        self.addattr('trail_type')
-
-    @property
-    def interval(self):
-        return self._interval
-    @interval.setter
-    def interval(self,value):
-        self._interval = value
-        self.addattr('interval')
-
-    @property
-    def retain(self):
-        return self._retain
-    @retain.setter
-    def retain(self,value):
-        self._retain = value
-        self.addattr('retain')
-
-    def __del__(self):
-        cmd = {"cmd": "delete", "idx": self.idx}
-        self.appendcmd(cmd)
-        super(ring, self).__del__()
 
 class label(baseAttrs2):
-    """see label documentation at http://vpython.org/contents/docs/label.html"""    
+    """see label documentation at http://www.glowscript.org/docs/VPythonDocs/index.html"""    
     
     def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., color=(1.,1.,1.), red=1., green=1., blue=1., opacity=0.66, 
                  xoffset=20., yoffset=12., text="", font="sans", height=13, background=(0.,0.,0.),
-                 border=5, box=True, line=True, linecolor=(0.,0.,0.), space=0., display=None, frame=None, visible=True, **kwargs):  
+                 border=5, box=True, line=True, linecolor=(0.,0.,0.), space=0., canvas=None, frame=None, visible=True, **kwargs):  
         # backgraound = scene.background   # default background color
         # color = scene.foreground  # default color
         super(label, self).__init__(pos=pos, x=x, y=y, z=z, color=color, red=red, green=green, blue=blue, opacity=opacity, 
-                                    frame=frame, display=display, visible=visible, **kwargs)
+                                    frame=frame, canvas=canvas, visible=visible, **kwargs)
 
         self._xoffset = xoffset
         self._yoffset = yoffset
@@ -2974,7 +2401,7 @@ class label(baseAttrs2):
                          {"attr": "linecolor", "value": self.linecolor},
                          {"attr": "space", "value": self.space},
                          {"attr": "visible", "value": self.visible},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}
+                         {"attr": "canvas", "value": self.canvas.idx if self.canvas != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}
                          ]}
 
         self.appendcmd(cmd)
@@ -3083,13 +2510,13 @@ class label(baseAttrs2):
 
              
 class frame(baseAttrs):
-    """see frame documentation at http://vpython.org/contents/docs/frame.html"""    
+    """see frame documentation at http://www.glowscript.org/docs/VPythonDocs/index.html"""    
 
     objects = []
-    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), display=None, visible=True,
+    def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), canvas=None, visible=True,
                  up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1., **kwargs):
         super(frame, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, up=up, color=color, red=red, green=green, blue=blue, 
-                                    display=display,visible=visible,**kwargs)
+                                    canvas=canvas,visible=visible,**kwargs)
         object.__setattr__(self, 'objects', [])
         cmd = {"cmd": "compound", "idx": self.idx, "guid": self.guid,
                "attrs": [{"attr": "pos", "value": self.pos.value},
@@ -3097,7 +2524,7 @@ class frame(baseAttrs):
                          {"attr": "up", "value": self.up.value},
                          {"attr": "color", "value": self.color},
                          {"attr": "visible", "value": self.visible},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
+                         {"attr": "canvas", "value": self.canvas.idx if self.canvas != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
         
         self.appendcmd(cmd)
     
@@ -3120,7 +2547,7 @@ class frame(baseAttrs):
                          {"attr": "up", "value": self.up.value},
                          {"attr": "color", "value": self.color},
                          {"attr": "obj_idxs", "value": obj_idxs},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
+                         {"attr": "canvas", "value": self.canvas.idx if self.canvas != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
         
         self.appendcmd(cmd)
 
@@ -3156,33 +2583,33 @@ class Mouse(object):
 
 
 class sceneObj(baseObj):
-    visible = True
-    foreground = (1,1,1)
-    background = (0,0,0)
-    ambient = color.gray(0.2)
-    stereo = 'redcyan'
-    stereodepth = 1.
-    x = 0.
-    y = 0.
-    height = 500
-    width = 800
-    title = ""
-    fullscreen = False
-    exit = True
-    center = vector(0,0,0)
-    autocenter = True
-    forward = vector(0,0,-1)
-    fov = math.pi/3.
-    range = (1.,1.,1.)
-    scale = (1.,1.,1.)
-    up = vector(0.,1.,0.)
-    autoscale = True
-    userzoom = True
-    userspin = True
+    # visible = True
+    # foreground = (1,1,1)
+    # background = (0,0,0)
+    # ambient = (0.2,0.2,0.2)  ##color.gray(0.2)
+    # stereo = 'redcyan'
+    # stereodepth = 1.
+    # x = 0.
+    # y = 0.
+    # height = 500
+    # width = 800
+    # title = ""
+    # fullscreen = False
+    # exit = True
+    # center = vector(0,0,0)
+    # autocenter = True
+    # forward = vector(0,0,-1)
+    # fov = math.pi/3.
+    # range = (1.,1.,1.)
+    # scale = (1.,1.,1.)
+    # up = vector(0.,1.,0.)
+    # autoscale = True
+    # userzoom = True
+    # userspin = True
     lights = []
     objects = []
 
-    def __init__(self, visible=True, foreground=(1,1,1), background=(0,0,0), ambient=color.gray(0.2), stereo='redcyan',
+    def __init__(self, visible=True, foreground=(1,1,1), background=(0,0,0), ambient=(0.2,0.2,0.2), stereo='redcyan',
                     stereodepth=1., x=0., y=0., height=480, width=640, title="", fullscreen=False,
                     exit=True, center=(0.,0.,0.), autocenter=True, forward=(0.,0.,-1.), fov=math.pi/3.,
                     range=(1.,1.,1.), scale=(1.,1.,1.), up=(0.,1.,0.), autoscale=True, userzoom=True, userspin=True, **kwargs):
@@ -3513,22 +2940,23 @@ class sceneObj(baseObj):
     
 class canvas(sceneObj):
     sceneCnt = 0
-    selected_display = -1
-    displays = []
-    display_idx = 0
-    def __init__(self, visible=True, foreground=(1,1,1), background=(0,0,0), ambient=color.gray(0.2), stereo='redcyan',
-                    stereodepth=1., x=0., y=0., height=480, width=640, title="", fullscreen=False,
-                    exit=True, center=(0.,0.,0.), autocenter=True, forward=(0.,0.,-1.), fov=math.pi/3.,
-                    range=1., scale=1., up=(0.,1.,0.), autoscale=True, userzoom=True, userspin=True, **kwargs):
-        super(canvas, self).__init__(visible=visible, foreground=foreground, background=background, ambient=ambient, stereo=stereo,
-                                     stereodepth=stereodepth, x=x, y=y, height=height, width=width, title=title, fullscreen=fullscreen,
-                                     exit=exit, center=center, autocenter=autocenter, forward=forward, fov=fov,
+    selected_canvas = -1
+    canvases = []
+    canvas_idx = 0
+    def __init__(self, visible=True, background=vector(0,0,0), ambient=vector(0.2,0.2,0.2), 
+                    height=480, width=640, title=" ", fullscreen=False,
+                    exit=True, center=vector(0.,0.,0.), forward=vector(0.,0.,-1.), fov=math.pi/3.,
+                    range=1., scale=1., up=vector(0.,1.,0.), autoscale=True, userzoom=True, userspin=True, **kwargs):
+        super(canvas, self).__init__(visible=visible, background=background, ambient=ambient,
+                                     height=height, width=width, title=title, 
+                                     fullscreen=fullscreen,
+                                     exit=exit, center=center, forward=forward, fov=fov,
                                      range=range, scale=scale, up=up, autoscale=autoscale, userzoom=userzoom, **kwargs)
-        object.__setattr__(self, 'display_index', canvas.display_idx)
+        object.__setattr__(self, 'canvas_index', canvas.canvas_idx)
         object.__setattr__(self, 'sceneId', "scene%d" % (canvas.sceneCnt))
-        canvas.displays.append(self)
-        canvas.selected_display = canvas.display_idx
-        canvas.display_idx += 1
+        canvas.canvases.append(self)
+        canvas.selected_canvas = canvas.canvas_idx
+        canvas.canvas_idx += 1
         canvas.sceneCnt += 1
         #object.__setattr__(self, 'sceneId', "scene%d" % (canvas.sceneCnt))
         try:
@@ -3544,8 +2972,8 @@ class canvas(sceneObj):
         cmd = {"cmd": "canvas", "idx": self.idx, "guid": self.guid, 
                "attrs": [{"attr": "visible", "value": self.visible},
                          {"attr": "title", "value": self.title},
-                         {"attr": "background", "value": self.background},
-                         {"attr": "ambient", "value": self.ambient},
+                         {"attr": "background", "value": self.background.value},
+                         {"attr": "ambient", "value": self.ambient.value},
                          {"attr": "height", "value": self.height},
                          {"attr": "width", "value": self.width},
                          {"attr": "forward", "value": self.forward.value},
@@ -3557,30 +2985,20 @@ class canvas(sceneObj):
                          {"attr": "userzoom", "value": self.userzoom},
                          {"attr": "userspin", "value": self.userspin}
                          ]}
-        
         self.appendcmd(cmd)
-    
+        
     def select(self):
-        canvas.selected_display = self.display_index
+        canvas.selected_canvas = self.canvas_index
 
     @classmethod
     def get_selected(cls):
-        return cls.displays[cls.selected_display] if cls.selected_display >= 0 else None
+        return cls.canvases[cls.selected_canvas] if cls.selected_canvas >= 0 else None
 
     def _ipython_display_(self):
         display_html('<div id="glowscript2" ><div id="glowscript" class="glowscript"></div></div>', raw=True)
         cmd = {"cmd": "redisplay", "idx": self.idx, "sceneId": self.sceneId}        
         self.appendcmd(cmd)
 
-class idisplay(canvas):
-    def __init__(self, visible=True, foreground=(1,1,1), background=(0,0,0), ambient=color.gray(0.2), stereo='redcyan', 
-                 stereodepth=1., x=0., y=0., height=480, width=640, title="", fullscreen=False, 
-                 exit=True, center=(0.,0.,0.), autocenter=True, forward=(0.,0.,-1.), fov=math.pi/3.,
-                 range=1., scale=1., up=(0.,1.,0.), autoscale=True, userzoom=True, userspin=True, **kwargs):
-        super(idisplay, self).__init__(visible=visible, foreground=foreground, background=background, ambient=ambient, stereo=stereo,
-                                       stereodepth=stereodepth, x=x, y=y, height=height, width=width, title=title, fullscreen=fullscreen,
-                                       exit=exit, center=center, autocenter=autocenter, forward=forward, fov=fov, 
-                                       range=range, scale=scale, up=up, autoscale=autoscale, userzoom=userzoom, **kwargs)
 
 class defaultscene(sceneObj):
 
@@ -3588,6 +3006,7 @@ class defaultscene(sceneObj):
         super(defaultscene, self).__init__()
         object.__setattr__(self, 'sceneId', "scene0")
         cmd = {"cmd": "scene", "idx": self.idx}        
+##        cmd = {"cmd": "canvas", "idx": self.idx}        
         self.appendcmd(cmd)
         
     
@@ -3595,22 +3014,21 @@ class defaultscene(sceneObj):
         display_html('<div id="glowscript2" ><div id="glowscript" class="glowscript"></div></div>', raw=True)
         cmd = {"cmd": "redisplay", "idx": self.idx, "sceneId": self.sceneId}        
         self.appendcmd(cmd)
-
     
 class local_light(baseObj):
-    """see lighting documentation at http://vpython.org/contents/docs/lights.html"""
-    def __init__(self, pos=(0.,0.,0.), color=(1.,1.,1.), frame=None, display=None, **kwargs):
+    """see lighting documentation at http://www.glowscript.org/docs/VPythonDocs/index.html"""
+    def __init__(self, pos=(0.,0.,0.), color=(1.,1.,1.), frame=None, canvas=None, **kwargs):
         super(local_light, self).__init__(**kwargs)
                 
         self._pos = vector(pos) if type(pos) in [tuple, list, np.ndarray] else pos
         self._color = color
-        self._display = display
+        self._canvas = canvas
         self._frame = frame
 
         cmd = {"cmd": "local_light", "idx": self.idx, "guid": self.guid,
                "attrs": [{"attr": "pos", "value": self.pos.value},
                          {"attr": "color", "value": self.color},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}
+                         {"attr": "canvas", "value": self.canvas.idx if self.canvas != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}
                          ]}
         if (canvas.get_selected() != None):
             canvas.get_selected().lights.append(self)
@@ -3635,12 +3053,12 @@ class local_light(baseObj):
         self.addattr('color')
 
     @property
-    def display(self):
-        return self._display
+    def canvas(self):
+        return self._canvas
     
-    @display.setter
-    def display(self,value):
-        self._display = value
+    @canvas.setter
+    def canvas(self,value):
+        self._canvas = value
 
     @property
     def frame(self):
@@ -3650,23 +3068,21 @@ class local_light(baseObj):
     def frame(self,value):
         self._frame = value
 
-    
-
         
 class distant_light(baseObj):
-    """see lighting documentation at http://vpython.org/contents/docs/lights.html"""
-    def __init__(self, direction=(0.,0.,0.), color=(1.,1.,1.), frame=None, display=None, **kwargs):
+    """see lighting documentation at http://www.glowscript.org/docs/VPythonDocs/index.html"""
+    def __init__(self, direction=(0.,0.,0.), color=(1.,1.,1.), frame=None, canvas=None, **kwargs):
         super(distant_light, self).__init__(**kwargs)
         
         self._direction = vector(direction) if type(direction) in [tuple, list, np.ndarray] else direction
         self._color = color
-        self._display = display
+        self._canvas = canvas
         self._frame = frame
 
         cmd = {"cmd": "distant_light", "idx": self.idx,  "guid": self.guid,
                "attrs": [{"attr": "direction", "value": self.direction.value},
                          {"attr": "color", "value": self.color},
-                         {"attr": "canvas", "value": self.display.idx if self.display != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}
+                         {"attr": "canvas", "value": self.canvas.idx if self.canvas != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}
                          ]}
         if (canvas.get_selected() != None):
             canvas.get_selected().lights.append(self)
@@ -3691,12 +3107,12 @@ class distant_light(baseObj):
         self.addattr('color')
 
     @property
-    def display(self):
-        return self._display
+    def canvas(self):
+        return self._canvas
     
-    @display.setter
-    def display(self,value):
-        self._display = value
+    @canvas.setter
+    def canvas(self,value):
+        self._canvas = value
 
     @property
     def frame(self):
@@ -3718,3 +3134,4 @@ for i in range(10):
         with glowlock:
             get_ipython().kernel.do_one_iteration()
         scene = defaultscene()
+##        scene = canvas()

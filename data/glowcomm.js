@@ -1,7 +1,7 @@
 
 var vp;
 
-define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.1.1.min"], function() {
+define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.1.2.min"], function() {
 /*jslint plusplus: true */
 console.log("glowscript loading");
 
@@ -89,36 +89,61 @@ GlowWidget.prototype.handler = function (msg) {
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst, cnvsidx;
-        var trailAttrs, triangle_quad, objects, trail_cfg, make_trail;  
+        var triangle_quad, objects;  
         var len = data.length;
         for (i = 0; i < len; i++) {
             cnvsidx = -1;
             cmd = data.shift();
-//            console.log(cmd.idx, cmd.attr, cmd.val, cmd.cmd)
-            if (typeof cmd.cmd === 'undefined') {
+            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd)
+            if (typeof cmd.cmd === 'undefined') { //  not a constructor
                 if (typeof cmd.idx !== 'undefined') {
-                    vlst = ['pos', 'size', 'color', 'axis', 'up', 'axis_and_length', 'direction', 'texpos', 'normal', 'bumpaxis', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color'];
+// not handled yet: 'normal', 'bumpaxis', 'texpos'
+                    vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin'];
+                    var v
                     if (vlst.indexOf(cmd.attr) !== -1) {
-                        if ((cmd.attr === 'size') && (glowObjs[cmd.idx] instanceof points)) {
+                        if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {
+                        
+                            var ptlist = []
+                            for (var kk = 0; kk < cmd.val.length; kk++) {
+                                ptlist.push( o2vec3(cmd.val[kk]) )
+                            }
+                            glowObjs[cmd.idx][cmd.attr] = ptlist                        
+                                                
+                        
+                        } else if ((cmd.attr === 'size') && (glowObjs[cmd.idx] instanceof points)) {
                             glowObjs[cmd.idx][cmd.attr] = cmd.val;
                         } else {
-                            glowObjs[cmd.idx][cmd.attr] = vec(cmd.val[0], cmd.val[1], cmd.val[2]);
-                        }
-                        if (cmd.attr === 'axis') {
-                            if ((glowObjs[cmd.idx] instanceof box) || (glowObjs[cmd.idx] instanceof cone) ||
-                                (glowObjs[cmd.idx] instanceof cylinder) || (glowObjs[cmd.idx] instanceof helix) ||
-                                (glowObjs[cmd.idx] instanceof pyramid) || (glowObjs[cmd.idx] instanceof sphere)) {
-                                glowObjs[cmd.idx]['size'].x = glowObjs[cmd.idx][cmd.attr].mag();
+                            v = vec(cmd.val[0], cmd.val[1], cmd.val[2]);
+                            if (glowObjs[cmd.idx] instanceof arrow && cmd.attr === 'axis') {
+                                glowObjs[cmd.idx]['axis_and_length'] = v
+                            } else {
+                                glowObjs[cmd.idx][cmd.attr] = v
                             }
                         }
+/*  taken care of on Python side
+                        if (cmd.attr === 'axis') { 
+                            glowObjs[cmd.idx]['size'].x = mag(v);
+                        }
+*/
                     } else if (cmd.attr == '_plot'){
-                        console.log('set val', cmd.idx, cmd.attr, cmd.val)
+                        // console.log('set val', cmd.idx, cmd.attr, cmd.val)
                         glowObjs[cmd.idx].plot(cmd.val)
+                    } else if (cmd.attr == '_cpos') {
+                        console.log('glowcomm _cpos', cmd.val.length, cmd.val)
+                        for (var i = 0; i < cmd.val.length; i++) {
+                            var bb = cmd.val[i]
+                            for (var cc in bb) {
+                                if (bb[cc] instanceof Array) bb[cc] = o2vec3(bb[cc])
+                            }
+                        }
+                        glowObjs[cmd.idx].push(cmd.val)
+                    } else if (cmd.attr == 'clear_trail') {
+                        glowObjs[cmd.idx].clear_trail()
                     } else {
                         glowObjs[cmd.idx][cmd.attr] = cmd.val;
                     }
                 }
-            } else {
+            } else { // processing a constructor
                 /*
                 if (cmd.cmd !== 'heartbeat') {
                     console.log('glow', data, data.length);
@@ -129,33 +154,34 @@ GlowWidget.prototype.handler = function (msg) {
 //                console.log('assembling cfg', cmd.cmd, typeof cmd.attrs, cmd.attrs) //**************
 //                for (var i in cmd.attrs) { console.log(cmd.attrs[i]) }
                 if (typeof cmd.attrs !== 'undefined') {
-                     vlst = ['pos', 'color', 'axis', 'up', 'axis_and_length', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color'];
+                     vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color','origin'];
                     if ((cmd.cmd != 'gcurve') && ( cmd.cmd != 'gdots' ) ) {
                         vlst.push( 'size' )
                     }
-                    trailAttrs = ['make_trail', 'type', 'interval', 'retain'];
                     triangle_quad = ['v0', 'v1', 'v2', 'v3'];
                     len2 = cmd.attrs.length;
                     cfg = {};
                     objects = [];
-                    trail_cfg = {};
-                    make_trail = false;
                     for (j = 0; j < len2; j++) {
                         attr = cmd.attrs.shift();
-                        if (trailAttrs.indexOf(attr.attr) !== -1) {
-                            if (attr.attr === "make_trail") {
-                                make_trail = attr.value;
-                            } else {
-                                trail_cfg[attr.attr] = attr.value;
-                            }
-                        } else if (attr.attr === "size") {
+                        if (attr.attr === "size") {
                             if ((glowObjs[cmd.idx] instanceof points) || ((typeof cmd.idx !== 'undefined') && (cmd.cmd === 'points'))) {
-                               cfg[attr.attr] = attr.value;
+                               cfg[attr.attr] = attr.value;                               
                             } else if ( (cmd.cmd == 'gcurve') || ( cmd.cmd == 'gdots' ) ) {
                                 cfg[attr.attr] = attr.value;   // size is a scalar
                             } else {
                                cfg[attr.attr] = o2vec3(attr.value);
                             }
+                            
+                        } else if (attr.attr ==='pos' && (cmd.cmd === 'curve' || cmd.cmd === 'points')) {
+                            var ptlist = []
+                            for (var kk = 0; kk < attr.value.length; kk++) {
+                                ptlist.push( o2vec3(attr.value[kk]) )
+                            }
+                            cfg[attr.attr] = ptlist
+                            
+                        } else if (attr.attr === "axis" && cmd.cmd == 'arrow') {
+                            cfg['axis_and_length'] = o2vec3(attr.value);
                         } else if (vlst.indexOf(attr.attr) !== -1) {
                             cfg[attr.attr] = o2vec3(attr.value);
                         } else if (triangle_quad.indexOf(attr.attr) !== -1) {
@@ -189,6 +215,7 @@ GlowWidget.prototype.handler = function (msg) {
                             }
                         } else {
                             cfg[attr.attr] = attr.value;
+                            // console.log(attr.attr, attr.value)
                         }
                     }
                     //making the objects
@@ -223,6 +250,7 @@ GlowWidget.prototype.handler = function (msg) {
                             glowObjs[cmd.idx] = vp_graph(cfg)
                         } else if (cmd.cmd === 'curve') {
                             glowObjs[cmd.idx] = curve(cfg);
+/*
                             if (typeof cfg.pnts !== 'undefined') {
                                 len3 = cfg.pnts.length;
                                 for (j = 0; j < len3; j++) {
@@ -235,8 +263,10 @@ GlowWidget.prototype.handler = function (msg) {
                                 }
                                 glowObjs[cmd.idx].push(cfg.pnts);
                             }
+*/
                         } else if (cmd.cmd === 'points') {
                             glowObjs[cmd.idx] = points(cfg);
+/*
                             if (typeof cfg.pnts !== 'undefined') {
                                 len3 = cfg.pnts.length;
                                 for (j = 0; j < len3; j++) {
@@ -249,6 +279,8 @@ GlowWidget.prototype.handler = function (msg) {
                                 }
                                 glowObjs[cmd.idx].push(cfg.pnts);
                             }
+*/
+/*
                         } else if (cmd.cmd === 'modify') {
                             if (typeof cfg.posns !== 'undefined') {
                                 len3 = cfg.posns.length;
@@ -256,51 +288,7 @@ GlowWidget.prototype.handler = function (msg) {
                                     glowObjs[cmd.idx].modify(j, {pos: o2vec3(cfg.posns[j])});
                                 }
                             }
-                            if (typeof cfg.x !== 'undefined') {
-                                len3 = cfg.x.length;
-                                for (j = 0; j < len3; j++) {
-                                    glowObjs[cmd.idx].modify(j, {x: cfg.x[j]});
-                                }
-                            }
-                            if (typeof cfg.y !== 'undefined') {
-                                len3 = cfg.y.length;
-                                for (j = 0; j < len3; j++) {
-                                    glowObjs[cmd.idx].modify(j, {y: cfg.y[j]});
-                                }
-                            }
-                            if (typeof cfg.z !== 'undefined') {
-                                len3 = cfg.z.length;
-                                for (j = 0; j < len3; j++) {
-                                    glowObjs[cmd.idx].modify(j, {z: cfg.z[j]});
-                                }
-                            }
-                            if (typeof cfg.red !== 'undefined') {
-                                len3 = cfg.red.length;
-                                S = glowObjs[cmd.idx].slice(0, len3);
-                                for (j = 0; j < len3; j++) {
-                                    S[j].color.x = cfg.red[j];
-                                }
-                            }
-                            if (typeof cfg.green !== 'undefined') {
-                                len3 = cfg.green.length;
-                                S = glowObjs[cmd.idx].slice(0, len3);
-                                for (j = 0; j < len3; j++) {
-                                    S[j].color.y = cfg.green[j];
-                                }
-                            }
-                            if (typeof cfg.blue !== 'undefined') {
-                                len3 = cfg.blue.length;
-                                S = glowObjs[cmd.idx].slice(0, len3);
-                                for (j = 0; j < len3; j++) {
-                                    S[j].color.z = cfg.blue[j];
-                                }
-                            }
-                            if (typeof cfg.colors !== 'undefined') {
-                                len3 = cfg.colors.length;
-                                for (j = 0; j < len3; j++) {
-                                    glowObjs[cmd.idx].modify(j, {color: o2vec3(cfg.colors[j])});
-                                }
-                            }
+*/
                         } else if (cmd.cmd === 'triangle') {
                             glowObjs[cmd.idx] = triangle(cfg);
                         } else if (cmd.cmd === 'quad') {
@@ -353,9 +341,13 @@ GlowWidget.prototype.handler = function (msg) {
                             glowObjs[cmd.idx].guid = cmd.guid;
                             //console.log("Set GUID to : ",cmd.guid);
                         }
+/*
                         if (make_trail) {
+                            // for (var i in trail_cfg) { console.log( 'trail_cfg before attach_trail', i, trail_cfg[i] ) };
                             attach_trail(glowObjs[cmd.idx], trail_cfg);
+                            // for (var i in trail_cfg) { console.log( 'trail_cfg after attach_trail', i, trail_cfg[i] ) };
                         }
+ */                                               
                         if ((cmd.idx >= 0) && (cnvsidx >= 0)) {
                             //glowObjs[cmd.idx].gidx = cmd.idx;
                             if (typeof glowObjs[cnvsidx] !== "undefined") {
