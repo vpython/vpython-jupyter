@@ -1,0 +1,23 @@
+Metadata-Version: 1.1
+Name: vpython
+Version: 0.1.0a2
+Summary: VPython for Jupyter Notebook
+Home-page: http://pypi.python.org/pypi/vpython/
+Author: Bruce Sherwood
+Author-email: bruce.sherwood@gmail.com
+License: LICENSE.txt
+Description: Run VPython in an IPython/Jupyter notebook, using the GlowScript VPython API, documented in the VPython Help at glowscript.org. VPython makes it unusually easy to create navigable real-time 3D animations. The one-line program "box()" produces a 3D cube with appropriate lighting and with the camera positioned so that the scene fills the view. It also turns on mouse interactions to zoom and rotate the camera view. The 3D scene appears in the Jupyter notebook, using the WebGL-based GlowScript 3D graphics library.
+        
+        
+Keywords: vpython
+Platform: UNKNOWN
+Classifier: Framework :: IPython
+Classifier: Development Status :: 3 - Alpha
+Classifier: Environment :: Web Environment
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python
+Classifier: Topic :: Multimedia :: Graphics :: 3D Modeling
+Classifier: Topic :: Multimedia :: Graphics :: 3D Rendering
+Classifier: Topic :: Scientific/Engineering :: Visualization
+Requires: ipython
