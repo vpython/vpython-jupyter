@@ -101,17 +101,12 @@ GlowWidget.prototype.handler = function (msg) {
                     vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin'];
                     var v
                     if (vlst.indexOf(cmd.attr) !== -1) {
-                        if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {
-                        
+                        if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {                       
                             var ptlist = []
                             for (var kk = 0; kk < cmd.val.length; kk++) {
                                 ptlist.push( o2vec3(cmd.val[kk]) )
                             }
-                            glowObjs[cmd.idx][cmd.attr] = ptlist                        
-                                                
-                        
-                        } else if ((cmd.attr === 'size') && (glowObjs[cmd.idx] instanceof points)) {
-                            glowObjs[cmd.idx][cmd.attr] = cmd.val;
+                            glowObjs[cmd.idx][cmd.attr] = ptlist
                         } else {
                             v = vec(cmd.val[0], cmd.val[1], cmd.val[2]);
                             if (glowObjs[cmd.idx] instanceof arrow && cmd.attr === 'axis') {
@@ -129,7 +124,6 @@ GlowWidget.prototype.handler = function (msg) {
                         // console.log('set val', cmd.idx, cmd.attr, cmd.val)
                         glowObjs[cmd.idx].plot(cmd.val)
                     } else if (cmd.attr == '_cpos') {
-                        console.log('glowcomm _cpos', cmd.val.length, cmd.val)
                         for (var i = 0; i < cmd.val.length; i++) {
                             var bb = cmd.val[i]
                             for (var cc in bb) {
@@ -165,21 +159,17 @@ GlowWidget.prototype.handler = function (msg) {
                     for (j = 0; j < len2; j++) {
                         attr = cmd.attrs.shift();
                         if (attr.attr === "size") {
-                            if ((glowObjs[cmd.idx] instanceof points) || ((typeof cmd.idx !== 'undefined') && (cmd.cmd === 'points'))) {
-                               cfg[attr.attr] = attr.value;                               
-                            } else if ( (cmd.cmd == 'gcurve') || ( cmd.cmd == 'gdots' ) ) {
+                            if ( (cmd.cmd == 'gcurve') || ( cmd.cmd == 'gdots' ) ) {
                                 cfg[attr.attr] = attr.value;   // size is a scalar
                             } else {
                                cfg[attr.attr] = o2vec3(attr.value);
-                            }
-                            
+                            }                            
                         } else if (attr.attr ==='pos' && (cmd.cmd === 'curve' || cmd.cmd === 'points')) {
                             var ptlist = []
                             for (var kk = 0; kk < attr.value.length; kk++) {
                                 ptlist.push( o2vec3(attr.value[kk]) )
                             }
-                            cfg[attr.attr] = ptlist
-                            
+                            cfg[attr.attr] = ptlist                          
                         } else if (attr.attr === "axis" && cmd.cmd == 'arrow') {
                             cfg['axis_and_length'] = o2vec3(attr.value);
                         } else if (vlst.indexOf(attr.attr) !== -1) {
@@ -250,45 +240,8 @@ GlowWidget.prototype.handler = function (msg) {
                             glowObjs[cmd.idx] = vp_graph(cfg)
                         } else if (cmd.cmd === 'curve') {
                             glowObjs[cmd.idx] = curve(cfg);
-/*
-                            if (typeof cfg.pnts !== 'undefined') {
-                                len3 = cfg.pnts.length;
-                                for (j = 0; j < len3; j++) {
-                                    if (typeof cfg.pnts[j].pos !== 'undefined') {
-                                        cfg.pnts[j].pos = o2vec3(cfg.pnts[j].pos);
-                                    }
-                                    if (typeof cfg.pnts[j].color !== 'undefined') {
-                                        cfg.pnts[j].color = o2vec3(cfg.pnts[j].color);
-                                    }
-                                }
-                                glowObjs[cmd.idx].push(cfg.pnts);
-                            }
-*/
                         } else if (cmd.cmd === 'points') {
                             glowObjs[cmd.idx] = points(cfg);
-/*
-                            if (typeof cfg.pnts !== 'undefined') {
-                                len3 = cfg.pnts.length;
-                                for (j = 0; j < len3; j++) {
-                                    if (typeof cfg.pnts[j].pos !== 'undefined') {
-                                        cfg.pnts[j].pos = o2vec3(cfg.pnts[j].pos);
-                                    }
-                                    if (typeof cfg.pnts[j].color !== 'undefined') {
-                                        cfg.pnts[j].color = o2vec3(cfg.pnts[j].color);
-                                    }
-                                }
-                                glowObjs[cmd.idx].push(cfg.pnts);
-                            }
-*/
-/*
-                        } else if (cmd.cmd === 'modify') {
-                            if (typeof cfg.posns !== 'undefined') {
-                                len3 = cfg.posns.length;
-                                for (j = 0; j < len3; j++) {
-                                    glowObjs[cmd.idx].modify(j, {pos: o2vec3(cfg.posns[j])});
-                                }
-                            }
-*/
                         } else if (cmd.cmd === 'triangle') {
                             glowObjs[cmd.idx] = triangle(cfg);
                         } else if (cmd.cmd === 'quad') {
@@ -383,7 +336,7 @@ GlowWidget.prototype.handler = function (msg) {
                         var newcnvs = canvas();
                         for (var obj in glowObjs[cmd.idx].objects) {
                             var o = glowObjs[cmd.idx].objects[obj];
-                            if ((o.constructor.name !== 'curve') && (o.constructor.name !== 'point')) {
+                            if ((o.constructor.name !== 'curve') && (o.constructor.name !== 'points')) {
                                 glowObjs[o.gidx] = o.clone({canvas: newcnvs});
                                 var olen = newcnvs.objects.length;
                                 if (olen > 0) {
