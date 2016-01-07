@@ -783,12 +783,15 @@ class standardAttributes(baseObj):
                  'curve':[['origin', 'up', 'color'],  
                          ['axis', 'size'],
                          ['visible', 'shininess', 'emissive', 'canvas', 'radius', 'retain', 'pos'],
-                         ['red', 'green', 'blue','length', 'width', 'height']]}
+                         ['red', 'green', 'blue','length', 'width', 'height']],
+                 'points':[['color'],  
+                         [],
+                         ['visible', 'shininess', 'emissive', 'canvas', 'radius', 'retain', 'pos'],
+                         ['red', 'green', 'blue']]}
     attrLists['pyramid'] = attrLists['box']
     attrLists['cylinder'] = attrLists['sphere']
     attrLists['cone'] = attrLists['sphere']
     attrLists['ellipsoid'] = attrLists['sphere']
-    attrLists['points'] = attrLists['curve']
 
     def setup(self, args):
         super(standardAttributes, self).__init__() 
@@ -802,8 +805,9 @@ class standardAttributes(baseObj):
         self._axis = vector(1,0,0)
         self._up = vector(0,1,0)
         self._color = vector(1,1,1)
-        self._size = args['_default_size']  ## because VP differs from JS
-        del args['_default_size']        
+        if args['_default_size'] is not None: # is not points object
+            self._size = args['_default_size']  ## because VP differs from JS
+            del args['_default_size']        
         self._texture = None
         self._opacity = 1.0
         self._shininess = 0.6
@@ -849,10 +853,13 @@ class standardAttributes(baseObj):
                     argsToSend.append(a)
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
-    
-        if 'size' not in argsToSend:  ## always send size because Python size differs from JS size
-            argsToSend.append('size')
-        self._trail_radius = 0.1 * self._size.y  ## default depends on size
+        
+        if objName != 'points': # the points object has no size
+            if 'size' not in argsToSend:  ## always send size because Python size differs from JS size
+                argsToSend.append('size')
+            self._trail_radius = 0.1 * self._size.y  ## default depends on size
+        else:
+            self._trail_radius = self._radius # points object
                 
     # override defaults for scalar attributes without side effects       
         attrs = standardAttributes.attrLists[objName][2]
@@ -907,12 +914,13 @@ class standardAttributes(baseObj):
             frame.update_obj_list()
 
     # attribute vectors have these methods which call self.addattr()
-        self._axis.on_change = self._on_axis_change
-        self._size.on_change = self._on_size_change
-        self._up.on_change = self._on_up_change
-        if objName != 'curve':
+        if objName != 'points':
+            self._axis.on_change = self._on_axis_change
+            self._size.on_change = self._on_size_change
+            self._up.on_change = self._on_up_change
+        if objName != 'curve' and objName != 'points':
             self._pos.on_change = self._on_pos_change
-        else:
+        elif objName == 'curve':
             self._origin.on_change = self._on_origin_change
             
     @property
@@ -1630,14 +1638,9 @@ class helix(standardAttributes):
         d = 2*value
         self.size = vector(self._size.x,d,d) # size will call addattr if appropriate
         
-class curve(standardAttributes):
-    def __init__(self,**args):
-        args['_objName'] = "curve"
-        args['_default_size'] = vector(1,1,1)
-        self._origin = vector(0,0,0)  
-        self._cpos = []  ## temporary list of dicts containing lists, not vectors, to be sent to commsend
-        self._pts = []  ## cumulative list of dicts of the form {pos:vec, color=vec, radius=r, visible=T/F} python side
-     
+class curveMethods(standardAttributes):
+       
+    def curveSetup(self, args):
         pos = []  ## default
         if 'pos' in args:
             pos = args['pos']
@@ -1657,13 +1660,7 @@ class curve(standardAttributes):
             if ptretain != None: pt['retain'] = ptretain
             self._pts.append(pt)
             tpos.append(p.value)
-        args['pos'] = tpos
-        super(curve, self).setup(args)
-        
-        #tpos = pos
-        # while len(pos) > 0:
-            # del pos[-1]
-
+        args['pos'] = tpos   
 
     def append(self, *args1, **args):
         c = None
@@ -1712,6 +1709,15 @@ class curve(standardAttributes):
     @npoints.setter
     def npoints(self,value):
         raise ValueError('npoints cannot be set')
+        
+    @property
+    def radius(self): 
+        return self._radius
+    @radius.setter
+    def radius(self,value):
+        self._radius =value
+        if not self._constructing:
+            self.addattr('radius')   
                              
     def pop(self):
         if len(self._pts) == 0: return None
@@ -1805,6 +1811,43 @@ class curve(standardAttributes):
      
     # def __del__(self):
         # pass
+        
+        
+class curve(curveMethods):
+    def __init__(self,**args):
+        args['_objName'] = "curve"
+        args['_default_size'] = vector(1,1,1)
+        self._origin = vector(0,0,0)  
+        self._radius = 0
+        self._cpos = []  ## temporary list of dicts containing lists, not vectors, to be sent to commsend
+        self._pts = []  ## cumulative list of dicts of the form {pos:vec, color=vec, radius=r, visible=T/F} python side
+  
+#        self.init2(args)
+        super(curve, self).curveSetup(args)
+        super(curveMethods, self).setup(args)
+
+class points(curveMethods):
+    def __init__(self,**args):
+        args['_objName'] = "points"
+        args['_default_size'] = None
+        self._radius = 0
+        self._cpos = []  ## temporary list of dicts containing lists, not vectors, to be sent to commsend
+        self._pts = []  ## cumulative list of dicts of the form {pos:vec, color=vec, radius=r, visible=T/F} python side
+  
+        super(points, self).curveSetup(args)
+        super(curveMethods, self).setup(args)        
+                
+    @property
+    def origin(self):
+#        return self._origin   
+        raise AttributeError('points object does not have an origin')
+    @origin.setter
+    def origin(self,value):
+        raise AttributeError('points object does not have an origin')
+#        self._origin.value = value
+#        if not self._constructing:
+#            self.addattr('origin')
+
 
 class gobj(baseObj):
     def setup(self, args):
