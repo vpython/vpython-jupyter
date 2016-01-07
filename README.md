@@ -3,8 +3,10 @@ The IPython/Jupyter version of VPython, the VPython API available in a Jupyter N
 
 Here is a simple example that will run in a Jupyter Notebook cell:
 
+```python
 from vpython import *
 sphere()
+```
 
 This will create a 3D window in the Notebook containing a 3D sphere, with mouse controls available to zoom and rotate the camera:
 
