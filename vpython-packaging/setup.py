@@ -10,7 +10,7 @@ setup(
     name='vpython',
     #packages=['vpython','vpnotebook'],
     packages=['vpython'],
-    version='0.1.0a4',
+    version='0.2.0b1',
     description='VPython for Jupyter Notebook',
     long_description=open('README.txt').read(),
     author='John Coady / Ruth Chabay / Bruce Sherwood',
@@ -20,7 +20,7 @@ setup(
     keywords='vpython',
     classifiers=[
           'Framework :: IPython',
-          'Development Status :: 3 - Alpha',
+          'Development Status :: 4 - Beta',
           'Environment :: Web Environment',
           'Intended Audience :: End Users/Desktop',
           'Natural Language :: English',

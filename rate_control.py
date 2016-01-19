@@ -4,9 +4,8 @@ import sys
 from numpy import zeros, random
 #import wx
 import platform
-import IPython
-import threading
-
+# import IPython
+# import threading
 
 # Unresolved bug: rate(X) yields only about 0.8X iterations per second.
 
@@ -14,7 +13,6 @@ MIN_RENDERS = 10
 MAX_RENDERS = 30
 INTERACT_PERIOD = 1.0/MAX_RENDERS
 USER_FRACTION = 0.5
-
 
 #_platInfo = wx.PlatformInformation()
 #_plat = _platInfo.GetOperatingSystemFamilyName() # 'Windows', 'Macintosh', 'Unix'
@@ -69,25 +67,6 @@ def _sleep(dt):
     tend = _clock()+dt
     while _clock() < tend:
         pass
-
-class TimingDebug:
-
-    def __init__(self, debug=0): # set to one to collect debugging times
-        self.tlist = []
-        self.start = _clock()
-        self.debug = debug
-        
-    def add(self, msg):
-        if self.debug: 
-            self.tlist.append("t: %10.6f, %s" % (_clock()-self.start,msg))
-        
-    def dump(self):
-        if self.debug:
-            print('\n'.join(self.tlist))
-        else:
-            print("debugging disabled")
-
-td = TimingDebug(debug=0)
         
 class simulateDelay:
     """
@@ -108,6 +87,9 @@ class RateKeeper(object):
     def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
         self.interactionPeriod = interactPeriod
         self.interactFunc = interactFunc
+        self.initialized = False
+
+    def initialize(self):
         self.delay = 0.0
         self.userTime = 0.0
         self.renderTime = 0.0
@@ -191,6 +173,9 @@ class RateKeeper(object):
         
     def __call__(self, maxRate=100):
         #td.add('-------------------------')
+        if not self.initialized:
+            self.initialize()
+            self.initialized = True
         calledTime = _clock()            
         self.sendtofrontend()
         if maxRate < 1: raise ValueError("rate value must be greater than or equal to 1")

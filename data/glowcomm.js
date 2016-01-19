@@ -274,13 +274,9 @@ GlowWidget.prototype.handler = function (msg) {
                             }
                             glowObjs[cmd.idx] = compound(objects, cfg);
                         } else if (cmd.cmd === 'canvas') {
-                            //glowObjs[cmd.idx] = canvas();
                             glowObjs[cmd.idx] = canvas(cfg);
-                            if (cfg.title !== "") {
-                                glowObjs[cmd.idx].title.text(cfg.title + " \n ");
                                 // Display frames per second and render time:
                                 //$("<div id='fps'/>").appendTo(glowObjs[cmd.idx].title);
-                            }
                             //console.log("Seting up bind for scene");
                             //glowObjs[cmd.idx].bind("click mousedown mouseenter mouseleave", process);
                             //glowObjs[cmd.idx].bind('click mousedown mouseenter mouseleave', function(event) {
