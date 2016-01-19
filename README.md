@@ -1,5 +1,5 @@
 # VPython
-The IPython/Jupyter version of VPython, the VPython API available in a Jupyter Notebook. This implementation of VPython was begun by John Coady in May 2014. Ruth Chabay and Bruce Sherwood are assisting in its further development. Work is in progress to follow the API of GlowScript VPython (glowscript.org). Some features are not yet fully implemented. An experimental alpha version is available through the Python Package Index by executing "pip install vpython".
+The IPython/Jupyter version of VPython, the VPython API available in a Jupyter Notebook. This implementation of VPython was begun by John Coady in May 2014. Ruth Chabay and Bruce Sherwood are assisting in its further development. Work is in progress to follow the API of GlowScript VPython (glowscript.org). Some features are not yet fully implemented. A beta version is available through the Python Package Index by executing "pip install vpython".
 
 Here is a simple example that will run in a Jupyter Notebook cell:
 
