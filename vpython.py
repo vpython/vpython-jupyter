@@ -583,33 +583,28 @@ class vector(object):
         self._z = value
         self.on_change()
 
-    def mag(self):
-        return math.sqrt(self._x**2+self._y**2+self._z**2)
-    ##### need to look at the details of v.mag and v.mag2 in GS; also, do we want setters here?
-
     @property
     def mag(self):
         return math.sqrt(self._x**2+self._y**2+self._z**2)
-
-    # @mag.setter
-    # def mag(self,value):
-        # normA = self.norm()
-        # self._value[0] = value * normA.x
-        # self._value[1] = value * normA.y
-        # self._value[2] = value * normA.z
-        # self.on_change()
+    @mag.setter
+    def mag(self,value):
+        normA = self.norm()
+        self._x = value * normA._x
+        self._y = value * normA._y
+        self._z = value * normA._z
+        self.on_change()
 
     @property
     def mag2(self):
         return self._x**2+self._y**2+self._z**2
-
-    # @mag2.setter
-    # def mag2(self,value):
-        # normA = self.norm()
-        # self._value[0] = math.sqrt(value) * normA.x
-        # self._value[1] = math.sqrt(value) * normA.y
-        # self._value[2] = math.sqrt(value) * normA.z
-        # self.on_change()
+    @mag2.setter
+    def mag2(self,value):
+        normA = self.norm()
+        v = math.sqrt(value)
+        self._x = v * normA._x
+        self._y = v * normA._y
+        self._z = v * normA._z
+        self.on_change()
      
     def on_change(self):
         pass
@@ -907,7 +902,7 @@ class standardAttributes(baseObj):
     @axis.setter
     def axis(self,other):
         self._axis.value = other
-        self._size.x = mag(other)
+        self._size.x = other.mag
         if not self._constructing:
             self.addattr('axis')
             
@@ -940,7 +935,7 @@ class standardAttributes(baseObj):
             self.addattr('size')
 
     def _on_size_change(self):
-        self._axis.value = self._axis.norm() * self._size.x           # update axis length when box.size.x is changed
+        self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
         self.addattr('size')
 
     def _on_pos_change(self):
