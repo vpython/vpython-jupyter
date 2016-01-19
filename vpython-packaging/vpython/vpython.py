@@ -947,7 +947,7 @@ class standardAttributes(baseObj):
         self.addattr('pos')
 
     def _on_axis_change(self):
-        self._size.x = self._axis.mag()
+        self._size.x = self._axis.mag
         self.addattr('axis')
 
     def _on_up_change(self):
