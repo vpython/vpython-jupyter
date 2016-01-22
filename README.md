@@ -1,6 +1,8 @@
 # VPython
 The IPython/Jupyter version of VPython, the VPython API available in a Jupyter Notebook. This implementation of VPython was begun by John Coady in May 2014. Ruth Chabay and Bruce Sherwood are assisting in its further development. Work is in progress to follow the API of GlowScript VPython (glowscript.org). Some features are not yet fully implemented. A beta version is available through the Python Package Index by executing "pip install vpython".
 
+Run VPython in an IPython/Jupyter notebook, using the GlowScript VPython API, documented in the VPython Help at glowscript.org. VPython makes it unusually easy to create navigable real-time 3D animations. The one-line program "box()" produces a 3D cube with appropriate lighting and with the camera positioned so that the scene fills the view. It also turns on mouse interactions to zoom and rotate the camera view. The 3D scene appears in the Jupyter notebook, using the WebGL-based GlowScript 3D graphics library. This implementation of VPython was begun by John Coady in May 2014. Ruth Chabay and Bruce Sherwood are assisting in its further development. The repository for the source code is at https://github.com/BruceSherwood/vpython-jupyter.
+
 Here is a simple example that will run in a Jupyter Notebook cell:
 
 ```python
@@ -14,3 +16,5 @@ This will create a 3D window in the Notebook containing a 3D sphere, with mouse 
     To zoom, drag with middle button or Alt/Option depressed, or use scroll wheel.
          On a two-button mouse, middle is left + right.
     Touch screen: pinch/extend to zoom, swipe or two-finger rotate.
+
+
