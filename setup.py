@@ -1,9 +1,9 @@
 from __future__ import print_function
-try:
-    from setuptools import setup
-except:
-    print("no setuptools, using distutils")
-    from distutils.core import setup
+
+from distribute_setup import use_setuptools
+use_setuptools()
+
+from setuptools import setup
 
 setup(
     name='vpython',
