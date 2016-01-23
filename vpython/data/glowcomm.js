@@ -265,13 +265,13 @@ GlowWidget.prototype.handler = function (msg) {
                         } else if (cmd.cmd === 'distant_light') {
                             glowObjs[cmd.idx] = distant_light(cfg);
                         } else if (cmd.cmd === 'compound') {
-                            if (objects.length > 0) {
-                                glowObjs[cmd.idx].visible = false;
-                                glowObjs[cmd.idx] = null;
-                                for (j = 0; j < objects.length; j++) {
-                                    objects[j].visible = true;
-                                }
-                            }
+//                            if (objects.length > 0) {
+//                                glowObjs[cmd.idx].visible = false;
+//                                glowObjs[cmd.idx] = null;
+//                                for (j = 0; j < objects.length; j++) {
+//                                    objects[j].visible = true;
+//                                }
+//                            }
                             glowObjs[cmd.idx] = compound(objects, cfg);
                         } else if (cmd.cmd === 'canvas') {
                             glowObjs[cmd.idx] = canvas(cfg);

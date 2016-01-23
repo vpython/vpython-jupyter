@@ -718,7 +718,7 @@ class standardAttributes(baseObj):
                          [],
                          ['visible', 'text', 'xoffset', 'yoffset', 'font', 'height', 'opacity', 
                            'border', 'line', 'box', 'space'],
-                          []],
+                         []],
                  'local_light':[['pos', 'color'],  
                          [],
                          ['visible'],
@@ -726,7 +726,14 @@ class standardAttributes(baseObj):
                  'distant_light':[['direction', 'color'],  
                          [],
                          ['visible'],
-                         []]}
+                         []],
+                 'compound':[['pos', 'up', 'color', 'trail_color'], 
+                         ['axis', 'size'],
+                         ['visible', 'opacity','shininess', 'emissive',  
+                         'make_trail', 'trail_type', 'interval', 
+                         'retain', 'trail_color', 'trail_radius', 'obj_idxs'],
+                         ['red', 'green', 'blue','length', 'width', 'height']]                         
+                        }
  
     attrLists['pyramid'] = attrLists['box']
     attrLists['cylinder'] = attrLists['sphere']
@@ -775,7 +782,7 @@ class standardAttributes(baseObj):
             if a in args:
                 argsToSend.append(a)
                 val = args[a]
-                if isinstance(val, vector): setattr(self, '_'+a, val)
+                if isinstance(val, vector): setattr(self, '_'+a, val)  ## bypassing setters
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
                 
@@ -787,7 +794,7 @@ class standardAttributes(baseObj):
             if a in args:
                 val = args[a]
                 if isinstance(val, vector): 
-                    setattr(self, a, val)
+                    setattr(self, a, val)   ## use setter to take care of side effects
                     if a not in argsToSend:
                         argsToSend.append(a)
                     if vectorInteractions[a] not in argsToSend:
@@ -809,10 +816,7 @@ class standardAttributes(baseObj):
         for a in attrs:
             if a in args:
                 argsToSend.append(a)
-                setattr(self, '_'+a, args[a])
-                # if isinstance(args[a], list):
-                    # while len(args[a]) > 0 :
-                        # del args[a][-1]
+                setattr(self, '_'+a, args[a])  ## bypass setters
                 del args[a] 
 
         scalarInteractions={'red':'color', 'green':'color', 'blue':'color', 'radius':'size', 'thickness':'size',
@@ -822,7 +826,7 @@ class standardAttributes(baseObj):
         attrs = standardAttributes.attrLists[objName][3]
         for a in attrs:
             if a in args:
-                setattr(self, a, args[a])
+                setattr(self, a, args[a])  ## use setter to take care of side effects
                 if scalarInteractions[a] not in argsToSend:
                     argsToSend.append(scalarInteractions[a])  # e.g. if a is radius, send size
                 del args[a]                
@@ -833,24 +837,20 @@ class standardAttributes(baseObj):
             
         cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, 
            "attrs":[]}
-           
+
+    # now put all args to send into cmd
         for a in argsToSend:
             aval = getattr(self,a)
             if isinstance(aval, vector):
                 aval = aval.value
             cmd["attrs"].append({"attr":a, "value": aval})
             
-    # set canvas
-            
+    # set canvas           
         if self.canvas != None:
-            cvs = self.canvas.idx
+            cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
         elif canvas.get_selected() != None:
-            cvs = canvas.get_selected().idx
-        else:
-            cvs = None
-        if cvs is not None:
-            cmd["attrs"].append({"attr": 'canvas', "value": cvs})
-                    
+            self.canvas = canvas.get_selected()
+                   
         self._constructing = False  ## from now on any setter call will not be from constructor        
         self.appendcmd(cmd)
        
@@ -1344,6 +1344,37 @@ class helix(standardAttributes):
         d = 2*value
         self.size = vector(self._size.x,d,d) # size will call addattr if appropriate
         
+class compound(standardAttributes):
+    def __init__(self, objList, **args):
+        args['_objName'] = 'compound'
+        args['_default_size'] = vector(1,1,1)
+        self._obj_idxs = None
+        idxlist = []
+        for obj in objList:
+            idxlist.append(obj.idx)
+        args['obj_idxs'] = idxlist
+        
+        super(compound, self).setup(args)
+        
+        for obj in objList:
+            obj.visible = False         ## ideally these should be deleted
+
+    @property
+    def obj_idxs(self):
+        return self._obj_idxs
+# no setter; must be set in constructor; this is done in standardAttributes
+        
+        
+    @property
+    def compound_to_world(self, val):
+        raise AttributeError("not implemented yet")
+    
+    @property
+    def world_to_compound(self, val):
+        raise AttributeError("not implemented yet")
+    
+
+        
 class curveMethods(standardAttributes):
        
     def curveSetup(self, args):
@@ -1549,6 +1580,7 @@ class points(curveMethods):
     @origin.setter
     def origin(self,value):
         raise AttributeError('points object does not have an origin')
+        
 
 
 class gobj(baseObj):
