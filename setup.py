@@ -1,18 +1,16 @@
-from distutils.core import setup
+from __future__ import print_function
 
-#try:
-#    from vpnotebook import cmdclass
-#except:
-#    import pip, importlib
-#    pip.main(['install', 'vpython']); cmdclass = importlib.import_module('vpnotebook').cmdclass
+from ez_setup import use_setuptools
+use_setuptools()
+
+from setuptools import setup
 
 setup(
     name='vpython',
-    #packages=['vpython','vpnotebook'],
     packages=['vpython'],
-    version='0.2.0b2',
+    version='0.2.0b4',
     description='VPython for Jupyter Notebook',
-    long_description=open('README.txt').read(),
+    long_description=open('README.md').read(),
     author='John Coady / Ruth Chabay / Bruce Sherwood',
     author_email='bruce.sherwood@gmail.com',
     url='http://pypi.python.org/pypi/vpython/',
@@ -29,8 +27,6 @@ setup(
           'Topic :: Multimedia :: Graphics :: 3D Rendering',
           'Topic :: Scientific/Engineering :: Visualization',
     ],
-    install_requires=['jupyter', 'vpython'],
-    #cmdclass=cmdclass('vpnotebook/data'),
-    #package_data={'vpython': ['data/*'], 'vpnotebook': ['data/kernel.json']},
+    install_requires=['jupyter', 'vpnotebook'],
     package_data={'vpython': ['data/*']},
 )

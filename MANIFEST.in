@@ -1,0 +1,4 @@
+include CHANGES.txt
+include LICENSE.txt
+include README.md
+include ez_setup.py
