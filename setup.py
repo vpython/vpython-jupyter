@@ -1,9 +1,11 @@
 from __future__ import print_function
 
-from ez_setup import use_setuptools
-use_setuptools()
-
-from setuptools import setup
+try:
+    from setuptools import setup  # try first in case it's already there.
+except ImportError:
+    from ez_setup import use_setuptools
+    use_setuptools()
+    from setuptools import setup
 
 setup(
     name='vpython',
