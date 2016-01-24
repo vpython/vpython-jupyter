@@ -1,7 +1,7 @@
 
 var vp;
 
-define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.1.2.min"], function() {
+define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.0.min"], function() {
 /*jslint plusplus: true */
 console.log("glowscript loading");
 

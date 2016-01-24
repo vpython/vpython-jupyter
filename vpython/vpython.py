@@ -92,11 +92,11 @@ display(HTML("""<div id="scene0"><div id="glowscript" class="glowscript"></div><
 package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow.1.2.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow.2.0.min.js",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 elif IPython.__version__ >= '3.0.0' :
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow.1.1.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow.2.0.min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 else:
     IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow.1.1.min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
@@ -669,6 +669,7 @@ class standard_colors(object):
       luminance = 0.21*T[0] + 0.71*T[1] + 0.07*T[2]
       return vector(luminance, luminance, luminance)
 
+vec = vector # synonyms in GlowScript
 color = standard_colors()
 
 class standardAttributes(baseObj):
