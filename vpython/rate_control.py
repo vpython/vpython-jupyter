@@ -1,11 +1,7 @@
 from __future__ import division, print_function
 import time
 import sys
-from numpy import zeros, random
-#import wx
 import platform
-# import IPython
-# import threading
 
 # Unresolved bug: rate(X) yields only about 0.8X iterations per second.
 
@@ -14,8 +10,6 @@ MAX_RENDERS = 30
 INTERACT_PERIOD = 1.0/MAX_RENDERS
 USER_FRACTION = 0.5
 
-#_platInfo = wx.PlatformInformation()
-#_plat = _platInfo.GetOperatingSystemFamilyName() # 'Windows', 'Macintosh', 'Unix'
 _plat = platform.system()
 
 if _plat == 'Windows':
@@ -30,13 +24,6 @@ else: # 'Unix'
     # On platforms other than Windows, the best timer is supposedly time.time()
     _clock = time.time
     _tick = 0.01 # though sleep seems to be accurate at the 1 millisecond level
-    
-## This attempt to use a platform-independent clock caused crashes:
-##_timer = wx.StopWatch()
-##_timer.Start(0)
-##
-##def _clock():
-##    return _timer.Time()
 
 ##Possible way to get one-millisecond accuracy in sleep on Windows:
 ##http://msdn.microsoft.com/en-us/library/windows/desktop/ms686298(v=vs.85).aspx
@@ -81,7 +68,6 @@ class simulateDelay:
         
     def __call__(self):
         self.callTimes.append(_clock())
-        time.sleep(random.normal()*self.delaySigma + self.delayAvg)
 
 class RateKeeper(object):
     def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
@@ -101,7 +87,9 @@ class RateKeeper(object):
         self.lastSleep = self.start = _clock()
 
         # List of which calls to rate in a 1-second cycle should do a render:
-        self.whenToRender = zeros(MAX_RENDERS+2, dtype=int)       
+        self.whenToRender = []
+        for i in range(MAX_RENDERS+2):
+            self.whenToRender.append(0)
         self.renderIndex = 0 
         self.rateCount = 0 # counts calls to rate in a 1-second cycle (reset to 0 every second)
         
