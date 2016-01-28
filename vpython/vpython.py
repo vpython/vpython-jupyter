@@ -43,7 +43,7 @@ class RateKeeper2(RateKeeper):
         self.sz = 0
         self.sendcnt = 0
         self.rval = 1
-        super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=interactFunc)
+        super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
 
     def sendtofrontend(self):
         self.active = True
@@ -275,16 +275,19 @@ def commsend():
                 if L > 0:
                     if not rate.active:
                         L = L if (L <= baseObj.qSize) else baseObj.qSize
-                        baseObj.glow.comm.send(commcmds[:L])
+                        req = []
+                        for item in commcmds[:L]:
+                            req.append(item.copy())
+                        baseObj.glow.comm.send(req)
                     else:
                         rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
                         rate.send = True
 
         finally:
-            next_call = next_call+0.03333
+            next_call = next_call+rate.interactionPeriod
             tmr = next_call - time.time()
             if tmr < 0.0:
-                tmr = 0.03333
+                tmr = rate.interactionPeriod
                 next_call = time.time()+tmr
             threading.Timer(tmr, commsend ).start()
     

@@ -156,16 +156,12 @@ class RateKeeper(object):
 ##        print("%1.4f %i %i %i %1.6f %1.6f %1.6f %1.6f" % (_clock(), M, N, self.renderWaits,
 ##                                self.userTime, self.callTime, self.delay, self.renderTime))
         
-    def sendtofrontend(self):
-        pass
-        
     def __call__(self, maxRate=100):
         #td.add('-------------------------')
         if not self.initialized:
             self.initialize()
             self.initialized = True
         calledTime = _clock()            
-        self.sendtofrontend()
         if maxRate < 1: raise ValueError("rate value must be greater than or equal to 1")
         self.count += 1
         if self.count == 1: # first time rate has been called
