@@ -417,6 +417,8 @@ else:
 display(Javascript("""require.undef("nbextensions/glow.1.0.min");"""))
 display(Javascript("""require.undef("nbextensions/jquery-ui.custom.min");"""))
 display(Javascript("""require.undef("nbextensions/glow.1.1.min");"""))
+display(Javascript("""require.undef("nbextensions/glow.1.2.min");"""))
+display(Javascript("""require.undef("nbextensions/glow.2.0.min");"""))
 display(Javascript("""require.undef("nbextensions/glowcomm");"""))
 display(Javascript("""require(["nbextensions/glowcomm"], function(){console.log("glowcomm loaded");})"""))
             
