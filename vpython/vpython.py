@@ -229,23 +229,23 @@ def commsend():
                                             commcmds[L]['val'] = poslist                                                
                                         elif attr in ['axis','pos', 'up','color',
                                                       'center','forward', 'direction',
-                                                      'background','origin', 'trail_color', 'dot_color']:
+                                                      'background','origin', 'trail_color', 'dot_color', 'size']:
                                             attrvalues = attrval.value
                                             if attrvalues is not None:
                                                 commcmds[L]['idx'] = ob.idx
                                                 commcmds[L]['attr'] = attr
                                                 commcmds[L]['val'] = attrvalues
-                                        elif attr == 'size':
-                                            if hasattr(ob,'size_units'):
-                                                commcmds[L]['idx'] = ob.idx
-                                                commcmds[L]['attr'] = attr
-                                                commcmds[L]['val'] = attrval
-                                            else:
-                                                attrvalues = attrval.value
-                                                if attrvalues is not None:
-                                                    commcmds[L]['idx'] = ob.idx
-                                                    commcmds[L]['attr'] = attr
-                                                    commcmds[L]['val'] = attrvalues
+                                        # elif attr == 'size':
+                                            # if hasattr(ob,'size_units'):
+                                                # commcmds[L]['idx'] = ob.idx
+                                                # commcmds[L]['attr'] = attr
+                                                # commcmds[L]['val'] = attrval
+                                            # else:
+                                                # attrvalues = attrval.value
+                                                # if attrvalues is not None:
+                                                    # commcmds[L]['idx'] = ob.idx
+                                                    # commcmds[L]['attr'] = attr
+                                                    # commcmds[L]['val'] = attrvalues
                                         elif attr == '_plot':
                                             commcmds[L]['idx'] = ob.idx
                                             commcmds[L]['attr'] = attr
@@ -504,29 +504,6 @@ class vector(object):
         if a < -1:
             return math.pi
         return acos(a)
-
-    # def rotate(self,angle = 0.,axis = (0,0,1)):
-        # if type(axis) is np.ndarray:
-            # axis = axis/math.sqrt(np.dot(axis,axis))
-        # elif (type(axis) is tuple) or (type(axis) is list):
-            # axis = np.array(axis)
-            # axis = axis/math.sqrt(np.dot(axis,axis))
-        # else:
-            # axis = axis/math.sqrt(axis.dot(axis))
-            # axis = np.array([axis.x,axis.y,axis.z])
-        # c = math.cos(angle)
-        # s = math.sin(angle)
-        # t = 1-c
-        # u = norm(axis)
-        # x = u.x
-        # y = u.y
-        # z = u.z
-        # mat = np.array([ [t*x*x+c, t*x*y-z*s, t*x*z+y*s],
-                         # [t*x*y+z*s, t*y*y+c, t*y*z-x*s],
-                         # [t*x*z-y*s, t*y*z+x*s, t*z*z+c] ])
-        # v = np.array([self.x,self.y,self.z])
-        # res = np.dot(mat,v)
-        # return vector(res)
         
     def rotate(self,angle = 0., axis = None):
         if axis == None:
@@ -939,24 +916,6 @@ class standardAttributes(baseObj):
         self._size.z = value
         if not self._constructing:
             self.addattr('size')
-
-    def _on_size_change(self):
-        self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
-        self.addattr('size')
-
-    def _on_pos_change(self):
-        self.addattr('pos')
-
-    def _on_axis_change(self):
-        self._size.x = self._axis.mag
-        self.addattr('axis')
-
-    def _on_up_change(self):
-        self.addattr('up')
-        
-    def _on_origin_change(self):  ## for curve and points
-        self.addattr('origin')
-
         
     @property    
     def color(self):
@@ -1010,41 +969,7 @@ class standardAttributes(baseObj):
     def canvas(self,value):
         if not self._constructing:
             raise AttributeError('canvas cannot be modified')
-
-
-    @property
-    def frame(self):
-        return self._frame    
-    @frame.setter
-    def frame(self,value):
-        self._frame = value
-
-    
-    def rotate(self, angle=math.pi/4, axis=None, origin=None):
-        if axis == None:
-            rotaxis = self.axis
-        else:
-            if not isinstance(axis, vector): raise TypeError('axis must be a vector')
-            rotaxis = axis
-        if origin == None:
-            rorigin = self.pos
-        else:
-            if not isinstance(origin, vector): raise TypeError('origin must be a vector')
-            rorigin = origin
-            self.pos = rorigin+(self.pos-rorigin).rotate(angle, rotaxis)
-        axis = self.axis
-        X = norm(axis)
-        Y = self.up
-        Z = X.cross(Y)
-        if Z.dot(Z) < 1e-10:
-            Y = vector(1,0,0)
-            Z = X.cross(Y)
-            if Z.dot(Z) < 1e-10:
-                Y = vector(0,1,0)            
-        self.axis = axis.rotate(angle, rotaxis)          
-        self.up = Y.rotate(angle, rotaxis)
-        
-       
+      
     @property
     def opacity(self):
         return self._opacity    
@@ -1108,56 +1033,129 @@ class standardAttributes(baseObj):
         return self._trail_type    
     @trail_type.setter
     def trail_type(self,value):
-        if not self._constructing: raise AttributeError('"trail_type" cannot be modified')
+##        if not self._constructing: raise AttributeError('"trail_type" cannot be modified')
         if (value not in ['curve', 'points']):
             raise Exception("ArgumentError: trail_type must be 'curve' or 'points'")
         self._trail_type = value   
+        if not self._constructing:
+            self.addattr('trail_type')
         
     @property
     def trail_color(self):
         return self._trail_color
     @trail_color.setter
     def trail_color(self, value):
-        if not self._constructing: raise AttributeError('"trail_color" cannot be modified')
         if isinstance(value, vector):
-            self._trail_color = value
+            self._trail_color.value = value
         else:
             raise TypeError('trail_color must be a vector')
+        if not self._constructing: 
+            self.addattr('trail_color')
+
 
     @property
     def interval(self):
         return self._interval    
     @interval.setter
     def interval(self,value):
-        if not self._constructing: raise AttributeError('"interval" cannot be modified')
+##        if not self._constructing: raise AttributeError('"interval" cannot be modified')
         self._interval = value
+        if not self._constructing:
+            self.addattr('interval')
 
     @property
     def retain(self):
         return self._retain    
     @retain.setter
     def retain(self,value):
-        if not self._constructing: raise AttributeError('"retain" cannot be modified')
+##        if not self._constructing: raise AttributeError('"retain" cannot be modified')
         self._retain = value
+        if not self._constructing:
+            self.addattr('retain')
 
     @property
     def trail_radius(self):
         return self._trail_radius    
     @trail_radius.setter
     def trail_radius(self,value):
-        if not self._constructing: raise AttributeError('"trail_radius" cannot be modified')
         self._trail_radius = value
+        if not self._constructing:
+            self.addattr('trail_radius')
         
     @property
     def pps(self):
         return self._pps
     @pps.setter
     def pps(self, value):
-        if not self._constructing: raise AttributeError('"pps" cannot be modified')
+##        if not self._constructing: raise AttributeError('"pps" cannot be modified')
         self._pps = value
+        if not self._constructing:
+            self.addattr('pps')
+
+    @property
+    def frame(self):
+        return self._frame    
+    @frame.setter
+    def frame(self,value):
+        self._frame = value
+   
+    def rotate(self, angle=math.pi/4, axis=None, origin=None):
+        if axis == None:
+            rotaxis = self.axis
+        else:
+            if not isinstance(axis, vector): raise TypeError('axis must be a vector')
+            rotaxis = axis
+        if origin == None:
+            rorigin = self.pos
+        else:
+            if not isinstance(origin, vector): raise TypeError('origin must be a vector')
+            rorigin = origin
+            self.pos = rorigin+(self.pos-rorigin).rotate(angle, rotaxis)
+        axis = self.axis
+        X = norm(axis)
+        Y = self.up
+        Z = X.cross(Y)
+        if Z.dot(Z) < 1e-10:
+            Y = vector(1,0,0)
+            Z = X.cross(Y)
+            if Z.dot(Z) < 1e-10:
+                Y = vector(0,1,0)            
+        self.axis = axis.rotate(angle, rotaxis)          
+        self.up = Y.rotate(angle, rotaxis)
+
+    def _on_size_change(self):
+        self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
+        self.addattr('size')
+
+    def _on_pos_change(self):
+        self.addattr('pos')
+
+    def _on_axis_change(self):
+        self._size.x = self._axis.mag
+        self.addattr('axis')
+
+    def _on_up_change(self):
+        self.addattr('up')
+        
+    def _on_origin_change(self):  ## for curve and points
+        self.addattr('origin')
         
     def clear_trail(self):
         self.addattr('clear_trail')
+        
+    def clone(self, **args):
+        newAtts = {}
+        exclude = ['guid', 'idx', 'attrsupdt', 'oid', '_constructing']
+        for k,v in vars(self).items():
+            if k not in exclude:
+                key = k[:]
+                if k[0] == '_':
+                    key = k[1:]     ## get rid of underscore
+                newAtts[key] = v  
+        for k, v in args.items():   ## overrides and user attrs
+            newAtts[k] = v
+        dup = type(self)(**newAtts)
+        return dup
            
     def __del__(self):
         super(standardAttributes, self).__del__()
