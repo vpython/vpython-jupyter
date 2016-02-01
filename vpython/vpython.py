@@ -235,17 +235,6 @@ def commsend():
                                                 commcmds[L]['idx'] = ob.idx
                                                 commcmds[L]['attr'] = attr
                                                 commcmds[L]['val'] = attrvalues
-                                        # elif attr == 'size':
-                                            # if hasattr(ob,'size_units'):
-                                                # commcmds[L]['idx'] = ob.idx
-                                                # commcmds[L]['attr'] = attr
-                                                # commcmds[L]['val'] = attrval
-                                            # else:
-                                                # attrvalues = attrval.value
-                                                # if attrvalues is not None:
-                                                    # commcmds[L]['idx'] = ob.idx
-                                                    # commcmds[L]['attr'] = attr
-                                                    # commcmds[L]['val'] = attrvalues
                                         elif attr == '_plot':
                                             commcmds[L]['idx'] = ob.idx
                                             commcmds[L]['attr'] = attr
@@ -256,6 +245,10 @@ def commsend():
                                             commcmds[L]['attr'] = attr
                                             commcmds[L]['val'] = attrval[:]
                                             ob.clearData()
+                                        # elif attr == 'canvas':
+                                            # commcmds[L]['idx'] = ob.idx
+                                            # commcmds[L]['attr'] = attr
+                                            # commcmds[L]['val'] = attrval.idx
                                         else:
                                             commcmds[L]['idx'] = ob.idx
                                             commcmds[L]['attr'] = attr
@@ -828,11 +821,11 @@ class standardAttributes(baseObj):
                 aval = aval.value
             cmd["attrs"].append({"attr":a, "value": aval})
             
-    # set canvas           
-        if self.canvas != None:
-            cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
-        elif canvas.get_selected() != None:
+    # set canvas  
+
+        if self.canvas == None:  ## not specified in constructor
             self.canvas = canvas.get_selected()
+        cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
                    
         self._constructing = False  ## from now on any setter call will not be from constructor        
         self.appendcmd(cmd)
@@ -967,6 +960,7 @@ class standardAttributes(baseObj):
         return self._canvas    
     @canvas.setter
     def canvas(self,value):
+        self._canvas = value
         if not self._constructing:
             raise AttributeError('canvas cannot be modified')
       
@@ -2077,23 +2071,13 @@ class Mouse(object):
 
 
 class canvas(baseObj):
-    sceneCnt = 0
-    selected_canvas = -1
-    canvases = []
-    canvas_idx = 0
+    selected_canvas = None
     
     def __init__(self, **args):
         super(canvas, self).__init__()   ## get guid, idx, attrsupdt, oid
         
-        self._constructing = True
-
-## need to check which of these are actually used        
-        object.__setattr__(self, 'canvas_index', canvas.canvas_idx)
-        object.__setattr__(self, 'sceneId', "scene%d" % (canvas.sceneCnt))
-        canvas.canvases.append(self)
-        canvas.selected_canvas = canvas.canvas_idx
-        canvas.canvas_idx += 1
-        canvas.sceneCnt += 1
+        self._constructing = True        
+        canvas.selected_canvas = self
 
         rate.active = False  ## ??
             
@@ -2146,7 +2130,7 @@ class canvas(baseObj):
         self._up.on_change = self._on_up_change
         self._center.on_change = self._on_center_change
         
-        display(HTML("""<div id="%s"><div id="glowscript" class="glowscript"></div></div>""" % (self.sceneId)))
+        display(HTML("""<div id="%s"><div id="glowscript" class="glowscript"></div></div>""" % (self)))
         display(Javascript("""window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
 
         self.appendcmd(cmd)
@@ -2154,11 +2138,11 @@ class canvas(baseObj):
  
 
     def select(self):
-        canvas.selected_canvas = self.canvas_index
+        canvas.selected_canvas = self
 
     @classmethod
     def get_selected(cls):
-        return cls.canvases[cls.selected_canvas] if cls.selected_canvas >= 0 else None
+        return cls.selected_canvas
 
         
     @property
