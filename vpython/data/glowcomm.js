@@ -49,7 +49,9 @@ GlowWidget.prototype.callback = function (event) {
     //pick = glowObjs[idx].mouse.pick();
     pick = glowObjs[idx].mouse.canvas.__renderer.render(1);
     //pick = $.proxy(glowObjs[idx].mouse.pick(), glowObjs[idx].mouse);
-    if ((typeof pick !== undefined) && (pick !== null)) {
+    if ((
+
+    pick !== undefined) && (pick !== null)) {
         evt.mouse.pickguid = pick.guid;
     }
     //pickpos = glowObjs[idx].mouse.pickpos;
@@ -62,6 +64,8 @@ GlowWidget.prototype.callback = function (event) {
     evt.mouse.ctrl = glowObjs[idx].mouse.ctrl;
     evt.mouse.shift = glowObjs[idx].mouse.shift;
     //console.log("evt = ",evt);
+    
+    // the following 'typeof' tests will always be true; probably not what was intended.
 
     if (typeof event.data.callback !== undefined) {
         if (event.data.arbArg != undefined) {
@@ -94,47 +98,49 @@ GlowWidget.prototype.handler = function (msg) {
         for (i = 0; i < len; i++) {
             cnvsidx = -1;
             cmd = data.shift();
-            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd)
-            if (typeof cmd.cmd === 'undefined') { //  not a constructor
-                if (typeof cmd.idx !== 'undefined') {
-// not handled yet: 'normal', 'bumpaxis', 'texpos'
-                    vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin'];
-                    var v
-                    if (vlst.indexOf(cmd.attr) !== -1) {
-                        if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {                       
-                            var ptlist = []
-                            for (var kk = 0; kk < cmd.val.length; kk++) {
-                                ptlist.push( o2vec3(cmd.val[kk]) )
-                            }
-                            glowObjs[cmd.idx][cmd.attr] = ptlist
-                        } else {
-                            v = vec(cmd.val[0], cmd.val[1], cmd.val[2]);
-                            if (glowObjs[cmd.idx] instanceof arrow && cmd.attr === 'axis') {
-                                glowObjs[cmd.idx]['axis_and_length'] = v
+            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
+            if (cmd.cmd === undefined) { //  not a constructor
+                if (cmd.idx !== undefined) {
+                    if (cmd.attr !== undefined) {                    
+                        // not handled yet: 'normal', 'bumpaxis'
+                        vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward',
+                                'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin'];
+                        var v
+                        if (vlst.indexOf(cmd.attr) !== -1) {
+                            if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {                       
+                                var ptlist = []
+                                for (var kk = 0; kk < cmd.val.length; kk++) {
+                                    ptlist.push( o2vec3(cmd.val[kk]) )
+                                }
+                                glowObjs[cmd.idx][cmd.attr] = ptlist
                             } else {
-                                glowObjs[cmd.idx][cmd.attr] = v
+                                v = vec(cmd.val[0], cmd.val[1], cmd.val[2]);
+                                if (glowObjs[cmd.idx] instanceof arrow && cmd.attr === 'axis') {
+                                    glowObjs[cmd.idx]['axis_and_length'] = v
+                                } else {
+                                    glowObjs[cmd.idx][cmd.attr] = v
+                                }
                             }
-                        }
-/*  taken care of on Python side
-                        if (cmd.attr === 'axis') { 
-                            glowObjs[cmd.idx]['size'].x = mag(v);
-                        }
-*/
-                    } else if (cmd.attr == '_plot'){
-                        // console.log('set val', cmd.idx, cmd.attr, cmd.val)
-                        glowObjs[cmd.idx].plot(cmd.val)
-                    } else if (cmd.attr == '_cpos') {
-                        for (var i = 0; i < cmd.val.length; i++) {
-                            var bb = cmd.val[i]
-                            for (var cc in bb) {
-                                if (bb[cc] instanceof Array) bb[cc] = o2vec3(bb[cc])
+                        } else if (cmd.attr == '_plot'){
+                            // console.log('set val', cmd.idx, cmd.attr, cmd.val)
+                            glowObjs[cmd.idx].plot(cmd.val)
+                        } else if (cmd.attr == '_cpos') {
+                            for (var i = 0; i < cmd.val.length; i++) {
+                                var bb = cmd.val[i]
+                                for (var cc in bb) {
+                                    if (bb[cc] instanceof Array) bb[cc] = o2vec3(bb[cc])
+                                }
                             }
+                            glowObjs[cmd.idx].push(cmd.val)
+                        } else if (cmd.attr == 'clear_trail') {
+                            glowObjs[cmd.idx].clear_trail()
+                        } else {
+                            glowObjs[cmd.idx][cmd.attr] = cmd.val;
                         }
-                        glowObjs[cmd.idx].push(cmd.val)
-                    } else if (cmd.attr == 'clear_trail') {
-                        glowObjs[cmd.idx].clear_trail()
-                    } else {
-                        glowObjs[cmd.idx][cmd.attr] = cmd.val;
+                    }
+                    if (cmd.method !== undefined){
+                        var val = cmd.value
+                        glowObjs[cmd.idx][cmd.method](val)
                     }
                 }
             } else { // processing a constructor
@@ -147,7 +153,7 @@ GlowWidget.prototype.handler = function (msg) {
                 //assembling cfg
 //                console.log('assembling cfg', cmd.cmd, typeof cmd.attrs, cmd.attrs) //**************
 //                for (var i in cmd.attrs) { console.log(cmd.attrs[i]) }
-                if (typeof cmd.attrs !== 'undefined') {
+                if (cmd.attrs !== undefined) {
                      vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color','origin'];
                     if ((cmd.cmd != 'gcurve') && ( cmd.cmd != 'gdots' ) ) {
                         vlst.push( 'size' )
@@ -209,7 +215,7 @@ GlowWidget.prototype.handler = function (msg) {
                         }
                     }
                     //making the objects
-                    if (typeof cmd.idx !== 'undefined') {
+                    if (cmd.idx !== undefined) {
                         if (cmd.cmd === 'box') {
                             glowObjs[cmd.idx] = box(cfg);
                             glowObjs[cmd.idx].gidx = cmd.idx;
@@ -286,7 +292,7 @@ GlowWidget.prototype.handler = function (msg) {
                         } else {
                             console.log("Unrecognized Object");
                         }
-                        if (typeof cmd.guid !== 'undefined') {
+                        if (cmd.guid !== undefined) {
                             glowObjs[cmd.idx].guid = cmd.guid;
                             //console.log("Set GUID to : ",cmd.guid);
                         }
@@ -299,7 +305,7 @@ GlowWidget.prototype.handler = function (msg) {
  */                                               
                         if ((cmd.idx >= 0) && (cnvsidx >= 0)) {
                             //glowObjs[cmd.idx].gidx = cmd.idx;
-                            if (typeof glowObjs[cnvsidx] !== "undefined") {
+                            if (glowObjs[cnvsidx] !== undefined) {
                                 var olen = glowObjs[cnvsidx].objects.length;
                                 if (olen > 0) {
                                     glowObjs[cnvsidx].objects[olen - 1].gidx = cmd.idx;
@@ -322,12 +328,6 @@ GlowWidget.prototype.handler = function (msg) {
                         var cont = scn + " .glowscript";
                         window.__context = { glowscript_container:    $(cont) };
                     } else {
-                        /*
-                        if (typeof glowObjs[cmd.idx].sceneclone !== 'undefined') {
-                            console.log("using cloned scene");
-                            $('#glowscript2').replaceWith(glowObjs[cmd.idx].sceneclone);
-                        }
-                        */
                         window.__context = { glowscript_container: $("#glowscript").removeAttr("id") };                    
                         var newcnvs = canvas();
                         for (var obj in glowObjs[cmd.idx].objects) {
@@ -346,7 +346,7 @@ GlowWidget.prototype.handler = function (msg) {
                 } else if (cmd.cmd === 'delete') {
                     b = glowObjs[cmd.idx];
                     //console.log("delete : ",cmd.idx);
-                    if ((b !== null) || (typeof b.visible !== 'undefined')) {
+                    if ((b !== null) || (b.visible !== undefined)) {
                         b.visible = false;
                     }
                     glowObjs[cmd.idx] = null;
@@ -355,13 +355,13 @@ GlowWidget.prototype.handler = function (msg) {
                 } else if (cmd.cmd === 'debug') {
                     console.log("debug : ", cmd);
                 } else if (cmd.cmd === 'bind') {
-                    if (typeof cmd.arbArg !== 'undefined') {
+                    if (cmd.arbArg !== undefined) {
                         $(cmd.selector).bind(cmd.events,{ callback: cmd.callback, scene: cmd.sceneguid, arbArg: cmd.arbArg, idx: cmd.idx }, $.proxy(this.callback, this));
                     } else {
                         $(cmd.selector).bind(cmd.events,{ callback: cmd.callback, scene: cmd.sceneguid, idx: cmd.idx }, $.proxy(this.callback, this));
                     }
                 } else if (cmd.cmd === 'unbind') {
-                    //if (typeof cmd.arbArg !== 'undefined') {
+                    //if (cmd.arbArg !== undefined) {
                     //    $(cmd.selector).unbind(cmd.events,{ callback: cmd.callback, scene: cmd.sceneguid, arbArg: cmd.arbArg, idx: cmd.idx }, $.proxy(this.callback, this));
                     //} else {
                     //    $(cmd.selector).unbind(cmd.events,{ callback: cmd.callback, scene: cmd.sceneguid, idx: cmd.idx }, $.proxy(this.callback, this));

@@ -131,6 +131,7 @@ class baseObj(object):
         object.__setattr__(self, 'guid', guid)
         object.__setattr__(self, 'idx', baseObj.objCnt)
         object.__setattr__(self, 'attrsupdt', set())
+        object.__setattr__(self, 'methodsupdt', [] )
         object.__setattr__(self, 'oid', remember(self))
         if kwargs is not None:
             for key, value in kwargs.items():
@@ -156,10 +157,13 @@ class baseObj(object):
 
 
     def addattr(self, name):
-        # New-way to use a lock
-        #with glowlock:
         self.attrsupdt.add(name)
         baseObj.updtobjs.add(self.oid)
+        
+    def addmethod(self, name, data):
+        self.methodsupdt.append( [name, data] )
+        baseObj.updtobjs.add(self.oid)
+        sys.stdout.flush()
             
     @classmethod
     def incrObjCnt(cls):
@@ -211,11 +215,15 @@ def commsend():
                     updtobjs2 = baseObj.updtobjs.copy()
                     baseObj.updtobjs.clear()
                 if L < baseObj.qSize:
+                    # print('commsend stuff to update', baseObj.updtobjs)
                     while updtobjs2:
                         oid = updtobjs2.pop()
                         ob = id2obj(oid)
+                        #print('commsend object', ob.attrsupdt, ob.methodsupdt)
+                        sys.stdout.flush()
                         if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
                             while ob.attrsupdt:
+                                if 'method' in commcmds[L]: del commcmds[L]['method']
                                 attr = ob.attrsupdt.pop()
                                 if attr is not None:
                                     attrval = getattr(ob,attr)
@@ -245,10 +253,10 @@ def commsend():
                                             commcmds[L]['attr'] = attr
                                             commcmds[L]['val'] = attrval[:]
                                             ob.clearData()
-                                        # elif attr == 'canvas':
-                                            # commcmds[L]['idx'] = ob.idx
-                                            # commcmds[L]['attr'] = attr
-                                            # commcmds[L]['val'] = attrval.idx
+                                        elif attr == 'clear_trail':
+                                            commcmds[L]['idx'] = ob.idx
+                                            commcmds[L]['attr'] = attr
+                                            commcmds[L]['val'] = 0  # will be ignored
                                         else:
                                             commcmds[L]['idx'] = ob.idx
                                             commcmds[L]['attr'] = attr
@@ -258,10 +266,23 @@ def commsend():
                                             if (len(ob.attrsupdt) > 0):
                                                 updtobjs2.add(ob.oid)
                                             break
-                                    elif attr == 'clear_trail':
-                                        commcmds[L]['idx'] = ob.idx
-                                        commcmds[L]['attr'] = attr
-                                        commcmds[L]['val'] = 0  # will be ignored
+                        if (ob is not None) and (hasattr(ob,'methodsupdt')) and (len(ob.methodsupdt) > 0 ):
+                            for m in ob.methodsupdt:
+                                if 'attr' in commcmds[L]: del commcmds[L]['attr']
+                                method = m[0]
+                                data = m[1]
+                                commcmds[L]['idx'] = ob.idx
+                                commcmds[L]['method'] = method
+                                commcmds[L]['val'] = data  
+                                #print('commsend methods', ob.idx, method, data)
+                                sys.stdout.flush()
+                                L += 1
+                                # if L >= baseObj.qSize:   ## put this in
+                                    # if (len(ob.methodsupdt) > 0):
+                                        # updtobjs2.add(ob.oid)
+                                    # break
+                            while len(ob.methodsupdt) > 0:
+                                del ob.methodsupdt[-1]
                         if L >= baseObj.qSize:
                             #L = 0
                             break
@@ -1458,6 +1479,7 @@ class curveMethods(standardAttributes):
         if len(self._pts) == 0: return None
         val = self._pts[-1]
         self._pts = self._pts[0:-1]
+        self.addmethod('pop', 'None')
         return val
 
     def point(self,N):
