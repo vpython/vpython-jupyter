@@ -10,10 +10,10 @@ except ImportError:
 setup(
     name='vpython',
     packages=['vpython'],
-    version='0.2.0b5',
+    version='0.2.0b6',
     description='VPython for Jupyter Notebook',
     long_description=open('README.md').read(),
-    author='John Coady / Ruth Chabay / Bruce Sherwood',
+    author='John Coady / Ruth Chabay / Bruce Sherwood / Steve Spicklemire',
     author_email='bruce.sherwood@gmail.com',
     url='http://pypi.python.org/pypi/vpython/',
     license='LICENSE.txt',
