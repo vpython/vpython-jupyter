@@ -98,10 +98,11 @@ GlowWidget.prototype.handler = function (msg) {
         for (i = 0; i < len; i++) {
             cnvsidx = -1;
             cmd = data.shift();
-            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
+//            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
             if (cmd.cmd === undefined) { //  not a constructor
                 if (cmd.idx !== undefined) {
-                    if (cmd.attr !== undefined) {                    
+                    if (cmd.attr !== undefined) {  
+//                        console.log('commsend cmd.attr not undefined', cmd.attr)
                         // not handled yet: 'normal', 'bumpaxis'
                         vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward',
                                 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin'];
@@ -138,12 +139,40 @@ GlowWidget.prototype.handler = function (msg) {
                             glowObjs[cmd.idx][cmd.attr] = cmd.val;
                         }
                     }
-                    if (cmd.method !== undefined){
-                        var val = cmd.value
-                        glowObjs[cmd.idx][cmd.method](val)
+                    if (cmd.method !== undefined) {
+                        var parametric = ['splice', 'modify']
+                        var val = cmd.val
+                        if (val == 'None') {
+                            glowObjs[cmd.idx][cmd.method]()
+                        } else {
+                            var npargs = 0
+                            var info
+                            if (parametric.indexOf(cmd.method) > -1) {
+                                npargs = val.length - 1
+                                info = val[npargs]  // a list of dictionaries
+                            } else {
+                                info = val
+                            }
+                            for (var i=0; i < info.length; i++) {
+                                var d = info[i]
+                                for (var a in d) {
+                                    if (d[a] instanceof Array) d[a] = o2vec3(d[a])
+                                } 
+                            }
+                            if ( npargs === 0 ) {
+                                glowObjs[cmd.idx][cmd.method](info)
+                            } else if ( cmd.method === 'modify' ) { // 1 parameter
+                                glowObjs[cmd.idx][cmd.method](val[0], info[0])
+                            } else if ( cmd.method === 'splice' ) {  // 2 parameters
+                                glowObjs[cmd.idx][cmd.method](val[0], val[1], info)
+                            } else {
+                                throw new Error('Too many parameters in '+cmd.method)
+                            }
+                        }
+                         
                     }
                 }
-            } else { // processing a constructor
+            } else { // processing a constructor           
                 /*
                 if (cmd.cmd !== 'heartbeat') {
                     console.log('glow', data, data.length);

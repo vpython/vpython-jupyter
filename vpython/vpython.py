@@ -1397,6 +1397,7 @@ class compound(standardAttributes):
 class curveMethods(standardAttributes):
        
     def curveSetup(self, args):
+        self._constructing = True
         pos = []  ## default
         if 'pos' in args:
             pos = args['pos']
@@ -1416,9 +1417,10 @@ class curveMethods(standardAttributes):
             if ptretain != None: pt['retain'] = ptretain
             self._pts.append(pt)
             tpos.append(p.value)
-        args['pos'] = tpos   
+        args['pos'] = tpos
+        self._constructing = False
 
-    def append(self, *args1, **args):
+    def process_args(self, *args1, **args):
         c = None
         r = None
         vis = None
@@ -1429,32 +1431,70 @@ class curveMethods(standardAttributes):
             r = args['radius']
         if 'visible' in args:
             vis = args['visible']
-        if 'retain' in args:
-            ret = args['retain']
-        if len(args1) > 0:
-            tpos = self.parse_pos(args1)
+        if len(args1) > 0: 
+            if len(args1) == 1:
+                tpos = self.parse_pos(args1[0])
+            else:  ## avoid nested tuples
+                tlist = list(args1)
+                tpos = self.parse_pos(tlist)
         elif 'pos' in args:
             pos = args['pos']
             tpos = self.parse_pos(pos)  ## resolve pos arguments into a list
         if len(tpos) == 0:
-            raise AttributeError("To append a point to a curve or points object, specify pos information.")
-        for p in tpos:
-            pt = {'pos':p}
-            cp = {'pos':p.value}
+            raise AttributeError("To add a point to a curve or points object, specify pos information.")
+        pts = []
+        cps = []
+        for pt in tpos:
+            cp = {'pos':pt['pos'].value}
+            if 'color' in pt:
+                c = pt['color']
+            if 'radius' in pt:
+                r = pt['radius']
+            if 'visible' in pt:
+                vis = pt['visible']
             if c is not None:
-                cp['color'] = c.value
                 pt['color'] = c
-            if r is not None: cp['radius'] = pt['radius'] = r
-            if vis is not None: cp['visible'] = pt['visible'] = vis
-            if ret is not None: cp['retain'] = pt['ret'] = ret
-            self._pts.append(pt)
-            self._cpos.append(cp)          
+                cp['color'] = c.value
+            if r is not None:
+                pt['radius'] = r
+                cp['radius'] = r
+            if vis is not None:
+                pt['visible'] = vis
+                cp['visible'] = vis
+            pts.append(pt)
+            cps.append(cp)
+        return [pts, cps]
+        
+    def parse_pos(self, *vars): # return a list of dictionaries of the form {pos:vec, color:vec ....}
+        # In constructor can have pos=[vec, vec, .....]; no dictionaries
+        ret = []
+        if isinstance(vars, tuple) and len(vars) > 1 :  
+            vars = vars[0]
+        if isinstance(vars, tuple) and isinstance(vars[0], list):
+            vars = vars[0]
+        for v in vars:
+            if isinstance(v, vector):
+                if not self._constructing:
+                    ret.append({'pos':v})
+                else:
+                    ret.append(v)
+            elif isinstance(v, dict) and not self._constructing: ret.append(v)
+            else: 
+                if not self._constructing:
+                    raise AttributeError("Point information must be a vector or a dictionary")
+                else:
+                    raise AttributeError("Point pos must be a vector")
+        return ret
+
+    def append(self, *args1, **args):
+        pts, cps = self.process_args(*args1, **args)
+        self._pts.extend(pts)
+        self._cpos.extend(cps)
         self.addattr('_cpos')
         
     def clearData(self):
         while len( self._cpos ) > 0:
             del self._cpos[-1]
-            
     
     def _on_origin_change(self):
         self.addattr('origin')
@@ -1489,23 +1529,24 @@ class curveMethods(standardAttributes):
 
     def clear(self):
         self._pts = []
+        self.addmethod('clear', 'None' )
 
     def shift(self):
         if len(self._pts) == 0: return None
         val = self._pts[0]
         self._pts = self._pts[1:]
+        self.addmethod( 'shift', 'None' )
         return val
 
-    def unshift(self, pts):
-        # process pts into a list; need to check whether pts is a list of positions or pts such as {pos:..., color...}
-        gather = []
-        for p in pts:
-            gather.append({'pos':p, 'color':self._color, 'radius':self._radius, 'visible':self._visible})
-        gather.extend(self._pts)
-        self._pts = gather
-
-    def splice(self, start, howmany, args): # args could be p1, p2, p3 or [p1, p2, p3]
-        # process args into a list
+    def unshift(self, *args1, **args):
+        pts, cps = self.process_args(*args1, **args)
+        self._pts = pts+self._pts
+        self.addmethod( 'unshift', cps[:] )
+        
+    def slice(self, start, end):
+        return self._pts[start:end]
+        
+    def splice(self, start, howmany, *args1): # args1 could be p1, p2, p3 or [p1, p2, p3]
         if howmany < 0:
             raise ValueError('You cannot delete a negative number of points'.format(howmany))
         if start >= len(self._pts) or (start < 0 and -start >= len(self._pts)):
@@ -1516,45 +1557,39 @@ class curveMethods(standardAttributes):
         else:
             if start+howmany >= 0:
                 raise ValueError('The starting position plus deletions is beyond the list of points'.format(howmany))
-        gather = self._pts[:start]
-        for p in args:
-            gather.append({'pos':p, 'color':self._color, 'radius':self._radius, 'visible':self._visible})
-        gather.extend(self._pts[start+howmany:])
-        self._pts = gather
+        pts, cps = self.process_args(*args1)
+        self.pts = self._pts[:start]+pts+self._pts[start+howmany:]
+        self.addmethod( 'splice', [start, howmany, cps[:]] )
     
     def modify(self, N, *arg1, **args):
         attrs = ['color', 'radius', 'visible']
         if N >= len(self._pts) or (N < 0 and -N >= len(self._pts)):
             raise ValueError('N = {} is outside the bounds 0-{} of the curve points'.format(N, len(self._pts)))
         p = self._pts[N]
+        cp = {}
         if len(arg1) == 1 and isinstance(arg1[0], vector):
             p['pos'] = arg1[0]
+            cp['pos'] = arg1[0].value
         else:
             for a in args:
                 if a == 'x':
                     p['pos'].x = args[a]
+                    cp['pos'][0] = args[a]
                 elif a == 'y':
                     p['pos'].y = args[a]
+                    cp['pos'][1] = args[a]
                 elif a == 'z':
                     p['pos'].z = args[a]
+                    cp['pos'][2] = args[a]
                 elif a in attrs:
                     p[a] = args[a]
-        
-    def parse_pos(self, *vars):
-        ret = []
-        if (isinstance(vars[0], list) or isinstance(vars[0], tuple)):
-            if len(vars) == 1: # ([vector, vector, ....])
-                for v in vars[0]:
-                    if isinstance(v, vector):
-                        ret.append(v)
-                    else: raise AttributeError("Point pos must be a vector")
-            else:
-                raise AttributeError("Point pos is not a list or vectors")
-        else:                           # (vector, vector, ....)
-            for v in vars:
-                if isinstance(v,vector): ret.append(v)
-                else: raise AttributeError("Point pos data must be vectors")
-        return ret
+                    if a == 'color':
+                        cp[a] = args[a].value
+                    else:
+                        cp[a] = args[a]
+        print('modify', cp)
+        sys.stdout.flush()
+        self.addmethod( 'modify', [N, [cp]])
         
     @property
     def origin(self):
