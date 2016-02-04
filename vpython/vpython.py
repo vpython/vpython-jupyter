@@ -243,20 +243,6 @@ def commsend():
                                                 commcmds[L]['idx'] = ob.idx
                                                 commcmds[L]['attr'] = attr
                                                 commcmds[L]['val'] = attrvalues
-                                        elif attr == '_plot':
-                                            commcmds[L]['idx'] = ob.idx
-                                            commcmds[L]['attr'] = attr
-                                            commcmds[L]['val'] = attrval
-                                            ob.clearData()
-                                        elif attr == '_cpos':
-                                            commcmds[L]['idx'] = ob.idx
-                                            commcmds[L]['attr'] = attr
-                                            commcmds[L]['val'] = attrval[:]
-                                            ob.clearData()
-                                        elif attr == 'clear_trail':
-                                            commcmds[L]['idx'] = ob.idx
-                                            commcmds[L]['attr'] = attr
-                                            commcmds[L]['val'] = 0  # will be ignored
                                         else:
                                             commcmds[L]['idx'] = ob.idx
                                             commcmds[L]['attr'] = attr
@@ -1156,7 +1142,7 @@ class standardAttributes(baseObj):
         self.addattr('origin')
         
     def clear_trail(self):
-        self.addattr('clear_trail')
+        self.addmethod('clear_trail', 'None')
         
     def clone(self, **args):
         newAtts = {}
@@ -1490,11 +1476,7 @@ class curveMethods(standardAttributes):
         pts, cps = self.process_args(*args1, **args)
         self._pts.extend(pts)
         self._cpos.extend(cps)
-        self.addattr('_cpos')
-        
-    def clearData(self):
-        while len( self._cpos ) > 0:
-            del self._cpos[-1]
+        self.addmethod('append', cps[:])
     
     def _on_origin_change(self):
         self.addattr('origin')
@@ -1644,7 +1626,7 @@ class gobj(baseObj):
     ## default values of shared attributes
         self._color = vector(0,0,0)
         self._graph = None
-        self._plot = []
+        #self._plot = []
         objName = args['_objName']
         del args['_objName']
         self._constructing = True ## calls are from constructor
@@ -1746,12 +1728,7 @@ class gobj(baseObj):
             p = self.preresolve1(args1)
         else:
             p = self.preresolve2(args2)
-        self._plot.extend(p)
- #       if not self._constructing:
-        self.addattr('_plot')
-        
-    def clearData(self):
-        self._plot = []
+        self.addmethod('plot', p)
         
 class gcurve(gobj):
     def __init__(self, **args):

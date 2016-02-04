@@ -122,19 +122,6 @@ GlowWidget.prototype.handler = function (msg) {
                                     glowObjs[cmd.idx][cmd.attr] = v
                                 }
                             }
-                        } else if (cmd.attr == '_plot'){
-                            // console.log('set val', cmd.idx, cmd.attr, cmd.val)
-                            glowObjs[cmd.idx].plot(cmd.val)
-                        } else if (cmd.attr == '_cpos') {
-                            for (var i = 0; i < cmd.val.length; i++) {
-                                var bb = cmd.val[i]
-                                for (var cc in bb) {
-                                    if (bb[cc] instanceof Array) bb[cc] = o2vec3(bb[cc])
-                                }
-                            }
-                            glowObjs[cmd.idx].push(cmd.val)
-                        } else if (cmd.attr == 'clear_trail') {
-                            glowObjs[cmd.idx].clear_trail()
                         } else {
                             glowObjs[cmd.idx][cmd.attr] = cmd.val;
                         }
