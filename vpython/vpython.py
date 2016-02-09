@@ -618,7 +618,7 @@ def diff_angle(A,B):
 def rotate(A,angle = 0., axis = None):
     return A.rotate(angle,axis)
 
-class standard_colors(object):
+class color(object):
     black = vector(0,0,0)
     white = vector(1,1,1)
 
@@ -652,7 +652,24 @@ class standard_colors(object):
       return vector(luminance, luminance, luminance)
 
 vec = vector # synonyms in GlowScript
-color = standard_colors()
+
+
+class textures(object):
+    flower = ":flower_texture.jpg"
+    granite=":granite_texture.jpg"
+    gravel=":gravel_texture.jpg"
+    earth=":earth_texture.jpg"
+    metal=":metal_texture.jpg"
+    rock=":rock_texture.jpg"
+    rough=":rough_texture.jpg"
+    rug=":rug_texture.jpg"
+    stones=":stones_texture.jpg"
+    stucco=":stucco_texture.jpg"
+    wood=":wood_texture.jpg"
+    wood_old=":wood_old_texture.jpg"
+    
+
+                     
 
 class standardAttributes(baseObj):
 # vector-no-interactions, vector-interactions, scalar-no-interactions, scalar-interactions
@@ -661,27 +678,27 @@ class standardAttributes(baseObj):
                         ['axis', 'size'],
                         ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
-                         'retain', 'trail_color', 'trail_radius'],
+                         'retain', 'trail_color', 'trail_radius', 'texture'],
                         ['red', 'green', 'blue','length', 'width', 'height']],
                  'sphere':[['pos', 'up', 'color', 'trail_color'], 
                         ['axis', 'size'],
                         ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
-                         'retain', 'trail_color', 'trail_radius'],
+                         'retain', 'trail_color', 'trail_radius', 'texture'],
                         ['red', 'green', 'blue','length', 'width', 'height', 'radius']],                        
                  'arrow':[['pos', 'up', 'color', 'trail_color'],
                          ['axis', 'size'],
                          ['visible', 'opacity',
                           'shininess', 'emissive', 'texture', 'frame', 'material',
                           'make_trail', 'trail_type', 'interval', 
-                          'retain', 'trail_color', 'trail_radius',
+                          'retain', 'trail_color', 'trail_radius', 'texture',
                           'shaftwidth', 'headwidth', 'headlength'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
                  'ring':[['pos', 'up', 'color', 'trail_color', 'axis', 'size'],  
                         [],
                         ['visible', 'opacity','shininess', 'emissive', 
                          'make_trail', 'trail_type', 'interval', 
-                         'retain', 'trail_color', 'trail_radius'],
+                         'retain', 'trail_color', 'trail_radius', 'texture'],
                         ['red', 'green', 'blue','length', 'width', 'height', 'thickness']],                       
                  'helix':[['pos', 'up', 'color', 'trail_color'],
                          ['axis', 'size'],
@@ -756,6 +773,7 @@ class standardAttributes(baseObj):
         self._visible = True
         self._frame = None
         self._size_units = 'pixels'
+        self._texture = None
         
         argsToSend = []  ## send to GlowScript only attributes specified in constructor
         
