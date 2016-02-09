@@ -98,6 +98,7 @@ GlowWidget.prototype.handler = function (msg) {
         for (i = 0; i < len; i++) {
             cnvsidx = -1;
             cmd = data.shift();
+//            console.log('\n\n-------------------')
 //            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
             if (cmd.cmd === undefined) { //  not a constructor
                 if (cmd.idx !== undefined) {
@@ -127,6 +128,7 @@ GlowWidget.prototype.handler = function (msg) {
                         }
                     }
                     if (cmd.method !== undefined) {
+//                        console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
                         var parametric = ['splice', 'modify']
                         var val = cmd.val
                         if (val == 'None') {

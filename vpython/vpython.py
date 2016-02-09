@@ -691,11 +691,11 @@ class standardAttributes(baseObj):
                          ['red', 'green', 'blue','length', 'width', 'height']],
                  'curve':[['origin', 'up', 'color'],  
                          ['axis', 'size'],
-                         ['visible', 'shininess', 'emissive', 'radius', 'retain', 'pos'],
+                         ['visible', 'shininess', 'emissive', 'radius', 'retain'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
                  'points':[['color'],  
                          [],
-                         ['visible', 'shininess', 'emissive', 'radius', 'retain', 'pos'],
+                         ['visible', 'shininess', 'emissive', 'radius', 'retain'],
                          ['red', 'green', 'blue']],
                  'label':[['pos', 'color', 'background', 'linecolor'],  
                          [],
@@ -1381,8 +1381,19 @@ class compound(standardAttributes):
 
         
 class curveMethods(standardAttributes):
+
        
-    def curveSetup(self, args):
+    def curveSetup(self, *args1, **args):
+        self._constructing = True
+        
+        # print('curveSetup1, args=', args)
+        # print('curveSetup1, args1=', list(args1))
+        self.append(list(args))
+        self.append(list(args1))
+
+        self._constructing = False
+
+    def curveSetupXX(self, args):
         self._constructing = True
         pos = []  ## default
         if 'pos' in args:
@@ -1475,7 +1486,6 @@ class curveMethods(standardAttributes):
     def append(self, *args1, **args):
         pts, cps = self.process_args(*args1, **args)
         self._pts.extend(pts)
-        self._cpos.extend(cps)
         self.addmethod('append', cps[:])
     
     def _on_origin_change(self):
@@ -1569,7 +1579,7 @@ class curveMethods(standardAttributes):
                         cp[a] = args[a].value
                     else:
                         cp[a] = args[a]
-        print('modify', cp)
+##        print('modify', cp)
         sys.stdout.flush()
         self.addmethod( 'modify', [N, [cp]])
         
@@ -1588,28 +1598,46 @@ class curveMethods(standardAttributes):
         
         
 class curve(curveMethods):
-    def __init__(self,**args):
+    def __init__(self,*args1, **args):
         args['_objName'] = "curve"
         args['_default_size'] = vector(1,1,1)
         self._origin = vector(0,0,0)  
         self._radius = 0
-        self._cpos = []  ## temporary list of dicts containing lists, not vectors, to be sent to commsend
         self._pts = []  ## cumulative list of dicts of the form {pos:vec, color=vec, radius=r, visible=T/F} python side
+        
+        tpos = None
+        if 'pos' in args:
+            tpos = args['pos']
+            del args['pos']
   
-#        self.init2(args)
-        super(curve, self).curveSetup(args)
         super(curveMethods, self).setup(args)
+        
+        if tpos != None:
+            if len(args1) > 0: raise AttributeError('Malformed constructor')
+            self.append(tpos)
+        if len(args1) > 0:
+            self.append(*args1)
+
 
 class points(curveMethods):
-    def __init__(self,**args):
+    def __init__(self,*args1, **args):
         args['_objName'] = "points"
-        args['_default_size'] = None
+        args['_default_size'] = vector(1,1,1)  ##None
         self._radius = 0
-        self._cpos = []  ## temporary list of dicts containing lists, not vectors, to be sent to commsend
         self._pts = []  ## cumulative list of dicts of the form {pos:vec, color=vec, radius=r, visible=T/F} python side
   
-        super(points, self).curveSetup(args)
-        super(curveMethods, self).setup(args)        
+        tpos = None
+        if 'pos' in args:
+            tpos = args['pos']
+            del args['pos']
+  
+        super(curveMethods, self).setup(args)
+        
+        if tpos != None:
+            if len(args1) > 0: raise AttributeError('Malformed constructor')
+            self.append(tpos)
+        if len(args1) > 0:
+            self.append(*args1)    
                 
     @property
     def origin(self):   
