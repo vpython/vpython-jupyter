@@ -236,7 +236,7 @@ def commsend():
                                             commcmds[L]['attr'] = attr
                                             commcmds[L]['val'] = poslist                                                
                                         elif attr in ['axis','pos', 'up','color',
-                                                      'center','forward', 'direction',
+                                                      'center','forward', 'direction', 'ambient',
                                                       'background','origin', 'trail_color', 'dot_color', 'size']:
                                             attrvalues = attrval.value
                                             if attrvalues is not None:
