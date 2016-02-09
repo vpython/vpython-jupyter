@@ -492,6 +492,9 @@ class vector(object):
     def proj(self,other):
         normB = other.norm()
         return self.dot(normB) * normB
+        
+    def equals(self,other):
+        return self._x == other._x and self._y == other._y and self._z == other._z
 
     def comp(self,other):  ## result is a scalar
         normB = other.norm()
@@ -632,27 +635,28 @@ class color(object):
 
     orange = vector(1,0.6,0)
 
-    def gray(self,luminance):
+    @classmethod
+    def gray(cls,luminance):
       return vector(luminance,luminance,luminance)
 
-    def rgb_to_hsv(self,T):
-      if len(T) > 3:
-        T = T[:3]
-      return vector(colorsys.rgb_to_hsv(*T))
+    @classmethod
+    def rgb_to_hsv(cls,v):
+      T = [v.x, v.y, v.z]
+      c = colorsys.rgb_to_hsv(*T)
+      return vector(c[0], c[1], c[2])
 
-    def hsv_to_rgb(self,T):
-      if len(T) > 3:
-        T = T[:3]
-      return vector(colorsys.hsv_to_rgb(*T))
+    @classmethod
+    def hsv_to_rgb(cls,v):
+      T = [v.x, v.y, v.z]
+      c = colorsys.hsv_to_rgb(*T)
+      return vector(c[0], c[1], c[2])
 
-    def rgb_to_grayscale(self,T):
-      if len(T) > 3:
-        T = T[:3]
-      luminance = 0.21*T[0] + 0.71*T[1] + 0.07*T[2]
+    @classmethod
+    def rgb_to_grayscale(cls,v):
+      luminance = 0.21*v.x + 0.71*v.y + 0.07*v.z
       return vector(luminance, luminance, luminance)
 
 vec = vector # synonyms in GlowScript
-
 
 class textures(object):
     flower = ":flower_texture.jpg"
@@ -667,9 +671,6 @@ class textures(object):
     stucco=":stucco_texture.jpg"
     wood=":wood_texture.jpg"
     wood_old=":wood_old_texture.jpg"
-    
-
-                     
 
 class standardAttributes(baseObj):
 # vector-no-interactions, vector-interactions, scalar-no-interactions, scalar-interactions
