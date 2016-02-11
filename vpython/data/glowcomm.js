@@ -133,6 +133,12 @@ GlowWidget.prototype.handler = function (msg) {
                         var val = cmd.val
                         if (val == 'None') {
                             glowObjs[cmd.idx][cmd.method]()
+                        } else if (cmd.method == 'GSprint') {
+                            //GSprint(cmd.val) // This appsnds to $('body'), which doesn't work in notebook
+                            var c = canvas.get_selected()
+                            var cr = ''
+                            if (c.caption.text() !== cr) cr = '\n'
+                            c.caption.text(c.caption.text()+cr+cmd.val)
                         } else {
                             var npargs = 0
                             var info

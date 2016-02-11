@@ -657,7 +657,7 @@ class color(object):
       return vector(luminance, luminance, luminance)
 
 vec = vector # synonyms in GlowScript
-
+  
 class textures(object):
     flower = ":flower_texture.jpg"
     granite=":granite_texture.jpg"
@@ -2484,6 +2484,24 @@ def combin(x, y):
     return num
 
 scene = canvas()
+
+
+# This must come after creating a canvas
+class MISC(baseObj):
+    def __init__(self):
+        super(MISC, self).__init__() 
+    
+    def print(self, s):
+        self.addmethod('GSprint', s)
+
+__misc = MISC()
+
+def GSprint(*args):
+    s = ''
+    for a in args:
+        s += str(a)
+    __misc.print(s)
+
 
 # this seems to be unnecessary; does it have to do with initial establishment of communications?
 # for i in range(10):
