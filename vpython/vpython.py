@@ -740,7 +740,11 @@ class standardAttributes(baseObj):
                          ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs'],
-                         ['red', 'green', 'blue','length', 'width', 'height']]                         
+                         ['red', 'green', 'blue','length', 'width', 'height']],
+                 'vertex':[['pos', 'color', 'normal', 'bumpaxis'], 
+                        [],
+                        ['visible', 'opacity','shininess', 'emissive', 'texpos'],
+                        ['red', 'green', 'blue']]                         
                         }
  
     attrLists['pyramid'] = attrLists['box']
@@ -1389,12 +1393,15 @@ class compound(standardAttributes):
     @property
     def world_to_compound(self, val):
         raise AttributeError("not implemented yet")
-    
-
         
+class XXvertex(standardAttributes):
+    def __init__(self, **args):
+        args['_default_size'] = vector(1,1,1)
+        args['_objName'] = "vertex"
+        super(vertex, self).setup(args)
+    
 class curveMethods(standardAttributes):
 
-       
     def curveSetup(self, *args1, **args):
         self._constructing = True
         
@@ -1403,30 +1410,6 @@ class curveMethods(standardAttributes):
         self.append(list(args))
         self.append(list(args1))
 
-        self._constructing = False
-
-    def curveSetupXX(self, args):
-        self._constructing = True
-        pos = []  ## default
-        if 'pos' in args:
-            pos = args['pos']
-            pos = self.parse_pos(pos)  ## resolve pos arguments into a list of vectors
-            
-        ptcolor = ptradius = ptvisible = ptretain = None
-        if 'color' in args: ptcolor = args['color']
-        if 'radius' in args: ptradius = args['radius']
-        if 'visible' in args: ptvisible = args['visible']
-        if 'retain' in args: ptretain = args['retain']
-        tpos = []
-        for p in pos:
-            pt = {'pos': p}
-            if ptcolor != None: pt['color'] = ptcolor
-            if ptradius != None: pt['radius'] = ptradius
-            if ptvisible != None: pt['visible'] = ptvisible
-            if ptretain != None: pt['retain'] = ptretain
-            self._pts.append(pt)
-            tpos.append(p.value)
-        args['pos'] = tpos
         self._constructing = False
 
     def process_args(self, *args1, **args):
@@ -1604,6 +1587,12 @@ class curveMethods(standardAttributes):
         if not self._constructing:
             self.addattr('origin')
 
+    @property
+    def pos(self):
+        raise AttributeError('object does not have a "pos" attribute')
+    @pos.setter
+    def pos(self,val):
+        raise AttributeError('object does not have a "pos" attribute')
      
     # def __del__(self):
         # pass
@@ -1629,7 +1618,7 @@ class curve(curveMethods):
             self.append(tpos)
         if len(args1) > 0:
             self.append(*args1)
-
+            
 
 class points(curveMethods):
     def __init__(self,*args1, **args):
@@ -2213,6 +2202,7 @@ class canvas(baseObj):
 
     def select(self):
         canvas.selected_canvas = self
+        self.addmethod('select','None')
 
     @classmethod
     def get_selected(cls):
