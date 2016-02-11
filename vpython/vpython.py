@@ -671,6 +671,13 @@ class textures(object):
     stucco=":stucco_texture.jpg"
     wood=":wood_texture.jpg"
     wood_old=":wood_old_texture.jpg"
+    
+class bumpmaps(object):
+    gravel=":gravel_bumpmap.jpg"
+    rock=":rock_bumpmap.jpg"
+    stones=":stones_bumpmap.jpg"
+    stucco=":stucco_bumpmap.jpg"
+    wood_old=":wood_old_bumpmap.jpg"
 
 class standardAttributes(baseObj):
 # vector-no-interactions, vector-interactions, scalar-no-interactions, scalar-interactions
@@ -760,8 +767,7 @@ class standardAttributes(baseObj):
         self._texture = None
         self._opacity = 1.0
         self._shininess = 0.6
-        self._emissive = False
-        self._material = None       
+        self._emissive = False      
         self._make_trail = False
         self._trail_type = 'curve'
         self._trail_color = self._color
@@ -1025,19 +1031,6 @@ class standardAttributes(baseObj):
         self._shininess = value
         if not self._constructing:
             self.addattr('shininess')
-
-    @property
-    def material(self):
-        return self._material    
-    @material.setter
-    def material(self,value):
-        self._material = value
-        if (value == materials.emissive):
-            self.emissive = True
-        elif (value == materials.plastic):
-            self.emissive = False
-        else:
-            self.emissive = False
             
     @property
     def make_trail(self):
