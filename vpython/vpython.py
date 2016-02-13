@@ -235,8 +235,9 @@ def commsend():
                                             commcmds[L]['idx'] = ob.idx
                                             commcmds[L]['attr'] = attr
                                             commcmds[L]['val'] = poslist                                                
-                                        elif attr in ['axis','pos', 'up','color',
+                                        elif attr in ['axis','pos', 'up','color', 
                                                       'center','forward', 'direction', 'ambient',
+                                                      'texpos', 'normal', 'bumpaxis',
                                                       'background','origin', 'trail_color', 'dot_color', 'size']:
                                             attrvalues = attrval.value
                                             if attrvalues is not None:
@@ -747,9 +748,9 @@ class standardAttributes(baseObj):
                          'make_trail', 'trail_type', 'interval', 
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
-                 'vertex':[['pos', 'color', 'normal', 'bumpaxis'], 
+                 'vertex':[['pos', 'color', 'normal', 'bumpaxis', 'texpos'], 
                         [],
-                        ['visible', 'opacity','shininess', 'emissive', 'texpos'],
+                        ['visible', 'opacity','shininess', 'emissive'],
                         ['red', 'green', 'blue']],
                  'triangle': [ [],
                         [],
@@ -1426,6 +1427,7 @@ class vertex(standardAttributes):
         self._triangleCount = 0
         self._normal = vector(0,0,1)
         self._bumpaxis = vector(1,0,0)
+        self._texpos = vector(0,0,0)
         super(vertex, self).setup(args)
       
     @property
@@ -1466,6 +1468,19 @@ class vertex(standardAttributes):
         self._bumpaxis = value
         if not self._constructing:
             self.addattr('bumpaxis')
+            
+    @property
+    def texpos(self):
+        return self._texpos
+    @texpos.setter
+    def texpos(self, value):
+        if not isinstance(value, vector):
+            raise AttributeError('texpos must be a 3D vector with a zero z component')
+        if value.z != 0:
+            raise AttributeError('the z component of texpos must currently be zero')
+        self._texpos = value
+        if not self._constructing:
+            self.addattr('texpos')
             
     def _on_normal_change(self):
         self.addattr('normal')

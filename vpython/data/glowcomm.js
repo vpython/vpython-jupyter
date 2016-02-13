@@ -108,7 +108,7 @@ GlowWidget.prototype.handler = function (msg) {
                         // not handled yet: 'normal', 'bumpaxis'
                         vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward',
                                 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin',
-                                'normal', 'bumpaxis'];
+                                'normal', 'bumpaxis', 'texpos'];
                         var v
                         if (vlst.indexOf(cmd.attr) !== -1) {
                             if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {                       
@@ -184,7 +184,7 @@ GlowWidget.prototype.handler = function (msg) {
 //                console.log('assembling cfg', cmd.cmd, typeof cmd.attrs, cmd.attrs) //**************
 //                for (var i in cmd.attrs) { console.log(cmd.attrs[i]) }
                 if (cmd.attrs !== undefined) {
-                     vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color','origin', 'normal', 'bumpaxis'];
+                     vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color','origin', 'normal', 'bumpaxis','texpos'];
                     if ((cmd.cmd != 'gcurve') && ( cmd.cmd != 'gdots' ) ) {
                         vlst.push( 'size' )
                     }
