@@ -95,6 +95,7 @@ GlowWidget.prototype.handler = function (msg) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst, cnvsidx;
         var triangle_quad, objects;  
         var len = data.length;
+        triangle_quad = ['v0', 'v1', 'v2', 'v3'];
         for (i = 0; i < len; i++) {
             cnvsidx = -1;
             cmd = data.shift();
@@ -106,7 +107,8 @@ GlowWidget.prototype.handler = function (msg) {
 //                        console.log('commsend cmd.attr not undefined', cmd.attr)
                         // not handled yet: 'normal', 'bumpaxis'
                         vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward',
-                                'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin'];
+                                'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin',
+                                'normal', 'bumpaxis'];
                         var v
                         if (vlst.indexOf(cmd.attr) !== -1) {
                             if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {                       
@@ -124,7 +126,11 @@ GlowWidget.prototype.handler = function (msg) {
                                 }
                             }
                         } else {
-                            glowObjs[cmd.idx][cmd.attr] = cmd.val;
+                            if (triangle_quad.indexOf(cmd.attr) !== -1) {
+                                glowObjs[cmd.idx][cmd.attr] = glowObjs[cmd.val]
+                            } else {                           
+                                glowObjs[cmd.idx][cmd.attr] = cmd.val
+                            }
                         }
                     }
                     if (cmd.method !== undefined) {
@@ -178,11 +184,11 @@ GlowWidget.prototype.handler = function (msg) {
 //                console.log('assembling cfg', cmd.cmd, typeof cmd.attrs, cmd.attrs) //**************
 //                for (var i in cmd.attrs) { console.log(cmd.attrs[i]) }
                 if (cmd.attrs !== undefined) {
-                     vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color','origin'];
+                     vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color','origin', 'normal', 'bumpaxis'];
                     if ((cmd.cmd != 'gcurve') && ( cmd.cmd != 'gdots' ) ) {
                         vlst.push( 'size' )
                     }
-                    triangle_quad = ['v0', 'v1', 'v2', 'v3'];
+
                     len2 = cmd.attrs.length;
                     cfg = {};
                     objects = [];
@@ -205,27 +211,12 @@ GlowWidget.prototype.handler = function (msg) {
                         } else if (vlst.indexOf(attr.attr) !== -1) {
                             cfg[attr.attr] = o2vec3(attr.value);
                         } else if (triangle_quad.indexOf(attr.attr) !== -1) {
-                            cfg2 = {};
-                            vertdata = attr.value;
-                            len3 = vertdata.length;
-                            for (k = 0; k < len3; k++) {
-                                attr2 = vertdata.shift();
-                                if (vlst.indexOf(attr2.attr) !== -1) {
-                                    cfg2[attr2.attr] = o2vec3(attr2.value);
-                                } else {
-                                    cfg2[attr2.attr] = attr2.value;
-                                }
-                            }
-                            cfg[attr.attr] = vertex(cfg2);
+                            cfg[attr.attr] = glowObjs[attr.value]
                         } else if (attr.attr === "canvas" ) {
                             cnvsidx = attr.value;
-                            if (attr.value >= 0) {
-                                cfg[attr.attr] = glowObjs[attr.value];
-                            }
+                            cfg[attr.attr] = glowObjs[attr.value];
                         } else if (attr.attr === "graph" ) {
-                            if (attr.value >= 0) {
-                                cfg[attr.attr] = glowObjs[attr.value];
-                            }
+                            cfg[attr.attr] = glowObjs[attr.value];
                         } else if (attr.attr === "obj_idxs") {
                             len4 = attr.value.length;
                             if (len4 > 0) {
@@ -272,6 +263,8 @@ GlowWidget.prototype.handler = function (msg) {
                             glowObjs[cmd.idx] = curve(cfg);
                         } else if (cmd.cmd === 'points') {
                             glowObjs[cmd.idx] = points(cfg);
+                        } else if (cmd.cmd === 'vertex') {
+                            glowObjs[cmd.idx] = vertex(cfg);
                         } else if (cmd.cmd === 'triangle') {
                             glowObjs[cmd.idx] = triangle(cfg);
                         } else if (cmd.cmd === 'quad') {
@@ -284,12 +277,8 @@ GlowWidget.prototype.handler = function (msg) {
                             glowObjs[cmd.idx] = sphere(cfg);
                         } else if (cmd.cmd === 'lights') {
                             glowObjs[cmd.idx] = lights(cfg);
-                        } else if (cmd.cmd === 'triangle') {
-                            glowObjs[cmd.idx] = triangle(cfg);
                         } else if (cmd.cmd === 'rotate') {
                             glowObjs[cmd.idx].rotate(cfg);
-                        } else if (cmd.cmd === 'quad') {
-                            glowObjs[cmd.idx] = quad(cfg);
                         } else if (cmd.cmd === 'local_light') {
                             glowObjs[cmd.idx] = local_light(cfg);
                         } else if (cmd.cmd === 'distant_light') {

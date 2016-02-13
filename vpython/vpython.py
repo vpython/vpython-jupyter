@@ -220,7 +220,7 @@ def commsend():
                         oid = updtobjs2.pop()
                         ob = id2obj(oid)
                         #print('commsend object', ob.attrsupdt, ob.methodsupdt)
-                        sys.stdout.flush()
+                        # sys.stdout.flush()
                         if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
                             while ob.attrsupdt:
                                 if 'method' in commcmds[L]: del commcmds[L]['method']
@@ -243,6 +243,12 @@ def commsend():
                                                 commcmds[L]['idx'] = ob.idx
                                                 commcmds[L]['attr'] = attr
                                                 commcmds[L]['val'] = attrvalues
+                                        elif attr in ['v0', 'v1', 'v2', 'v3']:
+                                            print('commsend triangle', attr)
+                                            sys.stdout.flush()
+                                            commcmds[L]['idx'] = ob.idx
+                                            commcmds[L]['attr'] = attr
+                                            commcmds[L]['val'] = attrval.idx
                                         else:
                                             commcmds[L]['idx'] = ob.idx
                                             commcmds[L]['attr'] = attr
@@ -744,7 +750,15 @@ class standardAttributes(baseObj):
                  'vertex':[['pos', 'color', 'normal', 'bumpaxis'], 
                         [],
                         ['visible', 'opacity','shininess', 'emissive', 'texpos'],
-                        ['red', 'green', 'blue']]                         
+                        ['red', 'green', 'blue']],
+                 'triangle': [ [],
+                        [],
+                        ['texture', 'bumpmap', 'visible'],
+                        ['v0', 'v1', 'v2'] ],
+                 'quad': [ [],
+                        [],
+                        ['texture', 'bumpmap', 'visible'],
+                        ['v0', 'v1', 'v2', 'v3'] ]
                         }
  
     attrLists['pyramid'] = attrLists['box']
@@ -765,8 +779,9 @@ class standardAttributes(baseObj):
         self._axis = vector(1,0,0)
         self._up = vector(0,1,0)
         self._color = vector(1,1,1)
-        if args['_default_size'] is not None: # is not points object
-            self._size = args['_default_size']  ## because VP differs from JS
+        defaultSize = args['_default_size'] 
+        if defaultSize is not None: # is not points or vertex or triangle or quad 
+            self._size = defaultSize  ## because VP differs from JS
             del args['_default_size']        
         self._texture = None
         self._opacity = 1.0
@@ -815,8 +830,9 @@ class standardAttributes(baseObj):
                     argsToSend.append(a)
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
-        
-        if objName != 'points' and objName != 'label': # these objects have no size
+
+        if defaultSize is not None:
+##        if objName != 'points' and objName != 'label': # these objects have no size
             if 'size' not in argsToSend:  ## always send size because Python size differs from JS size
                 argsToSend.append('size')
             self._trail_radius = 0.1 * self._size.y  ## default depends on size
@@ -832,7 +848,8 @@ class standardAttributes(baseObj):
                 del args[a] 
 
         scalarInteractions={'red':'color', 'green':'color', 'blue':'color', 'radius':'size', 'thickness':'size',
-                                'length':'size', 'height':'size', 'width':'size'}
+                                'length':'size', 'height':'size', 'width':'size', 'v0':'v0', 'v1':'v1',
+                                'v2':'v2', 'v3':'v3'}
     
     # override defaults for scalar attributes with side effects       
         attrs = standardAttributes.attrLists[objName][3]
@@ -855,6 +872,8 @@ class standardAttributes(baseObj):
             aval = getattr(self,a)
             if isinstance(aval, vector):
                 aval = aval.value
+            elif isinstance(aval, vertex):
+                aval = aval.idx
             cmd["attrs"].append({"attr":a, "value": aval})
             
     # set canvas  
@@ -871,14 +890,21 @@ class standardAttributes(baseObj):
             frame.update_obj_list()
 
     # attribute vectors have these methods which call self.addattr()
-        if objName != 'points' and objName != 'label':
+        noSize = ['points', 'label', 'vertex', 'triangle', 'quad']
+        if objName not in noSize:
+#        if objName != 'points' and objName != 'label':
             self._axis.on_change = self._on_axis_change
             self._size.on_change = self._on_size_change
             self._up.on_change = self._on_up_change
-        if objName != 'curve' and objName != 'points':
+        noPos = ['curve', 'points', 'triangle', 'quad']
+        if objName not in noPos:
+        # if objName != 'curve' and objName != 'points':
             self._pos.on_change = self._on_pos_change
         elif objName == 'curve':
             self._origin.on_change = self._on_origin_change
+        if objName == 'vertex':
+            self._bumpaxis.on_change = self._on_bumpaxis_change
+            self._normal.on_change = self._on_normal_change
             
     @property
     def up(self):
@@ -1154,8 +1180,7 @@ class standardAttributes(baseObj):
     def _on_up_change(self):
         self.addattr('up')
         
-    def _on_origin_change(self):  ## for curve and points
-        self.addattr('origin')
+        
         
     def clear_trail(self):
         self.addmethod('clear_trail', 'None')
@@ -1394,14 +1419,140 @@ class compound(standardAttributes):
     def world_to_compound(self, val):
         raise AttributeError("not implemented yet")
         
-class XXvertex(standardAttributes):
+class vertex(standardAttributes):   
     def __init__(self, **args):
-        args['_default_size'] = vector(1,1,1)
+        args['_default_size'] = None
         args['_objName'] = "vertex"
+        self._triangleCount = 0
+        self._normal = vector(0,0,1)
+        self._bumpaxis = vector(1,0,0)
         super(vertex, self).setup(args)
+      
+    @property
+    def triangleCount(self):
+        return self._triangleCount
+    @triangleCount.setter
+    def triangleCount(self, val):
+        tc = self._triangleCount
+        if self._triangleCount + val < 0:
+            raise ValueError('value too large')
+        else:
+            self._triangleCount += val
+        if tc == 0 and self._triangleCount == 1:
+            self.canvas.vertexCount += 1
+            if self.canvas.vertexCount > canvas.maxVertices:
+                raise ValueError('too many vertex objects in use for this canvas')
+        if tc == 1 and self._triangleCount == 0:
+            self.canvas.vertexCount -= 1
+                        
+    @property
+    def normal(self):
+        return self._normal
+    @normal.setter
+    def normal(self, value):
+        if not isinstance(value, vector):
+            raise AttributeError('normal must be a vector')
+        self._normal = value
+        if not self._constructing:
+            self.addattr('normal')
+            
+    @property
+    def bumpaxis(self):
+        return self._bumpaxis
+    @bumpaxis.setter
+    def bumpaxis(self, value):
+        if not isinstance(value, vector):
+            raise AttributeError('bumpaxis must be a vector')
+        self._bumpaxis = value
+        if not self._constructing:
+            self.addattr('bumpaxis')
+            
+    def _on_normal_change(self):
+        self.addattr('normal')
+        
+    def _on_bumpaxis_change(self):
+        self.addattr('bumpaxis')
+
+            
+class triangle(standardAttributes):   
+    def __init__(self, **args):
+        args['_default_size'] = None
+        args['_objName'] = "triangle"
+        self._v0 = None
+        self._v1 = None
+        self._v2 = None
+        super(triangle, self).setup(args)
+        
+    def __del__(self):
+        self._v0.triangleCount = -1
+        self._v1.triangleCount = -1
+        self._v2.triangleCount = -1
+        super(triangle, self).__del__()
+        
+        
+    @property
+    def v0(self):
+        return self._v0
+    @v0.setter
+    def v0(self, value):
+        if not self._constructing:
+            self._v0.triangleCount = -1
+            self.addattr('v0')
+        self._v0 = value
+        self._v0.triangleCount = 1
+        
+    @property
+    def v1(self):
+        return self._v1
+    @v1.setter
+    def v1(self, value):
+        if not self._constructing:
+            self._v1.triangleCount = -1
+            self.addattr('v1')
+        self._v1 = value
+        self._v1.triangleCount = 1
+        
+    @property
+    def v2(self):
+        return self._v2
+    @v2.setter
+    def v2(self, value):
+        if not self._constructing:
+            self._v2.triangleCount = -1
+            self.addattr('v2')
+        self._v2 = value
+        self._v2.triangleCount = 1
+
+class quad(triangle):
+    def __init__(self, **args):
+        args['_default_size'] = None
+        args['_objName'] = "quad"
+        self._v0 = None
+        self._v1 = None
+        self._v2 = None
+        self._v3 = None
+        super(quad, self).setup(args)
+        
+    def __del__(self):
+        self._v0.triangleCount = -1
+        self._v1.triangleCount = -1
+        self._v2.triangleCount = -1
+        self._v3.triangleCount = -1
+        super(triangle, self).__del__()
+        
+    @property
+    def v3(self):
+        return self._v3
+    @v3.setter
+    def v3(self, value):
+        if not self._constructing:
+            self._v3.triangleCount = -1
+            self.addattr('v3')
+        self._v3 = value
+        self._v3.triangleCount = 1
+
     
 class curveMethods(standardAttributes):
-
     def curveSetup(self, *args1, **args):
         self._constructing = True
         
@@ -1618,12 +1769,15 @@ class curve(curveMethods):
             self.append(tpos)
         if len(args1) > 0:
             self.append(*args1)
+
+    def _on_origin_change(self): 
+        self.addattr('origin')
             
 
 class points(curveMethods):
     def __init__(self,*args1, **args):
         args['_objName'] = "points"
-        args['_default_size'] = vector(1,1,1)  ##None
+        args['_default_size'] = None  ##vector(1,1,1)  ##None
         self._radius = 0
         self._pts = []  ## cumulative list of dicts of the form {pos:vec, color=vec, radius=r, visible=T/F} python side
   
@@ -2135,6 +2289,7 @@ class Mouse(object):
 
 class canvas(baseObj):
     selected_canvas = None
+    maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
     
     def __init__(self, **args):
         super(canvas, self).__init__()   ## get guid, idx, attrsupdt, oid
@@ -2146,6 +2301,7 @@ class canvas(baseObj):
             
         self.objects = []
         self.lights = []
+        self.vertexCount = 0
         self._visible = True
         self._background = vector(0,0,0)
         self._ambient = vector(0.2, 0.2, 0.2)
