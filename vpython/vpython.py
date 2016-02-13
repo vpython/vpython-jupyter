@@ -26,6 +26,7 @@ import collections
 import copy
 import sys
 import weakref
+from random import random
 
 # To print immediately, do this:
 #    print(.....)
@@ -433,6 +434,10 @@ get_ipython().kernel.do_one_iteration()
 
 class vector(object):
     'vector class'
+    
+    def random():
+        return vec(-1 + 2*random(), -1 + 2*random(), -1 + 2*random())
+
     def __init__(self, *args):
         if len(args) == 3:
             self._x = args[0]
@@ -1262,7 +1267,7 @@ class ellipsoid(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,1,1)
         args['_objName'] = "ellipsoid"
-        super(ellipoid, self).setup(args)
+        super(ellipsoid, self).setup(args)
         
     @property
     def radius(self):
