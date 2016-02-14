@@ -493,7 +493,7 @@ class vector(object):
             return vector(0.,0.,0.)
 
     def dot(self,other):
-        return ( self._x * other._x + self._y + other._y + self._z + other._z )
+        return ( self._x*other._x + self._y*other._y + self._z*other._z )
 
     def cross(self,other):
         return vector( self._y*other._z-self._z*other._y, 
@@ -1932,6 +1932,19 @@ class gobj(baseObj):
             p = self.preresolve2(args2)
         self.addmethod('plot', p)
         
+    def delete(self):
+        self.addmethod('delete', 'None')
+    
+    def data(self, value): # replace existing data with value
+        self.addmethod('data', value)
+
+    @property
+    def data(self): return self._data
+    @data.setter
+    def data(self,val): 
+        self._data = val
+        self.addattr('data')
+        
 class gcurve(gobj):
     def __init__(self, **args):
         args['_objName'] = "gcurve"
@@ -2023,7 +2036,8 @@ class graph(baseObj):
                 del args[a]
         
         ## override default scalar attributes
-        scalarAttributes = ['width', 'height', 'title', 'xtitle', 'ytitle']
+        scalarAttributes = ['width', 'height', 'title', 'xtitle', 'ytitle',
+                            'xmin', 'xmax', 'ymin', 'ymax']
         for a in scalarAttributes:
             if a in args:
                 argsToSend.append(a)
@@ -2097,6 +2111,34 @@ class graph(baseObj):
         if not isinstance(val,vector): raise TypeError('background must be a vector')
         self._background = val
         self.addattr('background')
+        
+    @property
+    def xmin(self): return self._xmin
+    @xmin.setter
+    def xmin(self,val): 
+        self._xmin = val
+        self.addattr('xmin')
+        
+    @property
+    def xmax(self): return self._xmax
+    @xmax.setter
+    def xmax(self,val): 
+        self._xmax = val
+        self.addattr('xmax')
+        
+    @property
+    def ymin(self): return self._ymin
+    @ymin.setter
+    def ymin(self,val): 
+        self._ymin = val
+        self.addattr('ymin')
+        
+    @property
+    def ymax(self): return self._ymax
+    @ymax.setter
+    def ymax(self,val): 
+        self._ymax = val
+        self.addattr('ymax')
     
 #    def __del__(self):
 #        cmd = {"cmd": "delete", "idx": self.idx}

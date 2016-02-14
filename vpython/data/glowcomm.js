@@ -138,9 +138,10 @@ GlowWidget.prototype.handler = function (msg) {
                         var parametric = ['splice', 'modify']
                         var val = cmd.val
                         if (val == 'None') {
-                            glowObjs[cmd.idx][cmd.method]()
+                            if (cmd.method == 'delete') glowObjs[cmd.idx]['remove']()
+                            else glowObjs[cmd.idx][cmd.method]()
                         } else if (cmd.method == 'GSprint') {
-                            //GSprint(cmd.val) // This appsnds to $('body'), which doesn't work in notebook
+                            //GSprint(cmd.val) // This appends to $('body'), which doesn't work in notebook
                             var c = canvas.get_selected()
                             var cr = ''
                             if (c.caption.text() !== cr) cr = '\n'
