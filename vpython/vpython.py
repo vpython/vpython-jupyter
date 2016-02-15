@@ -186,8 +186,11 @@ for i in range(baseObj.qSize):
 updtobjs2 = set()
 next_call = time.time()
 
+_sent = False  ## set to True when commsend completes; needed for canvas.waitfor (used by compound and clone)
+
 def commsend():
-    global next_call, commcmds, updtobjs2, glowlock, rate
+    global next_call, commcmds, updtobjs2, glowlock, rate, _sent
+    _sent = False
     with glowlock:
         try:
             if (baseObj.glow != None):
@@ -294,6 +297,7 @@ def commsend():
                 tmr = rate.interactionPeriod
                 next_call = time.time()+tmr
             threading.Timer(tmr, commsend ).start()
+            _sent = True
     
 commsend()
 
@@ -1097,7 +1101,6 @@ class standardAttributes(baseObj):
         if not self._constructing: 
             self.addattr('trail_color')
 
-
     @property
     def interval(self):
         return self._interval    
@@ -1180,9 +1183,7 @@ class standardAttributes(baseObj):
         self.addattr('axis')
 
     def _on_up_change(self):
-        self.addattr('up')
-        
-        
+        self.addattr('up')        
         
     def clear_trail(self):
         self.addmethod('clear_trail', 'None')
@@ -1198,6 +1199,7 @@ class standardAttributes(baseObj):
                 newAtts[key] = v  
         for k, v in args.items():   ## overrides and user attrs
             newAtts[k] = v
+        self.canvas.waitfor('draw_complete')  ## ensure use of up-to-date attributes
         dup = type(self)(**newAtts)
         return dup
            
@@ -1398,9 +1400,14 @@ class compound(standardAttributes):
         args['_default_size'] = vector(1,1,1)
         self._obj_idxs = None
         idxlist = []
+        cvs = objList[0].canvas
         for obj in objList:
+            if obj.canvas is not cvs:
+                raise AttributeError('all objects used in compound must belong to the same canvas')
             idxlist.append(obj.idx)
-        args['obj_idxs'] = idxlist
+        args['obj_idxs'] = idxlist   
+        
+        cvs.waitfor('redraw')  ## make sure all attributes get updated
         
         super(compound, self).setup(args)
         
@@ -1411,8 +1418,7 @@ class compound(standardAttributes):
     def obj_idxs(self):
         return self._obj_idxs
 # no setter; must be set in constructor; this is done in standardAttributes
-        
-        
+               
     @property
     def compound_to_world(self, val):
         raise AttributeError("not implemented yet")
@@ -2627,6 +2633,19 @@ class canvas(baseObj):
                     seq2[i] = {'guido': item.guid}
             return seq2
         return []
+        
+    def waitfor(self, event):
+        global _sent
+        evts = ['redraw', 'draw_complete']
+        print('waitfo0, event =', event)
+        if event in evts:
+            _sent = False
+        else:
+            raise TypeError(event + ' not recognized')
+        print('waitfor1, _sent is', _sent)
+        while _sent is False:
+            rate(60)
+        print('waitfor2, _sent is', _sent)
 
     def _on_forward_change(self):
         self.addattr('forward')
