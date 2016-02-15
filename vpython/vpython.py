@@ -163,7 +163,6 @@ class baseObj(object):
     def addmethod(self, name, data):
         self.methodsupdt.append( [name, data] )
         baseObj.updtobjs.add(self.oid)
-        sys.stdout.flush()
             
     @classmethod
     def incrObjCnt(cls):
@@ -245,8 +244,6 @@ def commsend():
                                                 commcmds[L]['attr'] = attr
                                                 commcmds[L]['val'] = attrvalues
                                         elif attr in ['v0', 'v1', 'v2', 'v3']:
-                                            print('commsend triangle', attr)
-                                            sys.stdout.flush()
                                             commcmds[L]['idx'] = ob.idx
                                             commcmds[L]['attr'] = attr
                                             commcmds[L]['val'] = attrval.idx
@@ -268,7 +265,7 @@ def commsend():
                                 commcmds[L]['method'] = method
                                 commcmds[L]['val'] = data  
                                 #print('commsend methods', ob.idx, method, data)
-                                sys.stdout.flush()
+                                #sys.stdout.flush()
                                 L += 1
                                 # if L >= baseObj.qSize:   ## put this in
                                     # if (len(ob.methodsupdt) > 0):
@@ -814,7 +811,7 @@ class standardAttributes(baseObj):
             if a in args:
                 argsToSend.append(a)
                 val = args[a]
-                if isinstance(val, vector): setattr(self, '_'+a, val)  ## bypassing setters
+                if isinstance(val, vector): setattr(self, '_'+a, vector(val))  ## bypassing setters; copy of val
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
                 
@@ -826,7 +823,7 @@ class standardAttributes(baseObj):
             if a in args:
                 val = args[a]
                 if isinstance(val, vector): 
-                    setattr(self, a, val)   ## use setter to take care of side effects
+                    setattr(self, a, vector(val))   ## use setter to take care of side effects; copy of val
                     if a not in argsToSend:
                         argsToSend.append(a)
                     if vectorInteractions[a] not in argsToSend:
@@ -979,7 +976,7 @@ class standardAttributes(baseObj):
         
     @property    
     def color(self):
-        return self._color    
+        return self._color  
     @color.setter
     def color(self,value):
         self._color.value = value
@@ -1744,8 +1741,6 @@ class curveMethods(standardAttributes):
                         cp[a] = args[a].value
                     else:
                         cp[a] = args[a]
-##        print('modify', cp)
-        sys.stdout.flush()
         self.addmethod( 'modify', [N, [cp]])
         
     @property
@@ -2289,15 +2284,18 @@ class canvasText(baseObj):
     # def text(self):
         # return self._text
 
-    def text(self,s):
+    def text(self, *args):
+        s = print_to_string(*args)
         self._text = s
         self._canvas.addmethod('text',[self._loc,s])
             
-    def append(self, s):
+    def append(self,  *args):
+        s = print_to_string(*args)
         self._text += s
         self._canvas.addmethod('append',[self._loc,s])        
     
-    def html(self,s):
+    def html(self, *args):
+        s = print_to_string(*args)
         self._text = s
         self._canvas.addmethod('html',[self._loc,s])
     
@@ -2698,8 +2696,12 @@ def combin(x, y):
         ny += 1
     if nn != x+1: raise ValueError('Illegal arguments (%d, %d) for combin function' % (x, y))
     return num
+
+def sleep(dt): # don't use time.sleep because it delays output queued up before the call to sleep
+    t = clock()+dt
+    while clock() < t:
+        rate(100)
     
-sleep = time.sleep
 radians = math.radians
 degrees = math.degrees
 
@@ -2719,12 +2721,16 @@ __misc = MISC()
 def GSprint(*args):
     s = ''
     for a in args:
-        s += str(a)
+        s += str(a)+' '
+    s = s[:-1]
     __misc.print(s)
     
-
-
-
+def print_to_string(*args):
+    s = ''
+    for a in args:
+        s += str(a)+' '
+    s = s[:-1]
+    return(s)
 
 
 # this seems to be unnecessary; does it have to do with initial establishment of communications?

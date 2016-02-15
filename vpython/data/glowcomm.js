@@ -150,7 +150,6 @@ GlowWidget.prototype.handler = function (msg) {
                                         cmd.method === 'append') && glowObjs[cmd.idx] instanceof canvas) {
                             var loc = cmd.val[0]
                             var s = cmd.val[1]
-                            console.log('method', cmd.idx, loc, cmd.method, s)
                             glowObjs[cmd.idx][loc][cmd.method](s)
                         } else {
                             var npargs = 0
