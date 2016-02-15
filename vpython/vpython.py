@@ -2278,45 +2278,29 @@ class frame(object):
     def __init__(self, **args):
         raise NameError('frame is not yet implemented')
 
-#    objects = []
-    # def __init__(self, pos=(0.,0.,0.), x=0., y=0., z=0., axis=(1.,0.,0.), canvas=None, visible=True,
-                 # up=(0.,1.,0.), color=(1.,1.,1.), red=1., green=1., blue=1., **kwargs):
-        # super(frame, self).__init__(pos=pos, x=x, y=y, z=z, axis=axis, up=up, color=color, red=red, green=green, blue=blue, 
-                                    # canvas=canvas,visible=visible,**kwargs)
-        # object.__setattr__(self, 'objects', [])
-        # cmd = {"cmd": "compound", "idx": self.idx, "guid": self.guid,
-               # "attrs": [{"attr": "pos", "value": self.pos.value},
-                         # {"attr": "axis", "value": self.axis.value},
-                         # {"attr": "up", "value": self.up.value},
-                         # {"attr": "color", "value": self.color},
-                         # {"attr": "visible", "value": self.visible},
-                         # {"attr": "canvas", "value": self.canvas.idx if self.canvas != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
         
-        # self.appendcmd(cmd)
+class canvasText(baseObj):
+    def __init__(self, canvas = None, text=" ", loc='title'):  # loc can be caption or title
+        self._text = text
+        self._canvas = canvas
+        self._loc = loc
     
-    # def frame_to_world(self, pos):
-        # # need to implement this
-        # return pos
+    # @property
+    # def text(self):
+        # return self._text
 
-    # def world_to_frame(self, pos):
-        # # need to implement this
-        # return pos
-
-    # def update_obj_list(self):
-        # # self.visible = False     # we are going to create a new compound in glowscript so remove current one
-        # obj_idxs = []
-        # for obj in self.objects:
-            # obj_idxs.append(obj.idx)
-        # cmd = {"cmd": "compound", "idx": self.idx, 
-               # "attrs": [{"attr": "pos", "value": self.pos.value},
-                         # {"attr": "axis", "value": self.axis.value},
-                         # {"attr": "up", "value": self.up.value},
-                         # {"attr": "color", "value": self.color},
-                         # {"attr": "obj_idxs", "value": obj_idxs},
-                         # {"attr": "canvas", "value": self.canvas.idx if self.canvas != None else canvas.get_selected().idx if canvas.get_selected() != None else -1}]}
-        
-        # self.appendcmd(cmd)
-
+    def text(self,s):
+        self._text = s
+        self._canvas.addmethod('text',[self._loc,s])
+            
+    def append(self, s):
+        self._text += s
+        self._canvas.addmethod('append',[self._loc,s])        
+    
+    def html(self,s):
+        self._text = s
+        self._canvas.addmethod('html',[self._loc,s])
+    
 class Mouse(object):
     'Mouse object'
 
@@ -2368,7 +2352,7 @@ class canvas(baseObj):
         self._ambient = vector(0.2, 0.2, 0.2)
         self._height = 480
         self._width = 640
-        self._title =  None
+
         self._forward = vector(0,0,-1)
         self._fov = math.pi/3.
         self._range = 1
@@ -2379,7 +2363,6 @@ class canvas(baseObj):
         self._userzoom = True
         self._userspin = True
         self._mouse = Mouse()
-
         
         cmd = {"cmd": "canvas", "idx": self.idx, "guid": self.guid, "attrs":[]}
         
@@ -2401,6 +2384,22 @@ class canvas(baseObj):
                     raise TypeError(a, 'must be a vector')
                 cmd["attrs"].append({"attr":a, "value": aval.value})
                 del args[a]
+                
+        if 'title' in args:
+            titletext = args['title']
+            cmd["attrs"].append( {"attr":"title", "value": titletext} )
+            del args['title']
+        else:
+            titletext = " "
+        if 'caption' in args:
+            captiontext = args['caption']
+            cmd["attrs"].append( {"attr":"caption", "value": captiontext} )
+            del args['caption']
+        else:
+            captiontext = " "
+            
+        self.caption = canvasText(canvas = self, text = titletext, loc='caption')
+        self.title = canvasText(canvas = self, text = captiontext, loc='title')
                 
     # set values of user-defined attributes
         for key, value in args.items(): # Assign all other properties
@@ -2699,6 +2698,10 @@ def combin(x, y):
         ny += 1
     if nn != x+1: raise ValueError('Illegal arguments (%d, %d) for combin function' % (x, y))
     return num
+    
+sleep = time.sleep
+radians = math.radians
+degrees = math.degrees
 
 scene = canvas()
 
@@ -2718,6 +2721,10 @@ def GSprint(*args):
     for a in args:
         s += str(a)
     __misc.print(s)
+    
+
+
+
 
 
 # this seems to be unnecessary; does it have to do with initial establishment of communications?

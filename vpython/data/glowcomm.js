@@ -146,6 +146,12 @@ GlowWidget.prototype.handler = function (msg) {
                             var cr = ''
                             if (c.caption.text() !== cr) cr = '\n'
                             c.caption.text(c.caption.text()+cr+cmd.val)
+                        } else if ((cmd.method === 'text' || cmd.method === 'html' || 
+                                        cmd.method === 'append') && glowObjs[cmd.idx] instanceof canvas) {
+                            var loc = cmd.val[0]
+                            var s = cmd.val[1]
+                            console.log('method', cmd.idx, loc, cmd.method, s)
+                            glowObjs[cmd.idx][loc][cmd.method](s)
                         } else {
                             var npargs = 0
                             var info
@@ -170,8 +176,7 @@ GlowWidget.prototype.handler = function (msg) {
                             } else {
                                 throw new Error('Too many parameters in '+cmd.method)
                             }
-                        }
-                         
+                        }                         
                     }
                 }
             } else { // processing a constructor           
