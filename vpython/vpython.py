@@ -154,8 +154,7 @@ class baseObj(object):
             baseObj.glow.comm.send([cmd])
         else:
             baseObj.cmds.append(cmd)
-
-
+    
     def addattr(self, name):
         self.attrsupdt.add(name)
         baseObj.updtobjs.add(self.oid)
@@ -186,25 +185,26 @@ for i in range(baseObj.qSize):
 updtobjs2 = set()
 next_call = time.time()
 
-_sent = False  ## set to True when commsend completes; needed for canvas.waitfor (used by compound and clone)
+_sent = False  ## set to True when commsend completes; needed for canvas.waitfor
 
 def commsend():
     global next_call, commcmds, updtobjs2, glowlock, rate, _sent
     _sent = False
     with glowlock:
         try:
-            if (baseObj.glow != None):
+            if baseObj.glow != None:
                 if (len(baseObj.cmds) > 0) and (not rate.active):
                     a = copy.copy(baseObj.cmds)
                     L = len(a)
-                    baseObj.glow.comm.send(list(a))
+                    baseObj.glow.comm.send(list(a))  # Send constructors to glowcomm
                     a.clear()
                     while L > 0:
                         del baseObj.cmds[0]
                         L -= 1 
 
                 L = rate.sz if (rate.send == True) else 0
-                if (L > 0):
+                
+                if L > 0:
                     rate.sendcnt += 1
                     thresh = math.ceil(30.0/rate.rval) * 2 + 1
                     if (rate.sendcnt > thresh ):
@@ -213,7 +213,7 @@ def commsend():
                         rate.active = False       # rate fnc no longer appears to be being called
                 else:
                     rate.sendcnt = 0
-                if(len(updtobjs2) == 0):
+                if len(updtobjs2) == 0:
                     updtobjs2 = baseObj.updtobjs.copy()
                     baseObj.updtobjs.clear()
                 if L < baseObj.qSize:
@@ -285,7 +285,7 @@ def commsend():
                         req = []
                         for item in commcmds[:L]:
                             req.append(item.copy())
-                        baseObj.glow.comm.send(req)
+                        baseObj.glow.comm.send(req)  # Send attributes and methods to glowcomm
                     else:
                         rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
                         rate.send = True
@@ -440,9 +440,9 @@ class vector(object):
 
     def __init__(self, *args):
         if len(args) == 3:
-            self._x = args[0]
-            self._y = args[1]
-            self._z = args[2]
+            self._x = float(args[0]) # make sure it's a float; could be numpy.float64
+            self._y = float(args[1])
+            self._z = float(args[2])
         elif len(args) == 1 and isinstance(args[0], vector): # make a copy of a vector
             other = args[0]
             self._x = other._x
@@ -752,7 +752,7 @@ class standardAttributes(baseObj):
                          ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs'],
-                         ['red', 'green', 'blue','length', 'width', 'height']],
+                         ['red', 'green', 'blue', 'length', 'width', 'height']],
                  'vertex':[['pos', 'color', 'normal', 'bumpaxis', 'texpos'], 
                         [],
                         ['visible', 'opacity','shininess', 'emissive'],
@@ -1187,6 +1187,9 @@ class standardAttributes(baseObj):
         
     def clear_trail(self):
         self.addmethod('clear_trail', 'None')
+
+    def _ipython_display_(self): # don't print something when making an (anonymous) object
+        pass
         
     def clone(self, **args):
         newAtts = {}
@@ -1199,7 +1202,6 @@ class standardAttributes(baseObj):
                 newAtts[key] = v  
         for k, v in args.items():   ## overrides and user attrs
             newAtts[k] = v
-        self.canvas.waitfor('draw_complete')  ## ensure use of up-to-date attributes
         dup = type(self)(**newAtts)
         return dup
            
@@ -1400,19 +1402,21 @@ class compound(standardAttributes):
         args['_default_size'] = vector(1,1,1)
         self._obj_idxs = None
         idxlist = []
+        clonelist = []
         cvs = objList[0].canvas
         for obj in objList:
             if obj.canvas is not cvs:
-                raise AttributeError('all objects used in compound must belong to the same canvas')
-            idxlist.append(obj.idx)
-        args['obj_idxs'] = idxlist   
-        
-        cvs.waitfor('redraw')  ## make sure all attributes get updated
+                raise AttributeError('all objects used in compound must belong to the same canvas')            
+            clonelist.append(obj.clone())  ## make sure to get current values of attributes
+            idxlist.append(clonelist[-1].idx)
+        args['obj_idxs'] = idxlist
         
         super(compound, self).setup(args)
         
         for obj in objList:
             obj.visible = False         ## ideally these should be deleted
+        for obj in clonelist:
+            obj._visible = False
 
     @property
     def obj_idxs(self):
@@ -1945,6 +1949,9 @@ class gobj(baseObj):
     def data(self,val): 
         self._data = val
         self.addattr('data')
+
+    def _ipython_display_(self): # don't print something when making an (anonymous) graph object
+        pass
         
 class gcurve(gobj):
     def __init__(self, **args):
@@ -2140,6 +2147,9 @@ class graph(baseObj):
     def ymax(self,val): 
         self._ymax = val
         self.addattr('ymax')
+
+    def _ipython_display_(self): # don't print something when making an (anonymous) graph
+        pass
     
 #    def __del__(self):
 #        cmd = {"cmd": "delete", "idx": self.idx}
@@ -2378,6 +2388,7 @@ class canvas(baseObj):
         for a in canvasNonVecAttrs:
             if a in args:
                 if args[a] != None:
+                    setattr(self, '_'+a, args[a])
                     cmd["attrs"].append({"attr":a, "value": args[a]})
                 del args[a]
                 
@@ -2386,6 +2397,7 @@ class canvas(baseObj):
                 aval = args[a]
                 if not isinstance(aval, vector):
                     raise TypeError(a, 'must be a vector')
+                setattr(self, '_'+a, vector(aval))
                 cmd["attrs"].append({"attr":a, "value": aval.value})
                 del args[a]
                 
@@ -2428,7 +2440,6 @@ class canvas(baseObj):
     def get_selected(cls):
         return cls.selected_canvas
 
-        
     @property
     def mouse(self):
         return self._mouse    
@@ -2637,15 +2648,12 @@ class canvas(baseObj):
     def waitfor(self, event):
         global _sent
         evts = ['redraw', 'draw_complete']
-        print('waitfo0, event =', event)
         if event in evts:
             _sent = False
         else:
             raise TypeError(event + ' not recognized')
-        print('waitfor1, _sent is', _sent)
         while _sent is False:
             rate(60)
-        print('waitfor2, _sent is', _sent)
 
     def _on_forward_change(self):
         self.addattr('forward')
@@ -2656,10 +2664,11 @@ class canvas(baseObj):
     def _on_center_change(self):
         self.addattr('center')
 
-    def _ipython_display_(self):
-        display_html('<div id="glowscript2" ><div id="glowscript" class="glowscript"></div></div>', raw=True)
-        cmd = {"cmd": "redisplay", "idx": self.idx, "sceneId": self.sceneId}        
-        self.appendcmd(cmd)
+    def _ipython_display_(self): # don't print something when making an (anonymous) canvas
+        pass
+        #display_html('<div id="glowscript2" ><div id="glowscript" class="glowscript"></div></div>', raw=True)
+        #cmd = {"cmd": "redisplay", "idx": self.idx, "sceneId": self.sceneId}        
+        #self.appendcmd(cmd)
                 
 class local_light(standardAttributes):
     def __init__(self, **args):
@@ -2719,7 +2728,7 @@ def combin(x, y):
 def sleep(dt): # don't use time.sleep because it delays output queued up before the call to sleep
     t = clock()+dt
     while clock() < t:
-        rate(100)
+        rate(60)
     
 radians = math.radians
 degrees = math.degrees
