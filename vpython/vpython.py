@@ -1423,14 +1423,33 @@ class compound(standardAttributes):
     def obj_idxs(self):
         return self._obj_idxs
 # no setter; must be set in constructor; this is done in standardAttributes
-               
-    @property
-    def compound_to_world(self, val):
-        raise AttributeError("not implemented yet")
+        
+    def _world_zaxis(self):
+        axis = self._axis
+        up = norm(self._up)
+        if abs(axis.dot(up)) / math.sqrt(axis.mag2) > 0.98:
+            if math.abs(norm(axis).dot(vector(-1,0,0))) > 0.98:
+                z_axis = axis.cross(vector(0,0,1)).norm()
+            else:
+                z_axis = axis.cross(vector(-1,0,0)).norm()
+        else:
+            z_axis = axis.cross(up).norm()
+        return z_axis
     
-    @property
-    def world_to_compound(self, val):
-        raise AttributeError("not implemented yet")
+    def world_to_compound(self, v):
+        axis = self._axis
+        z_axis = self._world_zaxis()
+        y_axis = z_axis.cross(axis).norm()
+        x_axis = axis.norm()
+        v = v - self._pos
+        return vector(v.dot(x_axis), v.dot(y_axis), v.dot(z_axis))
+    
+    def compound_to_world(self, v):
+        axis = self._axis        
+        z_axis = self._world_zaxis()
+        y_axis = z_axis.cross(axis).norm()
+        x_axis = axis.norm()
+        return self._pos+(v.x*x_axis) + (v.y*y_axis) + (v.z*z_axis)
         
 class vertex(standardAttributes):   
     def __init__(self, **args):
