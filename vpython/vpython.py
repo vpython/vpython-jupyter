@@ -1984,6 +1984,13 @@ class gcurve(gobj):
         super(gcurve, self).setup(args)
 
     @property
+    def width(self): return self._width
+    @width.setter
+    def width(self,val): 
+        self._width = val
+        self.addattr('width')
+
+    @property
     def size(self): return self._size
     @size.setter
     def size(self,val): 
