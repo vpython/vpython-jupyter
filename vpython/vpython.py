@@ -137,8 +137,6 @@ class baseObj(object):
             for key, value in kwargs.items():
                 object.__setattr__(self, key, value)
         baseObj.incrObjCnt()
-        if(canvas.get_selected() != None and not isinstance(self, canvas)):
-            canvas.get_selected().objects.append(self)
         
     def delete(self):
         baseObj.decrObjCnt()
@@ -750,7 +748,7 @@ class standardAttributes(baseObj):
                  'compound':[['pos', 'up', 'color', 'trail_color'], 
                          ['axis', 'size'],
                          ['visible', 'opacity','shininess', 'emissive',  
-                         'make_trail', 'trail_type', 'interval', 
+                         'make_trail', 'trail_type', 'interval', 'texture', 
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs'],
                          ['red', 'green', 'blue', 'length', 'width', 'height']],
                  'vertex':[['pos', 'color', 'normal', 'bumpaxis', 'texpos'], 
@@ -883,17 +881,17 @@ class standardAttributes(baseObj):
             cmd["attrs"].append({"attr":a, "value": aval})
             
     # set canvas  
-
         if self.canvas == None:  ## not specified in constructor
             self.canvas = canvas.get_selected()
         cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
+        self.canvas.objz(self,'add')
                    
         self._constructing = False  ## from now on any setter call will not be from constructor        
         self.appendcmd(cmd)
        
-        if ('frame' in args and args['frame'] != None):
-            frame.objects.append(self)
-            frame.update_obj_list()
+        # if ('frame' in args and args['frame'] != None):
+            # frame.objects.append(self)
+            # frame.update_obj_list()
 
     # attribute vectors have these methods which call self.addattr()
         noSize = ['points', 'label', 'vertex', 'triangle', 'quad']
@@ -1403,10 +1401,13 @@ class compound(standardAttributes):
         self._obj_idxs = None
         idxlist = []
         clonelist = []
+        ineligible = [label, curve, helix, points]  ## type objects
         cvs = objList[0].canvas
         for obj in objList:
             if obj.canvas is not cvs:
-                raise AttributeError('all objects used in compound must belong to the same canvas')            
+                raise AttributeError('all objects used in compound must belong to the same canvas')
+            if type(obj) in ineligible:
+                raise TypeError(str(type(obj)) + ' cannot be used in a compound')
             clonelist.append(obj.clone())  ## make sure to get current values of attributes
             idxlist.append(clonelist[-1].idx)
         args['obj_idxs'] = idxlist
@@ -2358,7 +2359,7 @@ class canvas(baseObj):
 
         rate.active = False  ## ??
             
-        self.objects = []
+        self._objz = set()
         self.lights = []
         self.vertexCount = 0
         self._visible = True
@@ -2593,8 +2594,29 @@ class canvas(baseObj):
         self._lights = value[:]
         if not self._constructing:
             self.addattr('lights')
+            
+    @property
+    def objects(self):
+        obs = []
+        for ob in self._objz:
+            if ob.visible:
+                obs.append(ob)
+        return obs
+    @objects.setter
+    def objects(self, *args1, **args ):
+        raise AttributeError('objects is read-only')
+        
+    def objz(self, obj, operation):
+        try:
+            ii = (obj.idx > 0)  ## should fail for invalid object
+            if operation == 'add':
+                self._objz.add(obj)
+            elif operation == 'delete':
+                self._objz.remove(obj)
+        except:
+            raise TypeError(obj + ' is not an object belonging to a canvas')
 
-
+            
     def bind(self, *args):
         cmd = {"cmd": "bind", "idx": self.idx, "selector": '#' + self.sceneId + ' canvas', "sceneguid": self.guid}
         if callable(args[1]):
