@@ -433,6 +433,7 @@ get_ipython().kernel.do_one_iteration()
 class vector(object):
     'vector class'
     
+    @staticmethod
     def random():
         return vec(-1 + 2*random(), -1 + 2*random(), -1 + 2*random())
 
