@@ -10,7 +10,7 @@ except ImportError:
 setup(
     name='vpython',
     packages=['vpython'],
-    version='0.2.0b12',
+    version='0.2.0b13',
     description='VPython for Jupyter Notebook',
     long_description=open('README.md').read(),
     author='John Coady / Ruth Chabay / Bruce Sherwood / Steve Spicklemire',
