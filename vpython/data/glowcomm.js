@@ -1,13 +1,9 @@
 
-var vp;
-
 define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.0.min"], function() {
 /*jslint plusplus: true */
 console.log("glowscript loading");
 
-window.__context = { glowscript_container: $("#glowscript").removeAttr("id") };
-
-//var scene = canvas();
+var canvases = {} // canvases with their idx values
 var glowObjs = [];
 
 //scene.title.text("fps = frames/sec\n ");
@@ -19,72 +15,29 @@ function o2vec3(p) {
     return vec(p[0], p[1], p[2]);
 }
 
+comm = IPython.notebook.kernel.comm_manager.new_comm('glow')
+comm.on_msg(handler)
+console.log("Comm created for glow target", comm)
+
 function process(event) {
     "use strict";
-    //console.log("Event Detected ",event.type);
+    var evt = {event:event.event}
+    var idx = canvases[event.canvas]
+    evt.canvas = idx
+    var pos = event.pos
+    evt.pos = [pos.x, pos.y, pos.z]
+    evt.press = event.press
+    evt.release = event.release
+    evt.which = event.which
+    var ray = glowObjs[idx].mouse.ray 
+    evt.ray = [ ray.x, ray.y, ray.z ]
+    evt.alt = glowObjs[idx].mouse.alt
+    evt.ctrl = glowObjs[idx].mouse.ctrl
+    evt.shift = glowObjs[idx].mouse.shift
+    comm.send( {arguments: [evt]} )
 }
 
-var GlowWidget = function () {
-    this.comm = IPython.notebook.kernel.comm_manager.new_comm('glow');
-    this.comm.on_msg($.proxy(this.handler, this));
-    console.log("Comm created for glow target");
-};
-
-GlowWidget.prototype.callback = function (event) {
-    "use strict";
-    var evt = { };
-    var idx = event.data.idx;
-    var pos, pick, pickpos;
-    //console.log("Event Detected 2 ",event);
-    //console.log("Event callback guid : ",event.data.callback);
-    evt.mouse = { };
-    evt.pageX = event.pageX;
-    evt.pageY = event.pageY;
-    evt.type = event.type;
-    evt.which = event.which;
-    pos = glowObjs[idx].mouse.pos;
-    evt.pos = [pos.x, pos.y, pos.z];
-    //console.log("Mouse : ",glowObjs[idx].mouse);
-    evt.mouse.pos = glowObjs[idx].mouse.pos;
-    //pick = glowObjs[idx].mouse.pick();
-    pick = glowObjs[idx].mouse.canvas.__renderer.render(1);
-    //pick = $.proxy(glowObjs[idx].mouse.pick(), glowObjs[idx].mouse);
-    if ((
-
-    pick !== undefined) && (pick !== null)) {
-        evt.mouse.pickguid = pick.guid;
-    }
-    //pickpos = glowObjs[idx].mouse.pickpos;
-    //evt.mouse.pickpos = [pickpos.x, pickpos.y, pickpos.z];
-    evt.mouse.pickpos = [pos.x, pos.y, pos.z];
-    //evt.mouse.pickpos = glowObjs[idx].mouse.pickpos;
-    //evt.mouse.camera = glowObjs[idx].mouse.camera;
-    evt.mouse.ray = glowObjs[idx].mouse.ray;
-    evt.mouse.alt = glowObjs[idx].mouse.alt;
-    evt.mouse.ctrl = glowObjs[idx].mouse.ctrl;
-    evt.mouse.shift = glowObjs[idx].mouse.shift;
-    //console.log("evt = ",evt);
-    
-    // the following 'typeof' tests will always be true; probably not what was intended.
-
-    if (typeof event.data.callback !== undefined) {
-        if (event.data.arbArg != undefined) {
-            if (typeof event.data.scene !== undefined) {
-                this.comm.send({callback: event.data.callback, scene: event.data.scene, arguments: [evt, event.data.arbArg]});
-            } else {
-                this.comm.send({callback: event.data.callback, arguments: [evt, event.data.arbArg]});
-            }
-        } else {
-            if (typeof event.data.scene !== undefined) {
-                this.comm.send({callback: event.data.callback, scene: event.data.scene, arguments: [evt]});
-            } else {
-                this.comm.send({callback: event.data.callback, arguments: [evt]});
-            }
-        }
-    }
-};
-
-GlowWidget.prototype.handler = function (msg) {
+function handler(msg) {
     "use strict";
     var data = msg.content.data;
     console.log('glow msg', msg, msg.content)
@@ -92,12 +45,11 @@ GlowWidget.prototype.handler = function (msg) {
     console.log('JSON ' + JSON.stringify(data));
 
     if (data.length > 0) {
-        var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst, cnvsidx;
+        var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
         var triangle_quad, objects;  
         var len = data.length;
         triangle_quad = ['v0', 'v1', 'v2', 'v3'];
         for (i = 0; i < len; i++) {
-            cnvsidx = -1;
             cmd = data.shift();
 //            console.log('\n\n-------------------')
 //            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
@@ -151,6 +103,10 @@ GlowWidget.prototype.handler = function (msg) {
                             var loc = cmd.val[0]
                             var s = cmd.val[1]
                             glowObjs[cmd.idx][loc][cmd.method](s)
+                        } else if (cmd.method === 'bind') {
+                            glowObjs[cmd.idx].bind(cmd.val, process)
+                        } else if (cmd.cmd === 'unbind') {
+                            glowObjs[cmd.idx].unbind(cmd.val, process)
                         } else {
                             var npargs = 0
                             var info
@@ -218,7 +174,6 @@ GlowWidget.prototype.handler = function (msg) {
                         } else if (triangle_quad.indexOf(attr.attr) !== -1) {
                             cfg[attr.attr] = glowObjs[attr.value]
                         } else if (attr.attr === "canvas" ) {
-                            cnvsidx = attr.value;
                             cfg[attr.attr] = glowObjs[attr.value];
                         } else if (attr.attr === "graph" ) {
                             cfg[attr.attr] = glowObjs[attr.value];
@@ -289,46 +244,14 @@ GlowWidget.prototype.handler = function (msg) {
                         } else if (cmd.cmd === 'distant_light') {
                             glowObjs[cmd.idx] = distant_light(cfg);
                         } else if (cmd.cmd === 'compound') {
-//                            if (objects.length > 0) {
-//                                glowObjs[cmd.idx].visible = false;
-//                                glowObjs[cmd.idx] = null;
-//                                for (j = 0; j < objects.length; j++) {
-//                                    objects[j].visible = true;
-//                                }
-//                            }
                             glowObjs[cmd.idx] = compound(objects, cfg);
                         } else if (cmd.cmd === 'canvas') {
                             glowObjs[cmd.idx] = canvas(cfg);
+                            canvases[glowObjs[cmd.idx]] = cmd.idx
                                 // Display frames per second and render time:
                                 //$("<div id='fps'/>").appendTo(glowObjs[cmd.idx].title);
-                            //console.log("Seting up bind for scene");
-                            //glowObjs[cmd.idx].bind("click mousedown mouseenter mouseleave", process);
-                            //glowObjs[cmd.idx].bind('click mousedown mouseenter mouseleave', function(event) {
-                            //    console.log("Event detected");
-                            //    console.log(event.type, event.which);
-                            //});
                         } else {
                             console.log("Unrecognized Object");
-                        }
-                        if (cmd.guid !== undefined) {
-                            glowObjs[cmd.idx].guid = cmd.guid;
-                            //console.log("Set GUID to : ",cmd.guid);
-                        }
-/*
-                        if (make_trail) {
-                            // for (var i in trail_cfg) { console.log( 'trail_cfg before attach_trail', i, trail_cfg[i] ) };
-                            attach_trail(glowObjs[cmd.idx], trail_cfg);
-                            // for (var i in trail_cfg) { console.log( 'trail_cfg after attach_trail', i, trail_cfg[i] ) };
-                        }
- */                                               
-                        if ((cmd.idx >= 0) && (cnvsidx >= 0)) {
-                            //glowObjs[cmd.idx].gidx = cmd.idx;
-                            if (glowObjs[cnvsidx] !== undefined) {
-                                var olen = glowObjs[cnvsidx].objects.length;
-                                if (olen > 0) {
-                                    glowObjs[cnvsidx].objects[olen - 1].gidx = cmd.idx;
-                                }
-                            }
                         }
                     } else {
                         console.log("Unable to create object, idx attribute is not provided");
@@ -372,31 +295,11 @@ GlowWidget.prototype.handler = function (msg) {
                     //console.log("heartbeat");
                 } else if (cmd.cmd === 'debug') {
                     console.log("debug : ", cmd);
-                } else if (cmd.cmd === 'bind') {
-                    if (cmd.arbArg !== undefined) {
-                        $(cmd.selector).bind(cmd.events,{ callback: cmd.callback, scene: cmd.sceneguid, arbArg: cmd.arbArg, idx: cmd.idx }, $.proxy(this.callback, this));
-                    } else {
-                        $(cmd.selector).bind(cmd.events,{ callback: cmd.callback, scene: cmd.sceneguid, idx: cmd.idx }, $.proxy(this.callback, this));
-                    }
-                } else if (cmd.cmd === 'unbind') {
-                    //if (cmd.arbArg !== undefined) {
-                    //    $(cmd.selector).unbind(cmd.events,{ callback: cmd.callback, scene: cmd.sceneguid, arbArg: cmd.arbArg, idx: cmd.idx }, $.proxy(this.callback, this));
-                    //} else {
-                    //    $(cmd.selector).unbind(cmd.events,{ callback: cmd.callback, scene: cmd.sceneguid, idx: cmd.idx }, $.proxy(this.callback, this));
-                    //}
-                    $(cmd.selector).unbind(cmd.events);
-                } else if (cmd.cmd === 'push') {
-                    //console.log("push detected");
-                } else if (cmd.cmd === 'scene') {
-                    glowObjs[cmd.idx] = canvas();
-                    //glowObjs[cmd.idx] = scene;
-                    //console.log("scene obj at idx = ", cmd.idx);
                 }
             }
         }
     }
 };
 
-vp = new GlowWidget();
 
 });

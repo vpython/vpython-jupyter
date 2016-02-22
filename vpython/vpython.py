@@ -16,7 +16,6 @@ from IPython.core.getipython import get_ipython
 
 import time
 import math
-import uuid
 import inspect
 from time import clock
 import os
@@ -87,8 +86,6 @@ if sys.version > '3':
 ifunc = simulateDelay(delayAvg = 0.001)
 rate = RateKeeper2(interactFunc = ifunc)
 
-display(HTML("""<div id="scene0"><div id="glowscript" class="glowscript"></div></div>"""))
-
 package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
@@ -99,40 +96,27 @@ elif IPython.__version__ >= '3.0.0' :
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow.2.0.min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 else:
-    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow.1.1.min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
+    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow.2.0.min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
 
 
-object_registry = {} # GUID -> Instance
-callback_registry = {}  # GUID -> Callback
-
-_id2obj_dict = weakref.WeakValueDictionary()
-
-def remember(obj):
-    oid = id(obj)
-    _id2obj_dict[oid] = obj
-    return oid
-
-def id2obj(oid):
-    return _id2obj_dict[oid]
+object_registry = {}    ## idx -> instance
 
 class baseObj(object):
     txtime = 0.0
     idx = 0
-    qSize = 512            # default to 500
-    qTime = 0.034          # default to 0.05
+    qSize = 512
+    qTime = 0.034
     glow = None
     cmds = collections.deque()
     updtobjs = set()
     objCnt = 0
     
     def __init__(self, **kwargs):
-        guid = str(uuid.uuid4())
-        object_registry[guid] = self
-        object.__setattr__(self, 'guid', guid)
-        object.__setattr__(self, 'idx', baseObj.objCnt)
+        idx = baseObj.objCnt   ## an integer
+        object_registry[idx] = self 
+        object.__setattr__(self, 'idx', idx)
         object.__setattr__(self, 'attrsupdt', set())
         object.__setattr__(self, 'methodsupdt', [] )
-        object.__setattr__(self, 'oid', remember(self))
         if kwargs is not None:
             for key, value in kwargs.items():
                 object.__setattr__(self, key, value)
@@ -155,11 +139,11 @@ class baseObj(object):
     
     def addattr(self, name):
         self.attrsupdt.add(name)
-        baseObj.updtobjs.add(self.oid)
+        baseObj.updtobjs.add(self.idx)
         
     def addmethod(self, name, data):
         self.methodsupdt.append( [name, data] )
-        baseObj.updtobjs.add(self.oid)
+        baseObj.updtobjs.add(self.idx)
             
     @classmethod
     def incrObjCnt(cls):
@@ -217,8 +201,8 @@ def commsend():
                 if L < baseObj.qSize:
                     # print('commsend stuff to update', baseObj.updtobjs)
                     while updtobjs2:
-                        oid = updtobjs2.pop()
-                        ob = id2obj(oid)
+                        idx = updtobjs2.pop()
+                        ob = object_registry[idx]
                         #print('commsend object', ob.attrsupdt, ob.methodsupdt)
                         # sys.stdout.flush()
                         if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
@@ -255,7 +239,7 @@ def commsend():
                                         L += 1
                                         if L >= baseObj.qSize:
                                             if (len(ob.attrsupdt) > 0):
-                                                updtobjs2.add(ob.oid)
+                                                updtobjs2.add(ob.idx)
                                             break
                         if (ob is not None) and (hasattr(ob,'methodsupdt')) and (len(ob.methodsupdt) > 0 ):
                             for m in ob.methodsupdt:
@@ -270,7 +254,7 @@ def commsend():
                                 L += 1
                                 # if L >= baseObj.qSize:   ## put this in
                                     # if (len(ob.methodsupdt) > 0):
-                                        # updtobjs2.add(ob.oid)
+                                        # updtobjs2.add(ob.idx)
                                     # break
                             while len(ob.methodsupdt) > 0:
                                 del ob.methodsupdt[-1]
@@ -303,7 +287,7 @@ class AllMyFields(object):
     def __init__(self, dictionary):
         for k, v in dictionary.items():
             setattr(self, k, v)
-            
+        
 class GlowWidget(object):
     
     def __init__(self, comm, msg):
@@ -312,118 +296,42 @@ class GlowWidget(object):
         self.comm.on_close(self.handle_close)
         baseObj.glow = self
 
+##object_registry = {}    ## idx -> instance        
     def handle_msg(self, msg):
-        data = msg['content']['data']
-        if 'callback' in data:
-            guid = data['callback']
-            callback = callback_registry[guid]
-            args = data['arguments']        
-            #args = json.loads(data['arguments'])
-            #args = [self.parse_object(a) for a in args]
-            #self.comm.send([{'cmd': 'debug', 'data': data}])
-            #cmd = {'cmd': 'debug', 'data': data}
-            #baseObj.cmds.append(cmd)
-            evt = {}
-            evt['pos'] = tuple(args[0]['pos'])
-            evt['type'] = args[0]['type']
-            evt['which'] = args[0]['which']
-            evt['event'] = args[0]['type']
-            evt['button'] = 'left' if evt['which'] == 1 else 'right' if evt['which'] == 2 else 'middle'
-            evt['pickpos'] = args[0]['mouse']['pickpos']
-            if 'pickguid' in args[0]['mouse']:
-                pickguid = args[0]['mouse']['pickguid']
-                evt['pick'] = object_registry[pickguid]
-            else:
-                evt['pick'] = None
-            """
-            mouse = {}
-            if 'pickguid' in args[0]['mouse']:
-                pickguid = args[0]['mouse']['pickguid']
-                mouse['pick'] = object_registry[pickguid]
-            else:
-                mouse['pick'] = None
-            #mouse['pickpos'] = args[0]['mouse']['pickpos']
-            #mouse['ray'] = args[0]['mouse']['ray']
-            #mouse['alt'] = args[0]['mouse']['alt']
-            mouse['ctrl'] = args[0]['mouse']['ctrl']
-            mouse['shift'] = args[0]['mouse']['shift']
-            evt['mouse'] = AllMyFields(mouse)
-            """
-            mouse = Mouse(pos = vector(evt['pos']), pick = evt['pick'], pickpos = vector(args[0]['mouse']['pickpos']), alt = args[0]['mouse']['alt'], ctrl = args[0]['mouse']['ctrl'],
-                          shift = args[0]['mouse']['shift'])
-            evt['mouse'] = mouse
-            if 'scene' in data:
-                sguid = data['scene']
-                object_registry[sguid].mouse = mouse
-
-            tp = inspect.getargspec(callback)   # named tuple of callback args  (args, varargs, keywords, defaults)
-            if (len(tp.args) == 0) and (tp.varargs == None) and (tp.keywords == None) and (tp.defaults == None):
-                callback()
-            elif (len(tp.args) == 1) and (tp.varargs == None) and (tp.keywords == None) and (tp.defaults == None):
-                callback(AllMyFields(evt))
-            elif (len(tp.args) >= 2) and (tp.varargs == None) and (tp.keywords == None) and (tp.defaults == None):
-                addArgs = self.parse_object(args[1])
-                if type(addArgs) is list:
-                    callback(AllMyFields(evt),*addArgs)
-                else:
-                    callback(AllMyFields(evt), addArgs)
-            elif (len(tp.args) == 1) and (tp.varargs != None) and (tp.keywords == None) and (tp.defaults == None):
-                if len(data['arguments']) > 1:
-                    addArgs = self.parse_object(args[1])
-                    if type(addArgs) is list:
-                        callback(AllMyFields(evt),*addArgs)
-                    else:
-                        ta = [addArgs]
-                        callback(AllMyFields(evt),*ta)
-                else:
-                    callback(AllMyFields(evt))
-            elif (len(tp.args) == 0) and (tp.varargs != None) and (tp.keywords == None) and (tp.defaults == None):
-                if len(data['arguments']) > 1:
-                    addArgs = self.parse_object(args[1])
-                    ta = [AllMyFields(evt),addArgs]
-                    callback(*ta)
-                else:
-                    ta = [AllMyFields(evt)]
-                    callback(*ta)
-            else:
-                #cmd = {'cmd': 'debug', 'data': {'cb_called': False}}
-                #baseObj.cmds.append(cmd)
-                pass
-            
+        evt = msg['content']['data']['arguments'][0]
+        cvs = object_registry[evt['canvas']]
+        cvs.handle_event(evt)
 
     def handle_close(self, data):
         print ("Comm closed")
 
-    def get_execution_count(self):
-        return get_ipython().execution_count
+    # def get_execution_count(self):
+        # return get_ipython().execution_count
 
-    def parse_object(self, obj):
-        if type(obj) in [str, int, long, bool, float, tuple, complex]:
-            return obj
-        elif isinstance(obj, collections.Sequence):
-            if type(obj) is list:
-                lst = []
-                for itm in obj:
-                    if isinstance(itm, collections.Sequence) and  ('guido' in itm):
-                        lst.append(object_registry[itm['guido']])
-                    else:
-                        lst.append(itm)
-                if (len(lst) == 3) and (type(lst[0]) in [int, long, float]) and (type(lst[1]) in [int, long, float]) and (type(lst[2]) in [int, long, float]):
-                    return tuple(lst)
-                return lst
-        elif 'guido' in obj:
-            return object_registry[obj['guido']]
+    # def parse_object(self, obj):
+        # if type(obj) in [str, int, long, bool, float, tuple, complex]:
+            # return obj
+        # elif isinstance(obj, collections.Sequence):
+            # if type(obj) is list:
+                # lst = []
+                # for itm in obj:
+                    # if isinstance(itm, collections.Sequence) and  ('guido' in itm):
+                        # lst.append(object_registry[itm['guido']])
+                    # else:
+                        # lst.append(itm)
+                # if (len(lst) == 3) and (type(lst[0]) in [int, long, float]) and (type(lst[1]) in [int, long, float]) and (type(lst[2]) in [int, long, float]):
+                    # return tuple(lst)
+                # return lst
+        # elif 'guido' in obj:
+            # return object_registry[obj['guido']]
         
-        return obj
+        # return obj
 
 if IPython.__version__ >= '3.0.0' :
     get_ipython().kernel.comm_manager.register_target('glow', GlowWidget)
 else:
     get_ipython().comm_manager.register_target('glow', GlowWidget)   
-display(Javascript("""require.undef("nbextensions/glow.1.0.min");"""))
 display(Javascript("""require.undef("nbextensions/jquery-ui.custom.min");"""))
-display(Javascript("""require.undef("nbextensions/glow.1.1.min");"""))
-display(Javascript("""require.undef("nbextensions/glow.1.2.min");"""))
 display(Javascript("""require.undef("nbextensions/glow.2.0.min");"""))
 display(Javascript("""require.undef("nbextensions/glowcomm");"""))
 display(Javascript("""require(["nbextensions/glowcomm"], function(){console.log("glowcomm loaded");})"""))
@@ -433,7 +341,7 @@ get_ipython().kernel.do_one_iteration()
 class vector(object):
     'vector class'
     
-    @staticmethod
+    @staticmethod 
     def random():
         return vec(-1 + 2*random(), -1 + 2*random(), -1 + 2*random())
 
@@ -868,9 +776,9 @@ class standardAttributes(baseObj):
     # set values of user-defined attributes
         for key, value in args.items(): # Assign all other properties
             setattr(self, key, value)
-            
-        cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, 
-           "attrs":[]}
+        
+        #cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, "attrs":[]}
+        cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
 
     # now put all args to send into cmd
         for a in argsToSend:
@@ -1192,7 +1100,8 @@ class standardAttributes(baseObj):
         
     def clone(self, **args):
         newAtts = {}
-        exclude = ['guid', 'idx', 'attrsupdt', 'oid', '_constructing']
+        #exclude = ['guid', 'idx', 'attrsupdt', 'oid', '_constructing']
+        exclude = ['idx', 'attrsupdt', '_constructing']
         for k,v in vars(self).items():
             if k not in exclude:
                 key = k[:]
@@ -1884,9 +1793,9 @@ class gobj(baseObj):
             if a == 'graph':
                 val = val.idx
             setattr(self, '_'+a, val)
-                
-        cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, 
-           "attrs":[]}
+               
+        #cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, "attrs":[]}      
+        cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
            
         for a in argsToSend:
             aval = getattr(self,a)
@@ -2084,8 +1993,8 @@ class graph(baseObj):
         for a in args:
             setattr(self, '_'+a, args[a])
 
-        cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, 
-           "attrs":[]}
+        #cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, "attrs":[]}
+        cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
         
         ## send only args specified in constructor
         for a in argsToSend:
@@ -2333,7 +2242,7 @@ class canvasText(baseObj):
         self._text = s
         self._canvas.addmethod('text',[self._loc,s])
             
-    def append(self,  *args):
+    def append(self, *args):
         s = print_to_string(*args)
         self._text += s
         self._canvas.addmethod('append',[self._loc,s])        
@@ -2378,7 +2287,11 @@ class canvas(baseObj):
     selected_canvas = None
     maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
     
-    def __init__(self, **args):
+    def __init__(self, **args):        
+        #display(HTML("""<div id="canvas%s"><div id="glowscript" class="glowscript"></div></div>""" % (self.idx)))
+        display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
+        display(Javascript("""window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
+
         super(canvas, self).__init__()   ## get guid, idx, attrsupdt, oid
         
         self._constructing = True        
@@ -2394,7 +2307,6 @@ class canvas(baseObj):
         self._ambient = vector(0.2, 0.2, 0.2)
         self._height = 480
         self._width = 640
-
         self._forward = vector(0,0,-1)
         self._fov = math.pi/3.
         self._range = 1
@@ -2405,8 +2317,10 @@ class canvas(baseObj):
         self._userzoom = True
         self._userspin = True
         self._mouse = Mouse()
+        self._binds = {'mousedown':[], 'mouseup':[], 'mousemove':[], 'keydown':[], 'keyup':[], 'click':[]}
         
-        cmd = {"cmd": "canvas", "idx": self.idx, "guid": self.guid, "attrs":[]}
+        #cmd = {"cmd": "canvas", "idx": self.idx, "guid": self.guid, "attrs":[]}
+        cmd = {"cmd": "canvas", "idx": self.idx, "attrs":[]}
         
     # send only nondefault values to GlowScript
         
@@ -2453,12 +2367,8 @@ class canvas(baseObj):
         self._up.on_change = self._on_up_change
         self._center.on_change = self._on_center_change
         
-        display(HTML("""<div id="%s"><div id="glowscript" class="glowscript"></div></div>""" % (self)))
-        display(Javascript("""window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
-
         self.appendcmd(cmd)
         self._constructing = False
- 
 
     def select(self):
         canvas.selected_canvas = self
@@ -2635,64 +2545,46 @@ class canvas(baseObj):
         
     def objz(self, obj, operation):
         try:
-            ii = (obj.idx > 0)  ## should fail for invalid object
+            ii = (obj.idx > 0)  ## invalid object will not have .idx attribute
             if operation == 'add':
                 self._objz.add(obj)
             elif operation == 'delete':
                 self._objz.remove(obj)
         except:
             raise TypeError(obj + ' is not an object belonging to a canvas')
+        
+    def handle_event(self, evt):
+        pos = evt['pos']
+        evt['pos'] = vector( pos[0], pos[1], pos[2] )
+        self.mouse.pos = evt['pos']
+        ray = evt['ray']
+        evt['ray'] = vector( ray[0], ray[1], ray[2] )
+        self.mouse.ray = evt['ray']
+        self.mouse.alt = evt['alt']
+        self.mouse.shift = evt['shift']
+        self.mouse.ctrl = evt['ctrl']
+        evt['canvas'] = object_registry[evt['canvas']]
+        ev = evt['event']
+        # for a in evt:
+            # GSprint(a,evt[a])
+        evt1 = event_return(evt)  ## turn it into an object
+        for fct in self._binds[ev]: fct( evt1 ) 
 
-            
-    def bind(self, *args):
-        cmd = {"cmd": "bind", "idx": self.idx, "selector": '#' + self.sceneId + ' canvas', "sceneguid": self.guid}
-        if callable(args[1]):
-            cmd['events'] = args[0]
-            guid = str(uuid.uuid4())
-            callback_registry[guid] = args[1]
-            cmd['callback'] = guid
-            if inspect.isfunction(args[1]):
-                cmd['events'] = self.evtns(args[0],args[1].__name__)      # add func name namespace to events
-            if len(args) > 2:
-                obj = args[2]
-                if type(obj) in [str, int, long, bool, float, tuple, complex]:
-                    cmd['arbArg'] = obj
-                elif isinstance(obj, collections.Sequence):
-                    cmd['arbArg'] = self.encode_seq(obj)
-                elif isinstance(obj, baseObj):
-                    cmd['arbArg'] = {'guido': obj.guid}
-                else:
-                    cmd['arbArg'] = args[2]
-            self.appendcmd(cmd)
-
-    def unbind(self, *args):
-        cmd = {"cmd": "unbind", "idx": self.idx, "selector": '#' + self.sceneId + ' canvas'}
-        if callable(args[1]):
-            cmd['events'] = args[0]
-            if inspect.isfunction(args[1]):
-                cmd['events'] = self.evtns(args[0],args[1].__name__)      # add func name namespace to events
-            self.appendcmd(cmd)
-            
-    def evtns(self,strs, ns):
-        evts = strs.split()
-        for i, evt in enumerate(evts):
-            evts[i] = evt + "." + ns
-        ns_evts = " ".join(evts)
-        return ns_evts
-    
-    def encode_seq(self,seq):
-        if type(seq) is list:
-            for i, item in enumerate(seq):
-                if isinstance(item, baseObj):
-                    seq[i] = {'guido': item.guid}
-            return seq
-        if type(seq) is tuple:
-            seq2 = list(seq)
-            for i, item in enumerate(seq2):
-                if isinstance(item, baseObj):
-                    seq2[i] = {'guido': item.guid}
-            return seq2
-        return []
+    def bind(self, eventtype, whattodo):
+        evts = eventtype.split()
+        for evt in evts:
+            if evt in self._binds:
+                self._binds[evt].append(whattodo)
+            else:
+                raise TypeError('Illegal event type')
+        self.addmethod('bind', eventtype)
+                
+    def unbind(self, eventtype, whatnottodo):
+        evts = eventtype.split()
+        for evt in evts:
+            if evt in self._binds and whatnottodo in self._binds[evt]:
+                self._binds[evt].remove(whatnotodo)
+        self.addmethod('unbind', eventtype)
         
     def waitfor(self, event):
         global _sent
@@ -2715,9 +2607,16 @@ class canvas(baseObj):
 
     def _ipython_display_(self): # don't print something when making an (anonymous) canvas
         pass
-        #display_html('<div id="glowscript2" ><div id="glowscript" class="glowscript"></div></div>', raw=True)
-        #cmd = {"cmd": "redisplay", "idx": self.idx, "sceneId": self.sceneId}        
-        #self.appendcmd(cmd)
+        
+class event_return(object):
+    def __init__(self, args):
+        self.event = args['event']
+        self.pos = args['pos']
+        self.press = args['press']
+        self.release = args['release']
+        self.which = args['which']
+        # for a in args:
+            # self[a] = args[a]
                 
 class local_light(standardAttributes):
     def __init__(self, **args):
