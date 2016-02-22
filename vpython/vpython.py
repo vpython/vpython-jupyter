@@ -2225,17 +2225,16 @@ class label(standardAttributes):
 class frame(object):
     def __init__(self, **args):
         raise NameError('frame is not yet implemented')
-
-        
+       
 class canvasText(baseObj):
     def __init__(self, canvas = None, text=" ", loc='title'):  # loc can be caption or title
         self._text = text
         self._canvas = canvas
         self._loc = loc
-    
-    # @property
-    # def text(self):
-        # return self._text
+        
+    @property
+    def text(self):
+        return self._text
 
     def text(self, *args):
         s = print_to_string(*args)
@@ -2287,8 +2286,7 @@ class canvas(baseObj):
     selected_canvas = None
     maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
     
-    def __init__(self, **args):        
-        #display(HTML("""<div id="canvas%s"><div id="glowscript" class="glowscript"></div></div>""" % (self.idx)))
+    def __init__(self, **args):
         display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
         display(Javascript("""window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
 
@@ -2356,8 +2354,8 @@ class canvas(baseObj):
         else:
             captiontext = " "
             
-        self.caption = canvasText(canvas = self, text = titletext, loc='caption')
-        self.title = canvasText(canvas = self, text = captiontext, loc='title')
+        self.title = canvasText(canvas=self, text=titletext, loc='title')
+        self.caption = canvasText(canvas=self, text=captiontext, loc='caption')
                 
     # set values of user-defined attributes
         for key, value in args.items(): # Assign all other properties
@@ -2377,6 +2375,22 @@ class canvas(baseObj):
     @classmethod
     def get_selected(cls):
         return cls.selected_canvas
+
+    # @property
+    # def title(self):
+        # return self.title.text
+    # @title.setter
+    # def title(self,value):
+        # if not self._constructing:
+            # raise AttributeError('Use scene.title.text("some text")')
+
+    # @property
+    # def caption(self):
+        # return self.caption.text   
+    # @caption.setter
+    # def caption(self,value):
+        # if not self._constructing:
+            # raise AttributeError('Use scene.caption.text("some text")')
 
     @property
     def mouse(self):
@@ -2429,15 +2443,6 @@ class canvas(baseObj):
         self._width = value
         if not self._constructing:    
             self.addattr('width')
-
-    @property
-    def title(self):
-        return self._title    
-    @title.setter
-    def title(self,value):
-        self._title = value
-        if not self._constructing:    
-            self.addattr('title')
 
     @property
     def center(self):
