@@ -32,6 +32,8 @@ from random import random
 
 import platform
 
+GSversion = ['2.1', 'jupyter'] # GlowScript version is ['2.1', 'glowscript']
+
 glowlock = threading.Lock()
 
 class RateKeeper2(RateKeeper):
@@ -89,14 +91,14 @@ rate = RateKeeper2(interactFunc = ifunc)
 package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow.2.0.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+".min.js",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 elif IPython.__version__ >= '3.0.0' :
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow.2.0.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+".min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 else:
-    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow.2.0.min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
+    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow."+GSversion[0]+".min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
 
 
 object_registry = {}    ## idx -> instance
@@ -204,7 +206,7 @@ def commsend():
                         idx = updtobjs2.pop()
                         ob = object_registry[idx]
                         #print('commsend object', ob.attrsupdt, ob.methodsupdt)
-                        # sys.stdout.flush()
+                        #sys.stdout.flush()
                         if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
                             while ob.attrsupdt:
                                 if 'method' in commcmds[L]: del commcmds[L]['method']
@@ -305,34 +307,12 @@ class GlowWidget(object):
     def handle_close(self, data):
         print ("Comm closed")
 
-    # def get_execution_count(self):
-        # return get_ipython().execution_count
-
-    # def parse_object(self, obj):
-        # if type(obj) in [str, int, long, bool, float, tuple, complex]:
-            # return obj
-        # elif isinstance(obj, collections.Sequence):
-            # if type(obj) is list:
-                # lst = []
-                # for itm in obj:
-                    # if isinstance(itm, collections.Sequence) and  ('guido' in itm):
-                        # lst.append(object_registry[itm['guido']])
-                    # else:
-                        # lst.append(itm)
-                # if (len(lst) == 3) and (type(lst[0]) in [int, long, float]) and (type(lst[1]) in [int, long, float]) and (type(lst[2]) in [int, long, float]):
-                    # return tuple(lst)
-                # return lst
-        # elif 'guido' in obj:
-            # return object_registry[obj['guido']]
-        
-        # return obj
-
 if IPython.__version__ >= '3.0.0' :
     get_ipython().kernel.comm_manager.register_target('glow', GlowWidget)
 else:
     get_ipython().comm_manager.register_target('glow', GlowWidget)   
 display(Javascript("""require.undef("nbextensions/jquery-ui.custom.min");"""))
-display(Javascript("""require.undef("nbextensions/glow.2.0.min");"""))
+display(Javascript('require.undef("nbextensions/glow.'+GSversion[0]+'.min");'))
 display(Javascript("""require.undef("nbextensions/glowcomm");"""))
 display(Javascript("""require(["nbextensions/glowcomm"], function(){console.log("glowcomm loaded");})"""))
             
@@ -1136,6 +1116,15 @@ class sphere(standardAttributes):
     def radius(self,value):
         d = 2*value
         self.size = vector(d,d,d) # size will call addattr
+
+    @property
+    def axis(self):
+        return self._axis
+    @axis.setter
+    def axis(self,other): # changing a sphere axis should not affect size
+        self._axis.value = other
+        if not self._constructing:
+            self.addattr('axis')
         
 class cylinder(standardAttributes):
     def __init__(self, **args):
@@ -2225,31 +2214,6 @@ class label(standardAttributes):
 class frame(object):
     def __init__(self, **args):
         raise NameError('frame is not yet implemented')
-       
-class canvasText(baseObj):
-    def __init__(self, canvas = None, text=" ", loc='title'):  # loc can be caption or title
-        self._text = text
-        self._canvas = canvas
-        self._loc = loc
-        
-    @property
-    def text(self):
-        return self._text
-
-    def text(self, *args):
-        s = print_to_string(*args)
-        self._text = s
-        self._canvas.addmethod('text',[self._loc,s])
-            
-    def append(self, *args):
-        s = print_to_string(*args)
-        self._text += s
-        self._canvas.addmethod('append',[self._loc,s])        
-    
-    def html(self, *args):
-        s = print_to_string(*args)
-        self._text = s
-        self._canvas.addmethod('html',[self._loc,s])
     
 class Mouse(object):
     'Mouse object'
@@ -2314,6 +2278,8 @@ class canvas(baseObj):
         self._autoscale = True
         self._userzoom = True
         self._userspin = True
+        self._title = ''
+        self._caption = ''
         self._mouse = Mouse()
         self._binds = {'mousedown':[], 'mouseup':[], 'mousemove':[], 'keydown':[], 'keyup':[], 'click':[]}
         
@@ -2323,7 +2289,8 @@ class canvas(baseObj):
     # send only nondefault values to GlowScript
         
         canvasVecAttrs = ['background', 'ambient','forward','up', 'center']
-        canvasNonVecAttrs = ['visible', 'height', 'width', 'title','fov', 'range', 'scale', 'autoscale', 'userzoom', 'userspin']
+        canvasNonVecAttrs = ['visible', 'height', 'width', 'title','fov', 'range', 'scale',
+                             'autoscale', 'userzoom', 'userspin', 'title', 'caption']
  
         for a in canvasNonVecAttrs:
             if a in args:
@@ -2340,22 +2307,6 @@ class canvas(baseObj):
                 setattr(self, '_'+a, vector(aval))
                 cmd["attrs"].append({"attr":a, "value": aval.value})
                 del args[a]
-                
-        if 'title' in args:
-            titletext = args['title']
-            cmd["attrs"].append( {"attr":"title", "value": titletext} )
-            del args['title']
-        else:
-            titletext = " "
-        if 'caption' in args:
-            captiontext = args['caption']
-            cmd["attrs"].append( {"attr":"caption", "value": captiontext} )
-            del args['caption']
-        else:
-            captiontext = " "
-            
-        self.title = canvasText(canvas=self, text=titletext, loc='title')
-        self.caption = canvasText(canvas=self, text=captiontext, loc='caption')
                 
     # set values of user-defined attributes
         for key, value in args.items(): # Assign all other properties
@@ -2376,21 +2327,33 @@ class canvas(baseObj):
     def get_selected(cls):
         return cls.selected_canvas
 
-    # @property
-    # def title(self):
-        # return self.title.text
-    # @title.setter
-    # def title(self,value):
-        # if not self._constructing:
-            # raise AttributeError('Use scene.title.text("some text")')
+    @property
+    def title(self):
+        return self._title
+    @title.setter
+    def title(self,value):
+        self._title = value
+        if not self._constructing:
+            self.addattr('title')
 
-    # @property
-    # def caption(self):
-        # return self.caption.text   
-    # @caption.setter
-    # def caption(self,value):
-        # if not self._constructing:
-            # raise AttributeError('Use scene.caption.text("some text")')
+    @property
+    def caption(self):
+        return self._caption 
+    @caption.setter
+    def caption(self,value):
+        self._caption = value
+        if not self._constructing:
+            self.addattr('caption')
+            
+    def append_to_title(self, s):
+        t = print_to_spring(s)
+        self._title += t
+        self.addmethod('append_to_title', t)
+        
+    def append_to_caption(self, s):
+        t = print_to_spring(s)
+        self._caption += t
+        self.addmethod('append_to_caption', t)
 
     @property
     def mouse(self):
@@ -2570,8 +2533,6 @@ class canvas(baseObj):
         self.mouse.ctrl = evt['ctrl']
         evt['canvas'] = object_registry[evt['canvas']]
         ev = evt['event']
-        # for a in evt:
-            # GSprint(a,evt[a])
         evt1 = event_return(evt)  ## turn it into an object
         for fct in self._binds[ev]: fct( evt1 ) 
 
@@ -2615,13 +2576,12 @@ class canvas(baseObj):
         
 class event_return(object):
     def __init__(self, args):
+        self.event = args['canvas']
         self.event = args['event']
         self.pos = args['pos']
         self.press = args['press']
         self.release = args['release']
         self.which = args['which']
-        # for a in args:
-            # self[a] = args[a]
                 
 class local_light(standardAttributes):
     def __init__(self, **args):
@@ -2688,7 +2648,6 @@ degrees = math.degrees
 
 scene = canvas()
 
-
 # This must come after creating a canvas
 class MISC(baseObj):
     def __init__(self):
@@ -2723,5 +2682,5 @@ def print_to_string(*args):
         # #if IPython.__version__ >= '3.0.0' :
         # with glowlock:
             # get_ipython().kernel.do_one_iteration()
-        # scene = canvas()
+        # # scene = canvas()
 

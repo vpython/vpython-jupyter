@@ -1,5 +1,5 @@
-
-define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.0.min"], function() {
+// MAKE SURE THE GLOW LIBRARY HAS THE CORRECT VERSION NUMBER:
+define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1.min"], function() {
 /*jslint plusplus: true */
 console.log("glowscript loading");
 
@@ -93,16 +93,15 @@ function handler(msg) {
                             if (cmd.method == 'delete') glowObjs[cmd.idx]['remove']()
                             else glowObjs[cmd.idx][cmd.method]()
                         } else if (cmd.method == 'GSprint') {
-                            //GSprint(cmd.val) // This appends to $('body'), which doesn't work in notebook
+                            GSprint(cmd.val) // This appends to $('body'), which doesn't work in notebook
+                            /*
                             var c = canvas.get_selected()
                             var cr = ''
                             if (c.caption.text() !== cr) cr = '\n'
                             c.caption.text(c.caption.text()+cr+cmd.val)
-                        } else if ((cmd.method === 'text' || cmd.method === 'html' || 
-                                        cmd.method === 'append') && glowObjs[cmd.idx] instanceof canvas) {
-                            var loc = cmd.val[0]
-                            var s = cmd.val[1]
-                            glowObjs[cmd.idx][loc][cmd.method](s)
+                            */
+                        } else if ((cmd.method === 'append_to_title' || cmd.method === 'append_to_caption') && glowObjs[cmd.idx] instanceof canvas) {
+                            glowObjs[cmd.idx][cmd.method](cmd.val)
                         } else if (cmd.method === 'bind') {
                             glowObjs[cmd.idx].bind(cmd.val, process)
                         } else if (cmd.cmd === 'unbind') {
@@ -145,7 +144,9 @@ function handler(msg) {
 //                console.log('assembling cfg', cmd.cmd, typeof cmd.attrs, cmd.attrs) //**************
 //                for (var i in cmd.attrs) { console.log(cmd.attrs[i]) }
                 if (cmd.attrs !== undefined) {
-                     vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color','origin', 'normal', 'bumpaxis','texpos'];
+                     vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 
+                             'background', 'ambient', 'linecolor', 'dot_color', 'trail_color',
+                             'origin', 'normal', 'bumpaxis','texpos'];
                     if ((cmd.cmd != 'gcurve') && ( cmd.cmd != 'gdots' ) ) {
                         vlst.push( 'size' )
                     }
