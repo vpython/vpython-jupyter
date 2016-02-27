@@ -3,7 +3,6 @@ define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1.min"], functi
 /*jslint plusplus: true */
 console.log("glowscript loading");
 
-var canvases = {} // canvases with their idx values
 var glowObjs = [];
 
 //scene.title.text("fps = frames/sec\n ");
@@ -22,7 +21,7 @@ console.log("Comm created for glow target", comm)
 function process(event) {
     "use strict";
     var evt = {event:event.event}
-    var idx = canvases[event.canvas]
+    var idx = event.canvas['idx']
     evt.canvas = idx
     var pos = event.pos
     evt.pos = [pos.x, pos.y, pos.z]
@@ -248,7 +247,7 @@ function handler(msg) {
                             glowObjs[cmd.idx] = compound(objects, cfg);
                         } else if (cmd.cmd === 'canvas') {
                             glowObjs[cmd.idx] = canvas(cfg);
-                            canvases[glowObjs[cmd.idx]] = cmd.idx
+                            glowObjs[cmd.idx]['idx'] = cmd.idx
                                 // Display frames per second and render time:
                                 //$("<div id='fps'/>").appendTo(glowObjs[cmd.idx].title);
                         } else {

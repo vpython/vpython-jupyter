@@ -2531,7 +2531,7 @@ class canvas(baseObj):
         self.mouse.alt = evt['alt']
         self.mouse.shift = evt['shift']
         self.mouse.ctrl = evt['ctrl']
-        evt['canvas'] = object_registry[evt['canvas']]
+        evt['canvas'] = self
         ev = evt['event']
         evt1 = event_return(evt)  ## turn it into an object
         for fct in self._binds[ev]: fct( evt1 ) 
@@ -2576,12 +2576,13 @@ class canvas(baseObj):
         
 class event_return(object):
     def __init__(self, args):
-        self.event = args['canvas']
+        self.canvas = args['canvas']
         self.event = args['event']
         self.pos = args['pos']
         self.press = args['press']
         self.release = args['release']
         self.which = args['which']
+
                 
 class local_light(standardAttributes):
     def __init__(self, **args):
