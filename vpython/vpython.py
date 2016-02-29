@@ -1561,7 +1561,9 @@ class curveMethods(standardAttributes):
         if isinstance(vars, tuple) and isinstance(vars[0], list):
             vars = vars[0]
         for v in vars:
-            if isinstance(v, vector):
+            if isinstance(v, vector) or isinstance(v, list) or isinstance(v, tuple):
+                if not isinstance(v, vector): # legal in GlowScript: pos=[(x,y,z), (x,y,z)] and pos=[[x,y,z], [x,y,z]]
+                    v = vec(v[0], v[1], v[2])
                 if not self._constructing:
                     ret.append({'pos':v})
                 else:
@@ -2345,13 +2347,13 @@ class canvas(baseObj):
         if not self._constructing:
             self.addattr('caption')
             
-    def append_to_title(self, s):
-        t = print_to_spring(s)
+    def append_to_title(self, *args):
+        t = print_to_spring(*args)
         self._title += t
         self.addmethod('append_to_title', t)
         
-    def append_to_caption(self, s):
-        t = print_to_spring(s)
+    def append_to_caption(self, *args):
+        t = print_to_spring(*args)
         self._caption += t
         self.addmethod('append_to_caption', t)
 
@@ -2666,7 +2668,7 @@ def GSprint(*args):
     s = s[:-1]
     __misc.print(s)
     
-def print_to_string(*args):
+def print_to_spring(*args):
     s = ''
     for a in args:
         s += str(a)+' '
