@@ -32,7 +32,8 @@ from random import random
 
 import platform
 
-GSversion = ['2.1', 'jupyter'] # GlowScript version is ['2.1', 'glowscript']
+version = ['0.2.0b15', 'jupyter']
+GSversion = ['2.1', 'glowscript']
 
 glowlock = threading.Lock()
 
