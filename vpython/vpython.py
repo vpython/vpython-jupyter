@@ -586,13 +586,13 @@ class standardAttributes(baseObj):
                         ['axis', 'size'],
                         ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
-                         'retain', 'trail_color', 'trail_radius', 'texture'],
+                         'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
                         ['red', 'green', 'blue','length', 'width', 'height']],
                  'sphere':[['pos', 'up', 'color', 'trail_color'], 
                         ['axis', 'size'],
                         ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
-                         'retain', 'trail_color', 'trail_radius', 'texture'],
+                         'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
                         ['red', 'green', 'blue','length', 'width', 'height', 'radius']],                        
                  'arrow':[['pos', 'up', 'color', 'trail_color'],
                          ['axis', 'size'],
@@ -600,23 +600,23 @@ class standardAttributes(baseObj):
                           'shininess', 'emissive', 'texture', 'frame', 'material',
                           'make_trail', 'trail_type', 'interval', 
                           'retain', 'trail_color', 'trail_radius', 'texture',
-                          'shaftwidth', 'headwidth', 'headlength'],
+                          'shaftwidth', 'headwidth', 'headlength', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
                  'ring':[['pos', 'up', 'color', 'trail_color', 'axis', 'size'],  
                         [],
                         ['visible', 'opacity','shininess', 'emissive', 
                          'make_trail', 'trail_type', 'interval', 
-                         'retain', 'trail_color', 'trail_radius', 'texture'],
+                         'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
                         ['red', 'green', 'blue','length', 'width', 'height', 'thickness']],                       
                  'helix':[['pos', 'up', 'color', 'trail_color'],
                          ['axis', 'size'],
                          ['visible', 'opacity','shininess', 'emissive', 
                          'make_trail', 'trail_type', 'interval', 
-                         'retain', 'trail_color', 'trail_radius', 'coils', 'thickness'],
+                         'retain', 'trail_color', 'trail_radius', 'coils', 'thickness', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
                  'curve':[['origin', 'up', 'color'],  
                          ['axis', 'size'],
-                         ['visible', 'shininess', 'emissive', 'radius', 'retain'],
+                         ['visible', 'shininess', 'emissive', 'radius', 'retain', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
                  'points':[['color'],  
                          [],
@@ -639,7 +639,7 @@ class standardAttributes(baseObj):
                          ['axis', 'size'],
                          ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 'texture', 
-                         'retain', 'trail_color', 'trail_radius', 'obj_idxs'],
+                         'retain', 'trail_color', 'trail_radius', 'obj_idxs', 'pickable'],
                          ['red', 'green', 'blue', 'length', 'width', 'height']],
                  'vertex':[['pos', 'color', 'normal', 'bumpaxis', 'texpos'], 
                         [],
@@ -647,11 +647,11 @@ class standardAttributes(baseObj):
                         ['red', 'green', 'blue']],
                  'triangle': [ [],
                         [],
-                        ['texture', 'bumpmap', 'visible'],
+                        ['texture', 'bumpmap', 'visible', 'pickable'],
                         ['v0', 'v1', 'v2'] ],
                  'quad': [ [],
                         [],
-                        ['texture', 'bumpmap', 'visible'],
+                        ['texture', 'bumpmap', 'visible', 'pickable'],
                         ['v0', 'v1', 'v2', 'v3'] ]
                         }
  
@@ -694,6 +694,7 @@ class standardAttributes(baseObj):
         self._frame = None
         self._size_units = 'pixels'
         self._texture = None
+        self._pickable = True
         
         argsToSend = []  ## send to GlowScript only attributes specified in constructor
         
@@ -910,6 +911,15 @@ class standardAttributes(baseObj):
         self._visible = value
         if not self._constructing:
             self.addattr('visible')
+
+    @property
+    def pickable(self):
+        return self._pickable    
+    @pickable.setter
+    def pickable(self,value):
+        self._pickable = value
+        if not self._constructing:
+            self.addattr('pickable')
 
     @property
     def canvas(self):
@@ -2284,9 +2294,9 @@ class canvas(baseObj):
         self._title = ''
         self._caption = ''
         self._mouse = Mouse()
-        self._binds = {'mousedown':[], 'mouseup':[], 'mousemove':[], 'keydown':[], 'keyup':[], 'click':[]}
-        
-        #cmd = {"cmd": "canvas", "idx": self.idx, "guid": self.guid, "attrs":[]}
+        self._binds = {'mousedown':[], 'mouseup':[], 'mousemove':[],'click':[],
+                        'mouseenter':[], 'mouseleave':[]}
+            # no key events unless notebook command mode can be disabled
         cmd = {"cmd": "canvas", "idx": self.idx, "attrs":[]}
         
     # send only nondefault values to GlowScript
@@ -2523,6 +2533,8 @@ class canvas(baseObj):
                 self._objz.remove(obj)
         except:
             raise TypeError(obj + ' is not an object belonging to a canvas')
+            
+## key events conflict with notebook command mode; not permitted for now
         
     def handle_event(self, evt):
         pos = evt['pos']
@@ -2545,7 +2557,7 @@ class canvas(baseObj):
             if evt in self._binds:
                 self._binds[evt].append(whattodo)
             else:
-                raise TypeError('Illegal event type')
+                raise TypeError(evt + ' is an illegal event type')
         self.addmethod('bind', eventtype)
                 
     def unbind(self, eventtype, whatnottodo):
@@ -2555,15 +2567,27 @@ class canvas(baseObj):
                 self._binds[evt].remove(whatnotodo)
         self.addmethod('unbind', eventtype)
         
-    def waitfor(self, event):
+    def fwaitfor(self, event):
+        self._waitfor = True       
+        
+    def waitfor(self, eventtype):
         global _sent
-        evts = ['redraw', 'draw_complete']
-        if event in evts:
-            _sent = False
+        evts = ['redraw', 'draw_complete'] 
+        if eventtype in evts:
+            _sent = False  
+            while _sent is False:    ## set by commsend
+                rate(60)
         else:
-            raise TypeError(event + ' not recognized')
-        while _sent is False:
-            rate(60)
+            self._waitfor = False    
+            self.bind(eventtype, self.fwaitfor)
+            while self._waitfor is False:
+                rate(60)
+                
+    # def pause(self,*s):
+        # if len(s) > 0:
+            # GSprint(s[0])
+        # self.waitfor('click')
+        
 
     def _on_forward_change(self):
         self.addattr('forward')
