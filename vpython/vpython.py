@@ -2564,7 +2564,7 @@ class canvas(baseObj):
         evts = eventtype.split()
         for evt in evts:
             if evt in self._binds and whatnottodo in self._binds[evt]:
-                self._binds[evt].remove(whatnotodo)
+                self._binds[evt].remove(whatnottodo)
         self.addmethod('unbind', eventtype)
         
     def fwaitfor(self, event):
@@ -2582,12 +2582,18 @@ class canvas(baseObj):
             self.bind(eventtype, self.fwaitfor)
             while self._waitfor is False:
                 rate(60)
-                
-    # def pause(self,*s):
-        # if len(s) > 0:
-            # GSprint(s[0])
-        # self.waitfor('click')
+            self.unbind(eventtype, self.fwaitfor)
         
+    def pause(self,*s):
+        if len(s) > 0:
+            s = s[0]
+            self.addmethod('pause', [s])
+        else:
+            self.addmethod('pause', [])
+        self._waitfor = False
+        self.bind('click', self.fwaitfor)
+        while self._waitfor is False:
+            rate(60)        
 
     def _on_forward_change(self):
         self.addattr('forward')

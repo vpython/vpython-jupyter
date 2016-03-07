@@ -20,6 +20,8 @@ console.log("Comm created for glow target", comm)
 
 function process(event) {
     "use strict";
+    console.log('process')
+    if (arguments.length > 1) event = arguments[1]   // should only be scene.pause
     var evt = {event:event.event}
     var idx = event.canvas['idx']
     evt.canvas = idx
@@ -85,7 +87,7 @@ function handler(msg) {
                         }
                     }
                     if (cmd.method !== undefined) {
-//                        console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
+                        console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
                         var parametric = ['splice', 'modify']
                         var val = cmd.val
                         if (val == 'None') {
@@ -103,8 +105,14 @@ function handler(msg) {
                             glowObjs[cmd.idx][cmd.method](cmd.val)
                         } else if (cmd.method === 'bind') {
                             glowObjs[cmd.idx].bind(cmd.val, process)
-                        } else if (cmd.cmd === 'unbind') {
+                        } else if (cmd.method === 'unbind') {
                             glowObjs[cmd.idx].unbind(cmd.val, process)
+                        } else if (cmd.method === 'pause') {
+                            if (cmd.val.length > 0) {
+                               glowObjs[cmd.idx].pause(cmd.val[0], process) 
+                            } else {
+                               glowObjs[cmd.idx].pause(process) 
+                            }
                         } else {
                             var npargs = 0
                             var info
