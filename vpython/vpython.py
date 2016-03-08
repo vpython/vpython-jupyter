@@ -406,7 +406,7 @@ class vector(object):
             return 0
         if a < -1:
             return math.pi
-        return acos(a)
+        return math.acos(a)
         
     def rotate(self,angle = 0., axis = None):
         if axis == None:
