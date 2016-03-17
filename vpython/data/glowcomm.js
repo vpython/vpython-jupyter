@@ -20,7 +20,6 @@ console.log("Comm created for glow target", comm)
 
 function process(event) {
     "use strict";
-    console.log('process')
     if (arguments.length > 1) event = arguments[1]   // should only be scene.pause
     var evt = {event:event.event}
     var idx = event.canvas['idx']
@@ -30,12 +29,30 @@ function process(event) {
     evt.press = event.press
     evt.release = event.release
     evt.which = event.which
-    var ray = glowObjs[idx].mouse.ray 
+    var ray = event.canvas.mouse.ray 
     evt.ray = [ ray.x, ray.y, ray.z ]
-    evt.alt = glowObjs[idx].mouse.alt
-    evt.ctrl = glowObjs[idx].mouse.ctrl
-    evt.shift = glowObjs[idx].mouse.shift
+    evt.alt = event.canvas.mouse.alt
+    evt.ctrl = event.canvas.mouse.ctrl
+    evt.shift = event.canvas.mouse.shift
     comm.send( {arguments: [evt]} )
+}
+
+function update_mouse() {
+    "use strict";
+    var evt = {event:'update_mouse'}
+    if (canvas.hasmouse === null) { return } 
+    var idx = canvas.hasmouse.idx
+    evt.canvas = idx
+    var ray = canvas.hasmouse.mouse.ray 
+    evt.ray = [ ray.x, ray.y, ray.z ]
+    var pos = canvas.hasmouse.mouse.pos
+    evt.pos = [pos.x, pos.y, pos.z]
+    comm.send( {arguments: [evt]} )    
+}
+
+function send_pick(p, cvs) {
+    var evt = {event: 'pick', canvas: cvs, pick: p}
+    comm.send( {arguments: [evt]} ) 
 }
 
 function handler(msg) {
@@ -113,6 +130,9 @@ function handler(msg) {
                             } else {
                                glowObjs[cmd.idx].pause(process) 
                             }
+                        } else if (cmd.method === 'pick') {
+                            var p = glowObjs[cmd.val].mouse.pick()   // wait for pick render; val = canvas
+                            send_pick(p, cmd.val)
                         } else {
                             var npargs = 0
                             var info
@@ -307,6 +327,7 @@ function handler(msg) {
             }
         }
     }
+    update_mouse()
 };
 
 

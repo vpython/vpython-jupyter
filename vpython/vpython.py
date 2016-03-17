@@ -2141,7 +2141,7 @@ class label(standardAttributes):
         return self._text
     @text.setter
     def text(self,value):
-        self._text = value
+        self._text = print_to_string(value)
         if not self._constructing:
             self.addattr('text')
 
@@ -2228,39 +2228,118 @@ class frame(object):
     def __init__(self, **args):
         raise NameError('frame is not yet implemented')
     
-class Mouse(object):
-    'Mouse object'
+class Mouse(baseObj):
 
-    def __init__(self, pos=(0.,0.,0.), pick=None, pickpos=(0.,0.,0.), camera=None, ray=(0.,0.,1.), alt=False, ctrl=False, shift = False):
-        self.pos = pos
-        self.pick = pick
-        self.pickpos = pickpos
-        self.camera = camera
-        self.ray = ray
-        self.alt = alt
-        self.ctrl = ctrl
-        self.shift = shift
-   
-    def getclick(self):
-        pass
-
-    def project(self, normal=(0,1,0), point=(0,0,0), d=0):
-        normal = vector(normal) if type(normal) in (tuple, list) else normal
-        if normal.mag == 0.:
-            return None
-        u_n = normal.norm()
-        if (d != 0):
-            point = d*u_n
+    def __init__(self, canvas):
+        self._pos = None
+        self._ray = None
+        self._alt = False
+        self._ctrl = False
+        self._shift = False
+        self._canvas = canvas
+        self._pick = None
+        
+        super(Mouse, self).__init__()   ## get guid, idx, attrsupdt, oid
+        
+    @property
+    def pos(self):
+        return self._pos    
+    @pos.setter
+    def pos(self,value):
+        raise AttributeError('Cannot set position of the mouse')
+        
+    @property
+    def ray(self):
+        return self._ray
+    @ray.setter
+    def ray(self,value):
+        raise AttributeError('Cannot set ray')
+        
+    @property
+    def ctrl(self):
+        return self._ctrl
+    @ctrl.setter
+    def ctrl(self, value):
+        raise AttributeError('Cannot set mouse.ctrl')
+        
+    @property
+    def shift(self):
+        return self._shift
+    @shift.setter
+    def shift(self, value):
+        raise AttributeError('Cannot set mouse.shift')
+    
+    @property
+    def alt(self):
+        return self._alt
+    @alt.setter
+    def alt(self, value):
+        raise AttributeError('Cannot set mouse.alt')
+       
+    @property
+    def pick(self):
+        self.addmethod('pick', self._canvas.idx)
+        self._pick_ready = False
+        while self._pick_ready == False:
+            rate(60)  ## wait for render to finish and call setpick
+        return self._pick            
+    @pick.setter
+    def pick(self, value):
+        raise AttributeError('Cannot set mouse.pick')  
+                
+    def setpick(self, value):
+        if value == None:
+            self._pick = None
         else:
-            point = vector(point) if type(point) in (tuple, list) else point
-        point2 = vector(self.pos) if type(self.pos) in (tuple, list) else self.pos
-        p = point2 - point
-        h = p.dot(u_n)
-        return point2 - h*u_n
+            self._pick = object_registry[value]
+        self._pick_ready = True
 
+    def project(self, **args):
+        if 'normal' not in args:
+            raise AttributeError('scene.mouse.project() must specify a normal')
+        normal = norm(args['normal'])
+        dist = 0
+        if 'd' in args:
+            dist = args['d']
+        elif 'point' in args:
+            point=args['point']
+            dist = dot(normal, point)
+        ndc = dot(normal, self._canvas.camera.pos) - dist
+        ndr = dot(normal, self._ray)
+        t = -ndc/ndr
+        return self._canvas.camera.pos.add(self._ray.multiply(t))
+        
+class Camera(baseObj):
+    def __init__(self, canvas):
+        self._canvas = canvas
+        self._followthis = None
+        self._pos = None
+        
+    @property
+    def pos(self):
+        return self._pos
+    @pos.setter
+    def pos(self, value):
+        raise AttributeError('To set camera position, set scene.center, scene.forward, scene.fov')
+    
+    @property
+    def canvas(self):
+        return self._canvas
+    @canvas.setter
+    def canvas(self, value):
+        raise AttributeError('Cannot assign camera to a different canvas')
+        
+    @property
+    def follow(self):
+        return self._followthis
+    @follow.setter
+    def follow(self, obj):    ## should allow a function also
+        self._followthis = obj
+        self.addmethod('follow', obj.idx)
 
 class canvas(baseObj):
     selected_canvas = None
+    hasmouse = None
     maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
     
     def __init__(self, **args):
@@ -2293,10 +2372,11 @@ class canvas(baseObj):
         self._userspin = True
         self._title = ''
         self._caption = ''
-        self._mouse = Mouse()
+        self._mouse = Mouse(self)
         self._binds = {'mousedown':[], 'mouseup':[], 'mousemove':[],'click':[],
                         'mouseenter':[], 'mouseleave':[]}
             # no key events unless notebook command mode can be disabled
+        self._camera = Camera(self)
         cmd = {"cmd": "canvas", "idx": self.idx, "attrs":[]}
         
     # send only nondefault values to GlowScript
@@ -2359,12 +2439,12 @@ class canvas(baseObj):
             self.addattr('caption')
             
     def append_to_title(self, *args):
-        t = print_to_spring(*args)
+        t = print_to_string(*args)
         self._title += t
         self.addmethod('append_to_title', t)
         
     def append_to_caption(self, *args):
-        t = print_to_spring(*args)
+        t = print_to_string(*args)
         self._caption += t
         self.addmethod('append_to_caption', t)
 
@@ -2373,7 +2453,14 @@ class canvas(baseObj):
         return self._mouse    
     @mouse.setter
     def mouse(self,value):
-        self._mouse = value
+        raise AttributeError('Cannot set scene.mouse')
+        
+    @property
+    def camera(self):
+        return self._camera
+    @camera.setter
+    def camera(self,value):
+        raise AttributeError('Cannot set scene.camera')
         
     @property
     def visible(self):
@@ -2537,19 +2624,24 @@ class canvas(baseObj):
 ## key events conflict with notebook command mode; not permitted for now
         
     def handle_event(self, evt):
-        pos = evt['pos']
-        evt['pos'] = vector( pos[0], pos[1], pos[2] )
-        self.mouse.pos = evt['pos']
-        ray = evt['ray']
-        evt['ray'] = vector( ray[0], ray[1], ray[2] )
-        self.mouse.ray = evt['ray']
-        self.mouse.alt = evt['alt']
-        self.mouse.shift = evt['shift']
-        self.mouse.ctrl = evt['ctrl']
-        evt['canvas'] = self
         ev = evt['event']
-        evt1 = event_return(evt)  ## turn it into an object
-        for fct in self._binds[ev]: fct( evt1 ) 
+        if ev == 'pick':
+            self.mouse.setpick( evt['pick'] )
+        else:
+            pos = evt['pos']
+            evt['pos'] = vector( pos[0], pos[1], pos[2] )
+            self.mouse._pos = evt['pos']
+            ray = evt['ray']
+            evt['ray'] = vector( ray[0], ray[1], ray[2] )
+            self.mouse._ray = evt['ray']
+            canvas.hasmouse = self  
+            if ev != 'update_mouse':
+                evt['canvas'] = self
+                self.mouse._alt = evt['alt']
+                self.mouse._shift = evt['shift']
+                self.mouse._ctrl = evt['ctrl']
+                evt1 = event_return(evt)  ## turn it into an object
+                for fct in self._binds[ev]: fct( evt1 ) 
 
     def bind(self, eventtype, whattodo):
         evts = eventtype.split()
@@ -2699,7 +2791,7 @@ def GSprint(*args):
     s = s[:-1]
     __misc.print(s)
     
-def print_to_spring(*args):
+def print_to_string(*args):
     s = ''
     for a in args:
         s += str(a)+' '
