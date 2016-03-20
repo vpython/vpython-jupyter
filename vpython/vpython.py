@@ -2314,13 +2314,9 @@ class Camera(baseObj):
         self._canvas = canvas
         self._followthis = None
         self._pos = None
-        
-    @property
-    def pos(self):
-        return self._pos
-    @pos.setter
-    def pos(self, value):
-        raise AttributeError('To set camera position, set scene.center, scene.forward, scene.fov')
+        self.up = canvas.up
+
+        super(Camera, self).__init__()   ## get idx, attrsupdt
     
     @property
     def canvas(self):
@@ -2328,6 +2324,55 @@ class Camera(baseObj):
     @canvas.setter
     def canvas(self, value):
         raise AttributeError('Cannot assign camera to a different canvas')
+        
+    @property
+    def pos(self):
+        c = self._canvas
+        return c.center.sub( c.forward.norm().multiply( c.range / Math.tan(c.fov/2) ) )
+    @pos.setter
+    def pos(self, value):
+        c = self._canvas
+        c.center = value.add(self.axis)
+        
+    @property
+    def axis(self):
+        c = self._canvas
+        return c.forward.norm().multiply( c.range / Math.tan(c.fov/2) )
+    @axis.setter
+    def axis(self, value):
+        c = self._canvas
+        pos = self.pos
+        c.forward = norm(value)
+        c.center = pos.add(value)
+    
+    @property
+    def up(self):
+        return self._up
+    @up.setter
+    def up(self, value):
+        self._up = value
+        self.addattr('up', value)
+        
+    def rotate(self, **args):
+        if args == {} or 'angle' not in args:
+            raise AttributeError("object.rotate() requires an angle") }
+        angle = args['angle']
+        X = self.axis.norm()
+        rotaxis = X
+        if 'axis' in args: rotaxis = args['axis'].norm()
+        origin = self.pos
+        if 'origin' in args: origin = args['origin']
+        
+        Y = self._canvas.up.norm()
+        Z = X.cross(Y)
+        if Z.dot(Z) < 1e-10:
+            Y = vector(1,0,0)
+            Z = X.cross(Y)
+            if Z.dot(Z) < 1e-10:
+                Y = vec(0,1,0)
+        
+        self.pos = origin.add(self.pos.sub(origin).rotate(angle=angle, axis=rotaxis))
+        self.axis = self.axis.rotate(angle=angle, axis=rotaxis)
         
     @property
     def follow(self):
@@ -2346,7 +2391,7 @@ class canvas(baseObj):
         display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
         display(Javascript("""window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
 
-        super(canvas, self).__init__()   ## get guid, idx, attrsupdt, oid
+        super(canvas, self).__init__()   ## get idx, attrsupdt
         
         self._constructing = True        
         canvas.selected_canvas = self
