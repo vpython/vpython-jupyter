@@ -4,6 +4,8 @@ define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1.min"], functi
 console.log("glowscript loading");
 
 var glowObjs = [];
+var needCvsUpdate = true
+var activeCvsIdx = null
 
 //scene.title.text("fps = frames/sec\n ");
 // Display frames per second and render time:
@@ -40,7 +42,7 @@ function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mous
 function update_canvas() {    // mouse location and other stuff updated every render
     "use strict";
     var evt = {event:'update_canvas'}
-    if (canvas.hasmouse === null) { return } 
+    if (canvas.hasmouse === null || canvas.hasmouse === undefined) { return } 
     var cvs = canvas.hasmouse  // only way to change these values is with mouse
     var idx = cvs.idx
     evt.canvas = idx
@@ -48,11 +50,12 @@ function update_canvas() {    // mouse location and other stuff updated every re
     evt.ray = [ ray.x, ray.y, ray.z ]
     var pos = cvs.mouse.pos
     evt.pos = [pos.x, pos.y, pos.z] 
-    evt.center = [cvs.center.x, cvs.center.y, cvs.center.z]
-    evt.forward = [cvs.forward.x, cvs.forward.y, cvs.forward.z]
-    evt.autoscale = cvs.autoscale
-    evt.range = cvs.range
-    evt.pixel_to_world = cvs.pixel_to_world
+    if (needCvsUpdate) {
+        evt.forward = [cvs.forward.x, cvs.forward.y, cvs.forward.z]
+        evt.autoscale = cvs.autoscale
+        evt.range = cvs.range
+        evt.up = [cvs.up.x, cvs.up.y, cvs.up.z]       
+    } 
     comm.send( {arguments: [evt]} )    
 }
 
@@ -67,10 +70,15 @@ function handler(msg) {
     console.log('glow msg', msg, msg.content)
     console.log('glow', data, data.length);
     console.log('JSON ' + JSON.stringify(data));
+        
+    if ( canvas.hasmouse !== undefined && canvas.hasmouse !== null ) {
+        needCvsUpdate = true
+        activeCvsIdx = canvas.hasmouse.idx        
+    }
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
-        var triangle_quad, objects;  
+        var triangle_quad, objects, cvsParams
         var len = data.length;
         triangle_quad = ['v0', 'v1', 'v2', 'v3'];
         for (i = 0; i < len; i++) {
@@ -81,11 +89,16 @@ function handler(msg) {
                 if (cmd.idx !== undefined) {
                     if (cmd.attr !== undefined) {  
 //                        console.log('commsend cmd.attr not undefined', cmd.attr)
-                        // not handled yet: 'normal', 'bumpaxis'
                         vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward',
                                 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin',
                                 'normal', 'bumpaxis', 'texpos'];
+                        // if program changes any of cvsParams, ignore user mouse changes
+                        cvsParams = ['forward', 'range', 'up', 'center', 'fov']
                         var v
+                        if (cvsParams.indexOf(cmd.attr) != -1 && cmd.idx === activeCvsIdx) {
+                            needCvsUpdate = false   // user modifiying camera, so don't overwrite
+                        }
+                        
                         if (vlst.indexOf(cmd.attr) !== -1) {
                             if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {                       
                                 var ptlist = []
@@ -110,7 +123,7 @@ function handler(msg) {
                         }
                     }
                     if (cmd.method !== undefined) {
-                        console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
+//                        console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
                         var parametric = ['splice', 'modify']
                         var val = cmd.val
                         if (val == 'None') {

@@ -274,8 +274,8 @@ def commsend():
                     else:
                         rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
                         rate.send = True
-                else:
-                    baseObj.glow.comm.send([]) # make sure canvas updates sent from glowcomm
+#                else:
+#                    baseObj.glow.comm.send([]) # make sure canvas updates sent from glowcomm
 
         finally:
             next_call = next_call+rate.interactionPeriod
@@ -2593,15 +2593,6 @@ class canvas(baseObj):
             self.addattr('range')
 
     @property
-    def scale(self):
-        return 1/self.range    
-    @scale.setter
-    def scale(self,value):
-        self._range = 1/value
-        if not self._constructing:    
-            self.addattr('range')
-
-    @property
     def up(self):
         return self._up   
     @up.setter
@@ -2695,14 +2686,13 @@ class canvas(baseObj):
                 self.mouse._ctrl = evt['ctrl']
                 evt1 = event_return(evt)  ## turn it into an object
                 for fct in self._binds[ev]: fct( evt1 ) 
-            else:
-                ctr = evt['center']
+            elif ('forward' in evt):  ## ignore user changes to forward, up, range; changes made w/ mouse 
                 fwd = evt['forward']
-                self._center = vector(ctr[0], ctr[1], ctr[2])
-                self._forward = vector(fwd[0], fwd[1], fwd[2])
-                self._autoscale = evt['autoscale']
+                cup = evt['up']
                 self._range = evt['range']
-                self._pixel_to_world = evt['pixel_to_world']
+                self._forward = vector(fwd[0], fwd[1], fwd[2])
+                self._up = vector( cup[0], cup[1], cup[2] )
+                self._autoscale = evt['autoscale']
 
     def bind(self, eventtype, whattodo):
         evts = eventtype.split()
