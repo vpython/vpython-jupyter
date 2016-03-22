@@ -18,7 +18,7 @@ comm = IPython.notebook.kernel.comm_manager.new_comm('glow')
 comm.on_msg(handler)
 console.log("Comm created for glow target", comm)
 
-function process(event) {
+function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
     "use strict";
     if (arguments.length > 1) event = arguments[1]   // should only be scene.pause
     var evt = {event:event.event}
@@ -37,16 +37,22 @@ function process(event) {
     comm.send( {arguments: [evt]} )
 }
 
-function update_mouse() {
+function update_canvas() {    // mouse location and other stuff updated every render
     "use strict";
-    var evt = {event:'update_mouse'}
+    var evt = {event:'update_canvas'}
     if (canvas.hasmouse === null) { return } 
-    var idx = canvas.hasmouse.idx
+    var cvs = canvas.hasmouse  // only way to change these values is with mouse
+    var idx = cvs.idx
     evt.canvas = idx
-    var ray = canvas.hasmouse.mouse.ray 
+    var ray = cvs.mouse.ray 
     evt.ray = [ ray.x, ray.y, ray.z ]
-    var pos = canvas.hasmouse.mouse.pos
-    evt.pos = [pos.x, pos.y, pos.z]
+    var pos = cvs.mouse.pos
+    evt.pos = [pos.x, pos.y, pos.z] 
+    evt.center = [cvs.center.x, cvs.center.y, cvs.center.z]
+    evt.forward = [cvs.forward.x, cvs.forward.y, cvs.forward.z]
+    evt.autoscale = cvs.autoscale
+    evt.range = cvs.range
+    evt.pixel_to_world = cvs.pixel_to_world
     comm.send( {arguments: [evt]} )    
 }
 
@@ -327,7 +333,7 @@ function handler(msg) {
             }
         }
     }
-    update_mouse()
+    update_canvas()
 };
 
 

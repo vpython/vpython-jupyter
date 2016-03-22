@@ -274,6 +274,8 @@ def commsend():
                     else:
                         rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
                         rate.send = True
+                else:
+                    baseObj.glow.comm.send([]) # make sure canvas updates sent from glowcomm
 
         finally:
             next_call = next_call+rate.interactionPeriod
@@ -2309,14 +2311,11 @@ class Mouse(baseObj):
         t = -ndc/ndr
         return self._canvas.camera.pos.add(self._ray.multiply(t))
         
-class Camera(baseObj):
+class Camera(object):
     def __init__(self, canvas):
         self._canvas = canvas
         self._followthis = None
         self._pos = None
-        self.up = canvas.up
-
-        super(Camera, self).__init__()   ## get idx, attrsupdt
     
     @property
     def canvas(self):
@@ -2328,34 +2327,33 @@ class Camera(baseObj):
     @property
     def pos(self):
         c = self._canvas
-        return c.center.sub( c.forward.norm().multiply( c.range / Math.tan(c.fov/2) ) )
+        return c.center-(norm(c.forward)*(c.range / math.tan(c.fov/2)))
     @pos.setter
     def pos(self, value):
         c = self._canvas
-        c.center = value.add(self.axis)
+        c.center = value+self.axis
         
     @property
     def axis(self):
         c = self._canvas
-        return c.forward.norm().multiply( c.range / Math.tan(c.fov/2) )
+        return norm(c.forward)*( c.range / math.tan(c.fov/2) )
     @axis.setter
     def axis(self, value):
         c = self._canvas
-        pos = self.pos
+        c.center = self.pos+value # use current self.pos before it is changed by change in c.forward
         c.forward = norm(value)
-        c.center = pos.add(value)
+        c.range = mag(value)*math.tan(c.fov/2)
     
     @property
-    def up(self):
-        return self._up
+    def up(self):   ## but really this should not exist:  should be scene.up
+        return self._canvas.up
     @up.setter
     def up(self, value):
-        self._up = value
-        self.addattr('up', value)
+        self._canvas.up = value
         
     def rotate(self, **args):
         if args == {} or 'angle' not in args:
-            raise AttributeError("object.rotate() requires an angle") }
+            raise AttributeError("object.rotate() requires an angle") 
         angle = args['angle']
         X = self.axis.norm()
         rotaxis = X
@@ -2371,7 +2369,9 @@ class Camera(baseObj):
             if Z.dot(Z) < 1e-10:
                 Y = vec(0,1,0)
         
-        self.pos = origin.add(self.pos.sub(origin).rotate(angle=angle, axis=rotaxis))
+        #self.pos = origin.add(self.pos.sub(origin).rotate(angle=angle, axis=rotaxis))
+        #self.axis = self.axis.rotate(angle=angle, axis=rotaxis)
+        self.pos = origin + (self.pos-origin).rotate(angle=angle, axis=rotaxis)
         self.axis = self.axis.rotate(angle=angle, axis=rotaxis)
         
     @property
@@ -2415,6 +2415,7 @@ class canvas(baseObj):
         self._autoscale = True
         self._userzoom = True
         self._userspin = True
+        self._pixel_to_world = 0
         self._title = ''
         self._caption = ''
         self._mouse = Mouse(self)
@@ -2646,6 +2647,13 @@ class canvas(baseObj):
             self.addattr('lights')
             
     @property
+    def pixel_to_world(self):
+        return self._pixel_to_world
+    @pixel_to_world.setter
+    def pixel_to_world(self, value):
+        raise AttributeError('pixel_to_world is read-only')
+            
+    @property
     def objects(self):
         obs = []
         for ob in self._objz:
@@ -2668,7 +2676,7 @@ class canvas(baseObj):
             
 ## key events conflict with notebook command mode; not permitted for now
         
-    def handle_event(self, evt):
+    def handle_event(self, evt):  ## events and scene info updates
         ev = evt['event']
         if ev == 'pick':
             self.mouse.setpick( evt['pick'] )
@@ -2680,13 +2688,21 @@ class canvas(baseObj):
             evt['ray'] = vector( ray[0], ray[1], ray[2] )
             self.mouse._ray = evt['ray']
             canvas.hasmouse = self  
-            if ev != 'update_mouse':
+            if ev != 'update_canvas':   ## mouse events bound to functions
                 evt['canvas'] = self
                 self.mouse._alt = evt['alt']
                 self.mouse._shift = evt['shift']
                 self.mouse._ctrl = evt['ctrl']
                 evt1 = event_return(evt)  ## turn it into an object
                 for fct in self._binds[ev]: fct( evt1 ) 
+            else:
+                ctr = evt['center']
+                fwd = evt['forward']
+                self._center = vector(ctr[0], ctr[1], ctr[2])
+                self._forward = vector(fwd[0], fwd[1], fwd[2])
+                self._autoscale = evt['autoscale']
+                self._range = evt['range']
+                self._pixel_to_world = evt['pixel_to_world']
 
     def bind(self, eventtype, whattodo):
         evts = eventtype.split()
