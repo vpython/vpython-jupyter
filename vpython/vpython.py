@@ -2849,15 +2849,4 @@ def print_to_string(*args):
     s = s[:-1]
     return(s)
 
-
-# this seems to be unnecessary; does it have to do with initial establishment of communications?
-# for i in range(10):
-    # if (baseObj.glow != None):
-        # break
-    # else:
-        # time.sleep(1.0)
-        # #if IPython.__version__ >= '3.0.0' :
-        # with glowlock:
-            # get_ipython().kernel.do_one_iteration()
-        # # scene = canvas()
-
+time.sleep(1) # required to make sure that scene has been established
