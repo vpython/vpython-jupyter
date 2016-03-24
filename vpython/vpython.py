@@ -761,7 +761,6 @@ class standardAttributes(baseObj):
         for key, value in args.items(): # Assign all other properties
             setattr(self, key, value)
         
-        #cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, "attrs":[]}
         cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
 
     # now put all args to send into cmd
