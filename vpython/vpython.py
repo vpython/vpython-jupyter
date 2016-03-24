@@ -2279,10 +2279,10 @@ class Mouse(baseObj):
        
     @property
     def pick(self):
-        self.addmethod('pick', self._canvas.idx)
+        self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1}) # fast send; idx value is irrelevant
         self._pick_ready = False
         while self._pick_ready == False:
-            rate(60)  ## wait for render to finish and call setpick
+            rate(120)  ## wait for render to finish and call setpick
         return self._pick            
     @pick.setter
     def pick(self, value):
