@@ -59,8 +59,11 @@ function update_canvas() {    // mouse location and other stuff updated every re
     comm.send( {arguments: [evt]} )    
 }
 
-function send_pick(p, cvs) {
+function send_pick(cvs, p, seg) {
     var evt = {event: 'pick', canvas: cvs, pick: p}
+    if (glowObjs[p] instanceof curve) {
+        evt.segment = seg
+    }
     comm.send( {arguments: [evt]} ) 
 }
 
@@ -144,8 +147,12 @@ function handler(msg) {
                             }
                         } else if (cmd.method === 'pick') {
                             var p = glowObjs[cmd.val].mouse.pick()   // wait for pick render; cmd.val is canvas
-                            if (p !== null) p = p.idx
-                            send_pick(p, cmd.val)
+                            var seg = null
+                            if (p !== null) {
+                                if (p instanceof curve) seg = p.segment
+                                p = p.idx                                
+                            }
+                            send_pick(cmd.val, p, seg)
                         } else {
                             var npargs = 0
                             var info
@@ -232,7 +239,7 @@ function handler(msg) {
                     }
                     //making the objects
                     if (cmd.idx !== undefined) {
-                        cfg.idx = cmd.idx
+                        glowObjs[cmd.idx] = null
                         if (cmd.cmd === 'box') {
                             glowObjs[cmd.idx] = box(cfg)
                         } else if (cmd.cmd === 'sphere') {
@@ -287,14 +294,17 @@ function handler(msg) {
                             glowObjs[cmd.idx] = compound(objects, cfg);
                         } else if (cmd.cmd === 'canvas') {
                             glowObjs[cmd.idx] = canvas(cfg);
-                            glowObjs[cmd.idx]['idx'] = cmd.idx
+//                            glowObjs[cmd.idx]['idx'] = cmd.idx
                                 // Display frames per second and render time:
                                 //$("<div id='fps'/>").appendTo(glowObjs[cmd.idx].title);
-                        } else {
-                            console.log("Unrecognized Object");
-                        }
+                        } 
                     } else {
                         console.log("Unable to create object, idx attribute is not provided");
+                    }
+                    if (glowObjs[cmd.idx] !== null)  {
+                        glowObjs[cmd.idx].idx = cmd.idx
+                    } else {
+                        console.log("Unrecognized Object");
                     }
                 }
                 if (cmd.cmd === 'redisplay') {

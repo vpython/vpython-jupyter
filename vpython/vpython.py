@@ -2279,7 +2279,7 @@ class Mouse(baseObj):
        
     @property
     def pick(self):
-        self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1}) # fast send; idx value is irrelevant
+        self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1 }) # fast send
         self._pick_ready = False
         while self._pick_ready == False:
             rate(120)  ## wait for render to finish and call setpick
@@ -2288,11 +2288,15 @@ class Mouse(baseObj):
     def pick(self, value):
         raise AttributeError('Cannot set mouse.pick')  
                 
-    def setpick(self, value):
-        if value == None:
-            self._pick = None
+    def setpick(self, value):  # value is the entire event
+        p = value['pick']
+        if p is not None:
+            po = object_registry[p]
+            if 'segment' in value:
+                 po.segment = value['segment']
+            self._pick = po
         else:
-            self._pick = object_registry[value]
+            self._pick = None
         self._pick_ready = True
 
     def project(self, **args):
@@ -2676,7 +2680,8 @@ class canvas(baseObj):
     def handle_event(self, evt):  ## events and scene info updates
         ev = evt['event']
         if ev == 'pick':
-            self.mouse.setpick( evt['pick'] )
+##            self.mouse.setpick( evt['pick'] )
+            self.mouse.setpick( evt )
         else:
             pos = evt['pos']
             evt['pos'] = vector( pos[0], pos[1], pos[2] )
