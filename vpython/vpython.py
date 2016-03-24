@@ -2425,6 +2425,13 @@ class canvas(baseObj):
         self._camera = Camera(self)
         cmd = {"cmd": "canvas", "idx": self.idx, "attrs":[]}
         
+        # Make sure that the scene canvas is created before anything else
+        if self.idx == 0: # this is scene, idx is 0
+            while baseObj.glow == None:
+                rate(30)
+            self.appendcmd(cmd) # make sure scene exists immediately
+            return
+        
     # send only nondefault values to GlowScript
         
         canvasVecAttrs = ['background', 'ambient','forward','up', 'center']
@@ -2848,5 +2855,3 @@ def print_to_string(*args):
         s += str(a)+' '
     s = s[:-1]
     return(s)
-
-time.sleep(1) # required to make sure that scene has been established

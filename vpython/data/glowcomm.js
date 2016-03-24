@@ -83,8 +83,8 @@ function handler(msg) {
         triangle_quad = ['v0', 'v1', 'v2', 'v3'];
         for (i = 0; i < len; i++) {
             cmd = data.shift();
-            //console.log(cmd)
-            //console.log(i, cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
+//            console.log('\n\n-------------------')
+//            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
             if (cmd.cmd === undefined) { //  not a constructor
                 if (cmd.idx !== undefined) {
                     if (cmd.attr !== undefined) {  
@@ -130,7 +130,13 @@ function handler(msg) {
                             if (cmd.method == 'delete') glowObjs[cmd.idx]['remove']()
                             else glowObjs[cmd.idx][cmd.method]()
                         } else if (cmd.method == 'GSprint') {
-                            GSprint(cmd.val)
+                            GSprint(cmd.val) // This appends to $('body'), which doesn't work in notebook
+                            /*
+                            var c = canvas.get_selected()
+                            var cr = ''
+                            if (c.caption.text() !== cr) cr = '\n'
+                            c.caption.text(c.caption.text()+cr+cmd.val)
+                            */
                         } else if ((cmd.method === 'append_to_title' || cmd.method === 'append_to_caption') && glowObjs[cmd.idx] instanceof canvas) {
                             glowObjs[cmd.idx][cmd.method](cmd.val)
                         } else if (cmd.method === 'bind') {
@@ -138,7 +144,6 @@ function handler(msg) {
                         } else if (cmd.method === 'unbind') {
                             glowObjs[cmd.idx].unbind(cmd.val, process)
                         } else if (cmd.method === 'pause') {
-                            console.log('pause', cmd.idx, '[',cmd.val[0],']')
                             if (cmd.val.length > 0) {
                                glowObjs[cmd.idx].pause(cmd.val[0], process) 
                             } else {
@@ -156,8 +161,8 @@ function handler(msg) {
                             } else {
                                 info = val
                             }
-                            for (var j=0; j < info.length; j++) {
-                                var d = info[j]
+                            for (var i=0; i < info.length; i++) {
+                                var d = info[i]
                                 for (var a in d) {
                                     if (d[a] instanceof Array) d[a] = o2vec3(d[a])
                                 } 
