@@ -10,7 +10,7 @@ except ImportError:
 setup(
     name='vpython',
     packages=['vpython'],
-    version='0.2.0b16',
+    version='0.3.0',
     description='VPython for Jupyter Notebook',
     long_description=open('README.md').read(),
     author='John Coady / Ruth Chabay / Bruce Sherwood / Steve Spicklemire',
@@ -20,7 +20,7 @@ setup(
     keywords='vpython',
     classifiers=[
           'Framework :: IPython',
-          'Development Status :: 4 - Beta',
+          'Development Status :: 5 - Production/Stable',
           'Environment :: Web Environment',
           'Intended Audience :: End Users/Desktop',
           'Natural Language :: English',

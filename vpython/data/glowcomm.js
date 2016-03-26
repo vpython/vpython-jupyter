@@ -85,8 +85,9 @@ function handler(msg) {
         var len = data.length;
         triangle_quad = ['v0', 'v1', 'v2', 'v3'];
         for (i = 0; i < len; i++) {
-            cmd = data.shift()
-            //console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
+            cmd = data.shift();
+//            console.log('\n\n-------------------')
+//            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
             if (cmd.cmd === undefined) { //  not a constructor
                 if (cmd.idx !== undefined) {
                     if (cmd.attr !== undefined) {  
@@ -128,11 +129,13 @@ function handler(msg) {
 //                        console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
                         var parametric = ['splice', 'modify']
                         var val = cmd.val
-                        if (val == 'None') {
+                        if (cmd.method == 'GSprint') {
+                            GSprint(cmd.val)
+                        } else if (val == 'None') {
                             if (cmd.method == 'delete') glowObjs[cmd.idx]['remove']()
                             else glowObjs[cmd.idx][cmd.method]()
-                        } else if (cmd.method == 'GSprint') {
-                            GSprint(cmd.val)
+                        } else if ((cmd.method === 'title' || cmd.method === 'caption') && glowObjs[cmd.idx] instanceof canvas) {
+                            glowObjs[cmd.idx][cmd.method] = cmd.val
                         } else if ((cmd.method === 'append_to_title' || cmd.method === 'append_to_caption') && glowObjs[cmd.idx] instanceof canvas) {
                             glowObjs[cmd.idx][cmd.method](cmd.val)
                         } else if (cmd.method === 'bind') {
@@ -147,11 +150,13 @@ function handler(msg) {
                             }
                         } else if (cmd.method === 'pick') {
                             var p = glowObjs[cmd.val].mouse.pick()   // wait for pick render; cmd.val is canvas
+                            console.log('>>>>>', p)
                             var seg = null
                             if (p !== null) {
                                 if (p instanceof curve) seg = p.segment
                                 p = p.idx                                
                             }
+                            console.log('     ', cmd.val, p, seg)
                             send_pick(cmd.val, p, seg)
                         } else {
                             var npargs = 0
@@ -239,11 +244,11 @@ function handler(msg) {
                     }
                     //making the objects
                     if (cmd.idx !== undefined) {
-                        glowObjs[cmd.idx] = null
+                        cfg.idx = cmd.idx
                         if (cmd.cmd === 'box') {
-                            glowObjs[cmd.idx] = box(cfg)
+                            glowObjs[cmd.idx] = box(cfg);
                         } else if (cmd.cmd === 'sphere') {
-                            glowObjs[cmd.idx] = sphere(cfg)
+                            glowObjs[cmd.idx] = sphere(cfg);
                         } else if (cmd.cmd === 'arrow') {
                             glowObjs[cmd.idx] = arrow(cfg);
                         } else if (cmd.cmd === 'cone') {
@@ -257,19 +262,27 @@ function handler(msg) {
                         } else if (cmd.cmd === 'ring') {
                             glowObjs[cmd.idx] = ring(cfg);
 						} else if  (cmd.cmd === 'gcurve') {
+                            delete cfg.idx // currently gcurve give an error for non-fundamental arguments
 							glowObjs[cmd.idx] = gcurve(cfg)
 						} else if  (cmd.cmd === 'gdots') {
+                            delete cfg.idx // currently gdots give an error for non-fundamental arguments
 							glowObjs[cmd.idx] = gdots(cfg)
 						} else if  (cmd.cmd === 'gvbars') {
+                            delete cfg.idx // currently gvbars give an error for non-fundamental arguments
 							glowObjs[cmd.idx] = gvbars(cfg)
 						} else if  (cmd.cmd === 'ghbars') {
+                            delete cfg.idx // currently ghbars give an error for non-fundamental arguments
 							glowObjs[cmd.idx] = ghbars(cfg)
                         } else if (cmd.cmd == 'graph') {
+                            delete cfg.idx // currently graph give an error for non-fundamental arguments
                             glowObjs[cmd.idx] = vp_graph(cfg)
+                            //glowObjs[cmd.idx]['idx'] = cmd.idx // should handle this in a more principled way
                         } else if (cmd.cmd === 'curve') {
                             glowObjs[cmd.idx] = curve(cfg);
+                            glowObjs[cmd.idx]['idx'] = cmd.idx // should handle this in a more principled way
                         } else if (cmd.cmd === 'points') {
                             glowObjs[cmd.idx] = points(cfg);
+                            glowObjs[cmd.idx]['idx'] = cmd.idx // should handle this in a more principled way
                         } else if (cmd.cmd === 'vertex') {
                             glowObjs[cmd.idx] = vertex(cfg);
                         } else if (cmd.cmd === 'triangle') {
@@ -294,17 +307,14 @@ function handler(msg) {
                             glowObjs[cmd.idx] = compound(objects, cfg);
                         } else if (cmd.cmd === 'canvas') {
                             glowObjs[cmd.idx] = canvas(cfg);
-//                            glowObjs[cmd.idx]['idx'] = cmd.idx
+                            glowObjs[cmd.idx]['idx'] = cmd.idx
                                 // Display frames per second and render time:
                                 //$("<div id='fps'/>").appendTo(glowObjs[cmd.idx].title);
-                        } 
+                        } else {
+                            console.log("Unrecognized Object");
+                        }
                     } else {
                         console.log("Unable to create object, idx attribute is not provided");
-                    }
-                    if (glowObjs[cmd.idx] !== null)  {
-                        glowObjs[cmd.idx].idx = cmd.idx
-                    } else {
-                        console.log("Unrecognized Object");
                     }
                 }
                 if (cmd.cmd === 'redisplay') {

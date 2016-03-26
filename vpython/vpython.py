@@ -32,7 +32,7 @@ from random import random
 
 import platform
 
-version = ['0.2.0b15', 'jupyter']
+version = ['0.3.0', 'jupyter']
 GSversion = ['2.1', 'glowscript']
 
 glowlock = threading.Lock()
@@ -106,7 +106,7 @@ object_registry = {}    ## idx -> instance
 
 class baseObj(object):
     txtime = 0.0
-    idx = 0
+    idx = 1
     qSize = 512
     qTime = 0.034
     glow = None
@@ -761,6 +761,7 @@ class standardAttributes(baseObj):
         for key, value in args.items(): # Assign all other properties
             setattr(self, key, value)
         
+        #cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, "attrs":[]}
         cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
 
     # now put all args to send into cmd
@@ -1608,7 +1609,7 @@ class curveMethods(standardAttributes):
         return self._radius
     @radius.setter
     def radius(self,value):
-        self._radius =value
+        self._radius = value
         if not self._constructing:
             self.addattr('radius')   
                              
@@ -1622,7 +1623,12 @@ class curveMethods(standardAttributes):
     def point(self,N):
         if N >= len(self._pts) or (N < 0 and -N >= len(self.pts)):
             raise ValueError('N = {} is outside the bounds 0-{} of the curve points'.format(N, len(self._pos)))
-        return self._pts[N]
+        info = self._pts[N]
+        if 'color' not in info: info['color'] = self.color
+        if 'radius' not in info: info['radius'] = self.radius
+        if 'visible' not in info: info['visible'] = self.visible
+        if 'retain' not in info: info['retain'] = self.retain
+        return info
 
     def clear(self):
         self._pts = []
@@ -1659,7 +1665,7 @@ class curveMethods(standardAttributes):
         self.addmethod( 'splice', [start, howmany, cps[:]] )
     
     def modify(self, N, *arg1, **args):
-        attrs = ['color', 'radius', 'visible']
+        attrs = ['color', 'radius', 'visible', 'retain']
         if N >= len(self._pts) or (N < 0 and -N >= len(self._pts)):
             raise ValueError('N = {} is outside the bounds 0-{} of the curve points'.format(N, len(self._pts)))
         p = self._pts[N]
@@ -2428,13 +2434,6 @@ class canvas(baseObj):
         self._camera = Camera(self)
         cmd = {"cmd": "canvas", "idx": self.idx, "attrs":[]}
         
-        # Make sure that the scene canvas is created before anything else
-        if self.idx == 0: # this is scene, idx is 0
-            while baseObj.glow == None:
-                rate(30)
-            self.appendcmd(cmd) # make sure scene exists immediately
-            return
-        
     # send only nondefault values to GlowScript
         
         canvasVecAttrs = ['background', 'ambient','forward','up', 'center']
@@ -2482,8 +2481,7 @@ class canvas(baseObj):
     @title.setter
     def title(self,value):
         self._title = value
-        if not self._constructing:
-            self.addattr('title')
+        self.addmethod('title',value)
 
     @property
     def caption(self):
@@ -2491,8 +2489,7 @@ class canvas(baseObj):
     @caption.setter
     def caption(self,value):
         self._caption = value
-        if not self._constructing:
-            self.addattr('caption')
+        self.addmethod('caption', value)
             
     def append_to_title(self, *args):
         t = print_to_string(*args)
@@ -2546,22 +2543,24 @@ class canvas(baseObj):
             self.addattr('ambient')
 
     @property
-    def height(self):
-        return self._height   
-    @height.setter
-    def height(self,value):
-        self._height = value
-        if not self._constructing:    
-            self.addattr('height')
-
-    @property
     def width(self):
         return self._width    
     @width.setter
     def width(self,value):
         self._width = value
         if not self._constructing:    
-            self.addattr('width')
+            #self.addattr('width')
+            self.appendcmd({"val":500,"attr":"width","idx":self.idx})
+
+    @property
+    def height(self):
+        return self._height   
+    @height.setter
+    def height(self,value):
+        self._height = value
+        if not self._constructing:    
+            #self.addattr('height')
+            self.appendcmd({"val":400,"attr":"height","idx":self.idx})
 
     @property
     def center(self):
@@ -2680,7 +2679,6 @@ class canvas(baseObj):
     def handle_event(self, evt):  ## events and scene info updates
         ev = evt['event']
         if ev == 'pick':
-##            self.mouse.setpick( evt['pick'] )
             self.mouse.setpick( evt )
         else:
             pos = evt['pos']
@@ -2834,6 +2832,8 @@ def sleep(dt): # don't use time.sleep because it delays output queued up before 
 radians = math.radians
 degrees = math.degrees
 
+#while baseObj.glow == None: # wait until communications established to create the scene canvas
+#    rate(30)
 scene = canvas()
 
 # This must come after creating a canvas
@@ -2859,3 +2859,4 @@ def print_to_string(*args):
         s += str(a)+' '
     s = s[:-1]
     return(s)
+
