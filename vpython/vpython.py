@@ -32,7 +32,7 @@ from random import random
 
 import platform
 
-version = ['0.3.0', 'jupyter']
+version = ['0.3.1', 'jupyter']
 GSversion = ['2.1', 'glowscript']
 
 glowlock = threading.Lock()
@@ -2548,9 +2548,8 @@ class canvas(baseObj):
     @width.setter
     def width(self,value):
         self._width = value
-        if not self._constructing:    
-            #self.addattr('width')
-            self.appendcmd({"val":500,"attr":"width","idx":self.idx})
+        if not self._constructing:
+            self.appendcmd({"val":value,"attr":"width","idx":self.idx})
 
     @property
     def height(self):
@@ -2558,9 +2557,8 @@ class canvas(baseObj):
     @height.setter
     def height(self,value):
         self._height = value
-        if not self._constructing:    
-            #self.addattr('height')
-            self.appendcmd({"val":400,"attr":"height","idx":self.idx})
+        if not self._constructing:
+            self.appendcmd({"val":value,"attr":"height","idx":self.idx})
 
     @property
     def center(self):
