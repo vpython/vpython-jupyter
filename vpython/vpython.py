@@ -32,7 +32,7 @@ from random import random
 
 import platform
 
-version = ['0.3.1', 'jupyter']
+version = ['0.3.2', 'jupyter']
 GSversion = ['2.1', 'glowscript']
 
 glowlock = threading.Lock()
@@ -2596,8 +2596,9 @@ class canvas(baseObj):
     @range.setter
     def range(self,value):
         self._range = value
-        if not self._constructing:    
-            self.addattr('range')
+        if not self._constructing:
+            # Must send command immediately, else may not take effect
+            self.appendcmd({"attr":"range","idx":self.idx,"val":value})
 
     @property
     def up(self):
@@ -2742,8 +2743,13 @@ class canvas(baseObj):
             self.addmethod('pause', [])
         self._waitfor = False
         self.bind('click', self.fwaitfor)
+        t = time.clock()
+        GSprint('start wait loop', t)
         while self._waitfor is False:
-            rate(60)        
+            rate(60)
+        t = time.clock()-t
+        GSprint('end of pause wait', t)
+        self.unbind('click', self.fwaitfor)
 
     def _on_forward_change(self):
         self.addattr('forward')

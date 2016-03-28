@@ -22,7 +22,6 @@ console.log("Comm created for glow target", comm)
 
 function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
     "use strict";
-    if (arguments.length > 1) event = arguments[1]   // should only be scene.pause
     var evt = {event:event.event}
     var idx = event.canvas['idx']
     evt.canvas = idx
@@ -37,6 +36,10 @@ function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mous
     evt.ctrl = event.canvas.mouse.ctrl
     evt.shift = event.canvas.mouse.shift
     comm.send( {arguments: [evt]} )
+}
+
+function process_pause(event) {
+    return // ignore return from pause; a regular click event will follow
 }
 
 function update_canvas() {    // mouse location and other stuff updated every render
@@ -144,9 +147,9 @@ function handler(msg) {
                             glowObjs[cmd.idx].unbind(cmd.val, process)
                         } else if (cmd.method === 'pause') {
                             if (cmd.val.length > 0) {
-                               glowObjs[cmd.idx].pause(cmd.val[0], process) 
+                               glowObjs[cmd.idx].pause(cmd.val[0], process_pause) 
                             } else {
-                               glowObjs[cmd.idx].pause(process) 
+                               glowObjs[cmd.idx].pause(process_pause) 
                             }
                         } else if (cmd.method === 'pick') {
                             var p = glowObjs[cmd.val].mouse.pick()   // wait for pick render; cmd.val is canvas
