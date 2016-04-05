@@ -3,9 +3,9 @@ define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1.min"], functi
 /*jslint plusplus: true */
 console.log("glowscript loading");
 
-var glowObjs = [];
-var needCvsUpdate = true
+var glowObjs = []
 var activeCvsIdx = null
+var forward, range, up, autoscale
 
 //scene.title.text("fps = frames/sec\n ");
 // Display frames per second and render time:
@@ -53,12 +53,11 @@ function update_canvas() {    // mouse location and other stuff updated every re
     evt.ray = [ ray.x, ray.y, ray.z ]
     var pos = cvs.mouse.pos
     evt.pos = [pos.x, pos.y, pos.z] 
-    if (needCvsUpdate) {
-        evt.forward = [cvs.forward.x, cvs.forward.y, cvs.forward.z]
-        evt.autoscale = cvs.autoscale
-        evt.range = cvs.range
-        evt.up = [cvs.up.x, cvs.up.y, cvs.up.z]       
-    } 
+    // forward and range may be changed by user (and up with touch), and autoscale (by zoom)
+    evt.forward = [forward.x, forward.y, forward.z]
+    evt.range = range
+    evt.up = [up.x, up.y, up.z]
+    evt.autoscale = autoscale 
     comm.send( {arguments: [evt]} )    
 }
 
@@ -78,8 +77,12 @@ function handler(msg) {
     console.log('JSON ' + JSON.stringify(data));
         
     if ( canvas.hasmouse !== undefined && canvas.hasmouse !== null ) {
-        needCvsUpdate = true
-        activeCvsIdx = canvas.hasmouse.idx        
+        var c = canvas.hasmouse
+        activeCvsIdx = c.idx
+        forward = c.forward
+        range = c.range
+        up = c.up
+        autoscale = c.autoscale
     }
 
     if (data.length > 0) {
@@ -98,11 +101,15 @@ function handler(msg) {
                         vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward',
                                 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin',
                                 'normal', 'bumpaxis', 'texpos'];
+                                
                         // if program changes any of cvsParams, ignore user mouse changes
-                        cvsParams = ['forward', 'range', 'up', 'center', 'fov']
-                        var v
+                        cvsParams = ['forward', 'range', 'up', 'autoscale'] // canvas attributes that user can change
                         if (cvsParams.indexOf(cmd.attr) != -1 && cmd.idx === activeCvsIdx) {
-                            needCvsUpdate = false   // user modifiying camera, so don't overwrite
+                            // program setting of forward/range/up overrides user manipulation
+                            if (cmd.attr == 'forward') forward = cmd.val
+                            else if (cmd.attr == 'range') range = cmd.val
+                            else if (cmd.attr == 'up') up = cmd.val
+                            else if (cmd.attr == 'autoscale') autoscale = cmd.val
                         }
                         
                         if (vlst.indexOf(cmd.attr) !== -1) {
@@ -113,7 +120,7 @@ function handler(msg) {
                                 }
                                 glowObjs[cmd.idx][cmd.attr] = ptlist
                             } else {
-                                v = vec(cmd.val[0], cmd.val[1], cmd.val[2]);
+                                var v = o2vec3(cmd.val)
                                 if (glowObjs[cmd.idx] instanceof arrow && cmd.attr === 'axis') {
                                     glowObjs[cmd.idx]['axis_and_length'] = v
                                 } else {
@@ -123,7 +130,7 @@ function handler(msg) {
                         } else {
                             if (triangle_quad.indexOf(cmd.attr) !== -1) {
                                 glowObjs[cmd.idx][cmd.attr] = glowObjs[cmd.val]
-                            } else {                           
+                            } else { 
                                 glowObjs[cmd.idx][cmd.attr] = cmd.val
                             }
                         }
@@ -141,6 +148,8 @@ function handler(msg) {
                             glowObjs[cmd.idx][cmd.method] = cmd.val
                         } else if ((cmd.method === 'append_to_title' || cmd.method === 'append_to_caption') && glowObjs[cmd.idx] instanceof canvas) {
                             glowObjs[cmd.idx][cmd.method](cmd.val)
+                        } else if (cmd.method === 'add_to_trail') {
+                            glowObjs[cmd.idx].pos = o2vec3(cmd.val)
                         } else if (cmd.method === 'bind') {
                             glowObjs[cmd.idx].bind(cmd.val, process)
                         } else if (cmd.method === 'unbind') {
@@ -153,13 +162,11 @@ function handler(msg) {
                             }
                         } else if (cmd.method === 'pick') {
                             var p = glowObjs[cmd.val].mouse.pick()   // wait for pick render; cmd.val is canvas
-                            console.log('>>>>>', p)
                             var seg = null
                             if (p !== null) {
                                 if (p instanceof curve) seg = p.segment
                                 p = p.idx                                
                             }
-                            console.log('     ', cmd.val, p, seg)
                             send_pick(cmd.val, p, seg)
                         } else {
                             var npargs = 0

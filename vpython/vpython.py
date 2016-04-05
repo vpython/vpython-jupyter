@@ -32,7 +32,7 @@ from random import random
 
 import platform
 
-version = ['0.3.2', 'jupyter']
+version = ['0.3.3', 'jupyter']
 GSversion = ['2.1', 'glowscript']
 
 glowlock = threading.Lock()
@@ -251,6 +251,7 @@ def commsend():
                                 data = m[1]
                                 commcmds[L]['idx'] = ob.idx
                                 commcmds[L]['method'] = method
+                                if method == 'add_to_trail': data = data.value
                                 commcmds[L]['val'] = data  
                                 #print('commsend methods', ob.idx, method, data)
                                 #sys.stdout.flush()
@@ -326,7 +327,7 @@ class vector(object):
     
     @staticmethod 
     def random():
-        return vec(-1 + 2*random(), -1 + 2*random(), -1 + 2*random())
+        return vector(-1 + 2*random(), -1 + 2*random(), -1 + 2*random())
 
     def __init__(self, *args):
         if len(args) == 3:
@@ -686,7 +687,7 @@ class standardAttributes(baseObj):
         self._make_trail = False
         self._trail_type = 'curve'
         self._trail_color = self._color
-        self._interval = 1
+        self._interval = 0 # means no interval set
         self._retain = -1
         self._trail_radius = None  # set by default after size set
         self._canvas = None
@@ -802,6 +803,18 @@ class standardAttributes(baseObj):
         if objName == 'vertex':
             self._bumpaxis.on_change = self._on_bumpaxis_change
             self._normal.on_change = self._on_normal_change
+
+    @property
+    def pos(self):
+        return self._pos    
+    @pos.setter
+    def pos(self,other):
+        self._pos.value = other
+        if not self._constructing:
+            if self._make_trail and self._interval > 0:
+                self.addmethod('add_to_trail', other)
+            else:
+                self.addattr('pos')
             
     @property
     def up(self):
@@ -811,15 +824,6 @@ class standardAttributes(baseObj):
         self._up.value = other
         if not self._constructing:
             self.addattr('up')
-
-    @property
-    def pos(self):
-        return self._pos    
-    @pos.setter
-    def pos(self,other):
-        self._pos.value = other
-        if not self._constructing:
-            self.addattr('pos')
             
     @property
     def size(self):
@@ -829,7 +833,7 @@ class standardAttributes(baseObj):
         self._axis.value = self.axis.norm() * other._x
         self._size.value = other
         if not self._constructing:
-            self.addattr('size')
+            self.addattr('size')                
 
     @property
     def axis(self):
@@ -2360,7 +2364,11 @@ class Camera(object):
     def up(self, value):
         self._canvas.up = value
         
-    def rotate(self, **args):
+    def rotate(self, angle=0, axis=None):
+        if axis is None: axis = self._canvas.up
+        self.axis = self.axis.rotate(angle=angle, axis=axis)
+        
+    def old_rotate(self, **args):
         if args == {} or 'angle' not in args:
             raise AttributeError("object.rotate() requires an angle") 
         angle = args['angle']
@@ -2368,7 +2376,10 @@ class Camera(object):
         rotaxis = X
         if 'axis' in args: rotaxis = args['axis'].norm()
         origin = self.pos
-        if 'origin' in args: origin = args['origin']
+        org = False
+        if 'origin' in args:
+            origin = args['origin']
+            org = True
         
         Y = self._canvas.up.norm()
         Z = X.cross(Y)
@@ -2597,8 +2608,8 @@ class canvas(baseObj):
     def range(self,value):
         self._range = value
         if not self._constructing:
-            # Must send command immediately, else may not take effect
-            self.appendcmd({"attr":"range","idx":self.idx,"val":value})
+            self.addattr('range')
+            commsend() # send immediately, before glowcomm/update_canvas overwrites self._range
 
     @property
     def up(self):
@@ -2694,7 +2705,7 @@ class canvas(baseObj):
                 self.mouse._ctrl = evt['ctrl']
                 evt1 = event_return(evt)  ## turn it into an object
                 for fct in self._binds[ev]: fct( evt1 ) 
-            elif ('forward' in evt):  ## ignore user changes to forward, up, range; changes made w/ mouse 
+            else:  ## user can change forward or range with mouse (up with touch gesture)
                 fwd = evt['forward']
                 cup = evt['up']
                 self._range = evt['range']
@@ -2743,12 +2754,8 @@ class canvas(baseObj):
             self.addmethod('pause', [])
         self._waitfor = False
         self.bind('click', self.fwaitfor)
-        t = time.clock()
-        GSprint('start wait loop', t)
         while self._waitfor is False:
             rate(60)
-        t = time.clock()-t
-        GSprint('end of pause wait', t)
         self.unbind('click', self.fwaitfor)
 
     def _on_forward_change(self):
@@ -2836,8 +2843,9 @@ def sleep(dt): # don't use time.sleep because it delays output queued up before 
 radians = math.radians
 degrees = math.degrees
 
-#while baseObj.glow == None: # wait until communications established to create the scene canvas
-#    rate(30)
+# Tried waiting for baseObj.glow to not be None and/or waiting for _sent to be True,
+# but these attempts to make sure everything was properly initialized, with scene existing,
+# failed, for unknow reasons.
 scene = canvas()
 
 # This must come after creating a canvas
