@@ -106,9 +106,9 @@ function handler(msg) {
                         cvsParams = ['forward', 'range', 'up', 'autoscale'] // canvas attributes that user can change
                         if (cvsParams.indexOf(cmd.attr) != -1 && cmd.idx === activeCvsIdx) {
                             // program setting of forward/range/up overrides user manipulation
-                            if (cmd.attr == 'forward') forward = cmd.val
+                            if (cmd.attr == 'forward') forward = o2vec3(cmd.val)
                             else if (cmd.attr == 'range') range = cmd.val
-                            else if (cmd.attr == 'up') up = cmd.val
+                            else if (cmd.attr == 'up') up = o2vec3(cmd.val)
                             else if (cmd.attr == 'autoscale') autoscale = cmd.val
                         }
                         
