@@ -24,6 +24,9 @@ import collections
 import copy
 import sys
 import weakref
+import zlib
+import base64
+import ujson
 from random import random
 
 # To print immediately, do this:
@@ -35,7 +38,30 @@ import platform
 version = ['0.3.4', 'jupyter']
 GSversion = ['2.1', 'glowscript']
 
-glowlock = threading.Lock()
+def send_base64_zipped_json(comm, req, level=zlib.Z_BEST_SPEED):
+    """json encode req, and zip the json before sending it as base64 encoded string"""
+    json_str = ujson.dumps(req, ensure_ascii=False)
+    z = None
+    if (sys.version_info > (3, 0)):
+        # Python 3.4 and above code in this block
+        z = zlib.compress(json_str.encode('utf-8'),level)
+    else:
+        # Python 2 code in this block
+        z = zlib.compress(json_str,level)
+    z64 = base64.b64encode(z)
+    return comm.send(dict(zipped = z64))
+
+def convert_base64_zipped_json(req, level=zlib.Z_BEST_SPEED):
+    """json encode req, and zip the json before sending it as base64 encoded string"""
+    json_str = ujson.dumps(req, ensure_ascii=False)
+    z = None
+    if (sys.version_info > (3, 0)):
+        # Python 3.4 and above code in this block
+        z = zlib.compress(json_str.encode('utf-8'),level)
+    else:
+        # Python 2 code in this block
+        z = zlib.compress(json_str,level)
+    return base64.b64encode(z)
 
 class RateKeeper2(RateKeeper):
     
@@ -49,21 +75,25 @@ class RateKeeper2(RateKeeper):
 
     def sendtofrontend(self):
         self.active = True
-        if self.send:
-            with glowlock:                    
+        if(baseObj.glow is not None):
+            if (len(glowqueue) > 0) or (len(baseObj.cmds) > 0) or self.send:
                 try:
                     if (len(baseObj.cmds) > 0):
                         a = copy.copy(baseObj.cmds)
-                        L = len(a)
+                        l = len(a)
                         baseObj.glow.comm.send(list(a))
                         a.clear()
-                        while L > 0:
-                            del baseObj.cmds[0]
-                            L -= 1                
+                        while l > 0:
+                            if len(baseObj.cmds) > 0:
+                                del baseObj.cmds[0]
+                            l -= 1
+                            
+                    for i in range(len(glowqueue)):
+                        req = glowqueue.popleft()
+                        if len(req) > 0 :
+                            baseObj.glow.comm.send(req)
 
-                    L = self.sz
-                    req = commcmds[:L]
-                    baseObj.glow.comm.send(req)
+
                 finally:
                     self.send = False
                     self.sendcnt = 0
@@ -79,8 +109,7 @@ class RateKeeper2(RateKeeper):
             
     def __call__(self, maxRate = 100):
         if (self.rval != maxRate) and (maxRate >= 1.0):
-            with glowlock:
-                self.rval = maxRate 
+            self.rval = maxRate 
         super(RateKeeper2, self).__call__(maxRate)
 
 if sys.version > '3':
@@ -93,13 +122,19 @@ package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+".min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako_deflate.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako_inflate.min.js",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 elif IPython.__version__ >= '3.0.0' :
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+".min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako_deflate.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako_inflate.min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 else:
-    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow."+GSversion[0]+".min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
+    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow."+GSversion[0]+".min.js",package_dir+"/data/pako.min.js",package_dir+"/data/pako_deflate.min.js",package_dir+"/data/pako_inflate.min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
 
 
 object_registry = {}    ## idx -> instance
@@ -169,123 +204,133 @@ for i in range(baseObj.qSize):
     commcmds.append({"idx": -1, "attr": 'dummy', "val": 0})
 updtobjs2 = set()
 next_call = time.time()
-
+prev_sz = 0
+glowqueue = collections.deque(maxlen=30)
 _sent = False  ## set to True when commsend completes; needed for canvas.waitfor
 
 def commsend():
-    global next_call, commcmds, updtobjs2, glowlock, rate, _sent
+    global next_call, commcmds, updtobjs2, rate, _sent, prev_sz, glowqueue
     _sent = False
-    with glowlock:
-        try:
-            if baseObj.glow != None:
-                if (len(baseObj.cmds) > 0) and (not rate.active):
-                    a = copy.copy(baseObj.cmds)
-                    L = len(a)
-                    baseObj.glow.comm.send(list(a))  # Send constructors to glowcomm
-                    a.clear()
-                    while L > 0:
-                        del baseObj.cmds[0]
-                        L -= 1 
+    try:
+        if baseObj.glow != None:
+            if (len(baseObj.cmds) > 0) and (not rate.active):
+                a = copy.copy(baseObj.cmds)
+                L = len(a)
+                baseObj.glow.comm.send(list(a))  # Send constructors to glowcomm
+                a.clear()
+                while L > 0:
+                    del baseObj.cmds[0]
+                    L -= 1 
 
-                L = rate.sz if (rate.send == True) else 0
-                
-                if L > 0:
-                    rate.sendcnt += 1
-                    thresh = math.ceil(30.0/rate.rval) * 2 + 1
-                    if (rate.sendcnt > thresh ):
-                        rate.send = False
-                        rate.sz = 0
-                        rate.active = False       # rate fnc no longer appears to be being called
-                else:
-                    rate.sendcnt = 0
-                if len(updtobjs2) == 0:
-                    updtobjs2 = baseObj.updtobjs.copy()
-                    baseObj.updtobjs.clear()
-                if L < baseObj.qSize:
-                    # print('commsend stuff to update', baseObj.updtobjs)
-                    while updtobjs2:
-                        idx = updtobjs2.pop()
-                        ob = object_registry[idx]
-                        #print('commsend object', ob.attrsupdt, ob.methodsupdt)
-                        #sys.stdout.flush()
-                        if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
-                            while ob.attrsupdt:
-                                if 'method' in commcmds[L]: del commcmds[L]['method']
-                                attr = ob.attrsupdt.pop()
-                                if attr is not None:
-                                    attrval = getattr(ob,attr)
-                                    if attrval is not None:
-                                        if attr == 'pos' and isinstance(attrval, list):  ## curve or points
-                                            poslist = []
-                                            for aa in attrval:
-                                                poslist.append(aa.value)
+            if (len(glowqueue) > 0) and (rate.active):
+                rate.sendcnt += 1
+                thresh = math.ceil(30.0/rate.rval) * 2 + 1
+                if (rate.sendcnt > thresh ):
+                    rate.active = False       # rate fnc no longer appears to be being called
+            elif (len(glowqueue) > 0) and (not rate.active):
+                for i in range(len(glowqueue)):
+                    req = glowqueue.popleft()
+                    if len(req) > 0 :
+                        baseObj.glow.comm.send(req)
+                rate.sendcnt = 0
+            else:
+                rate.sendcnt = 0
+                        
+            L = prev_sz
+            if len(updtobjs2) == 0:
+                updtobjs2 = baseObj.updtobjs.copy()
+                baseObj.updtobjs.clear()
+                                        
+            if L < baseObj.qSize:
+                # print('commsend stuff to update', baseObj.updtobjs)
+                while updtobjs2:
+                    idx = updtobjs2.pop()
+                    ob = object_registry[idx]
+                    #print('commsend object', ob.attrsupdt, ob.methodsupdt)
+                    #sys.stdout.flush()
+                    if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
+                        while ob.attrsupdt:
+                            if 'method' in commcmds[L]: del commcmds[L]['method']
+                            attr = ob.attrsupdt.pop()
+                            if attr is not None:
+                                attrval = getattr(ob,attr)
+                                if attrval is not None:
+                                    if attr == 'pos' and isinstance(attrval, list):  ## curve or points
+                                        poslist = []
+                                        for aa in attrval:
+                                            poslist.append(aa.value)
+                                        commcmds[L]['idx'] = ob.idx
+                                        commcmds[L]['attr'] = attr
+                                        commcmds[L]['val'] = poslist                                                
+                                    elif attr in ['axis','pos', 'up','color', 
+                                                  'center','forward', 'direction', 'ambient',
+                                                  'texpos', 'normal', 'bumpaxis',
+                                                  'background','origin', 'trail_color', 'dot_color', 'size']:
+                                        attrvalues = attrval.value
+                                        if attrvalues is not None:
                                             commcmds[L]['idx'] = ob.idx
                                             commcmds[L]['attr'] = attr
-                                            commcmds[L]['val'] = poslist                                                
-                                        elif attr in ['axis','pos', 'up','color', 
-                                                      'center','forward', 'direction', 'ambient',
-                                                      'texpos', 'normal', 'bumpaxis',
-                                                      'background','origin', 'trail_color', 'dot_color', 'size']:
-                                            attrvalues = attrval.value
-                                            if attrvalues is not None:
-                                                commcmds[L]['idx'] = ob.idx
-                                                commcmds[L]['attr'] = attr
-                                                commcmds[L]['val'] = attrvalues
-                                        elif attr in ['v0', 'v1', 'v2', 'v3']:
-                                            commcmds[L]['idx'] = ob.idx
-                                            commcmds[L]['attr'] = attr
-                                            commcmds[L]['val'] = attrval.idx
-                                        else:
-                                            commcmds[L]['idx'] = ob.idx
-                                            commcmds[L]['attr'] = attr
-                                            commcmds[L]['val'] = attrval
-                                        L += 1
-                                        if L >= baseObj.qSize:
-                                            if (len(ob.attrsupdt) > 0):
-                                                updtobjs2.add(ob.idx)
-                                            break
-                        if (ob is not None) and (hasattr(ob,'methodsupdt')) and (len(ob.methodsupdt) > 0 ):
-                            for m in ob.methodsupdt:
-                                if 'attr' in commcmds[L]: del commcmds[L]['attr']
-                                method = m[0]
-                                data = m[1]
-                                commcmds[L]['idx'] = ob.idx
-                                commcmds[L]['method'] = method
-                                if method == 'add_to_trail': data = data.value
-                                commcmds[L]['val'] = data  
-                                #print('commsend methods', ob.idx, method, data)
-                                #sys.stdout.flush()
-                                L += 1
-                                # if L >= baseObj.qSize:   ## put this in
-                                    # if (len(ob.methodsupdt) > 0):
-                                        # updtobjs2.add(ob.idx)
-                                    # break
-                            while len(ob.methodsupdt) > 0:
-                                del ob.methodsupdt[-1]
-                        if L >= baseObj.qSize:
-                            #L = 0
-                            break
-                if L > 0:
-                    if not rate.active:
-                        L = L if (L <= baseObj.qSize) else baseObj.qSize
-                        req = []
-                        for item in commcmds[:L]:
-                            req.append(item.copy())
-                        baseObj.glow.comm.send(req)  # Send attributes and methods to glowcomm
-                    else:
-                        rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
-                        rate.send = True
-#                else:
-#                    baseObj.glow.comm.send([]) # make sure canvas updates sent from glowcomm
+                                            commcmds[L]['val'] = attrvalues
+                                    elif attr in ['v0', 'v1', 'v2', 'v3']:
+                                        commcmds[L]['idx'] = ob.idx
+                                        commcmds[L]['attr'] = attr
+                                        commcmds[L]['val'] = attrval.idx
+                                    else:
+                                        commcmds[L]['idx'] = ob.idx
+                                        commcmds[L]['attr'] = attr
+                                        commcmds[L]['val'] = attrval
+                                    L += 1
+                                    if L >= baseObj.qSize:
+                                        if (len(ob.attrsupdt) > 0):
+                                            updtobjs2.add(ob.idx)
+                                        break
+                    if (ob is not None) and (hasattr(ob,'methodsupdt')) and (len(ob.methodsupdt) > 0 ):
+                        for m in ob.methodsupdt:
+                            if 'attr' in commcmds[L]: del commcmds[L]['attr']
+                            method = m[0]
+                            data = m[1]
+                            commcmds[L]['idx'] = ob.idx
+                            commcmds[L]['method'] = method
+                            if method == 'add_to_trail': data = data.value
+                            commcmds[L]['val'] = data  
+                            #print('commsend methods', ob.idx, method, data)
+                            #sys.stdout.flush()
+                            L += 1
+                            # if L >= baseObj.qSize:   ## put this in
+                                # if (len(ob.methodsupdt) > 0):
+                                    # updtobjs2.add(ob.idx)
+                                # break
+                        while len(ob.methodsupdt) > 0:
+                            del ob.methodsupdt[-1]
+                    if L >= baseObj.qSize:
+                        #L = 0
+                        break
+                prev_sz = L
+                    
+            if L > 0:
+                if not rate.active:
+                    L = L if (L <= baseObj.qSize) else baseObj.qSize
+                    req = []
+                    for item in commcmds[:L]:
+                        req.append(item.copy())
+                    baseObj.glow.comm.send(req)  # Send attributes and methods to glowcomm
+                    prev_sz = 0
 
-        finally:
-            next_call = next_call+rate.interactionPeriod
-            tmr = next_call - time.time()
-            if tmr < 0.0:
-                tmr = rate.interactionPeriod
-                next_call = time.time()+tmr
-            threading.Timer(tmr, commsend ).start()
-            _sent = True
+                else:        
+                    rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
+                    z64 = convert_base64_zipped_json(commcmds[:L])
+                    glowqueue.append(dict(zipped = z64))
+                    rate.send = True
+                    prev_sz = 0
+                        
+    finally:
+        next_call = next_call+rate.interactionPeriod
+        tmr = next_call - time.time()
+        if tmr < 0.0:
+            tmr = rate.interactionPeriod
+            next_call = time.time()+tmr
+        threading.Timer(tmr, commsend ).start()
+        _sent = True
     
 commsend()
 
@@ -318,6 +363,9 @@ else:
 display(Javascript("""require.undef("nbextensions/jquery-ui.custom.min");"""))
 display(Javascript('require.undef("nbextensions/glow.'+GSversion[0]+'.min");'))
 display(Javascript("""require.undef("nbextensions/glowcomm");"""))
+display(Javascript("""require.undef("nbextensions/pako.min");"""))
+display(Javascript("""require.undef("nbextensions/pako_deflate.min");"""))
+display(Javascript("""require.undef("nbextensions/pako_inflate.min");"""))
 display(Javascript("""require(["nbextensions/glowcomm"], function(){console.log("glowcomm loaded");})"""))
             
 get_ipython().kernel.do_one_iteration()

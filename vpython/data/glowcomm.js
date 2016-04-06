@@ -1,11 +1,13 @@
 // MAKE SURE THE GLOW LIBRARY HAS THE CORRECT VERSION NUMBER:
-define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1.min"], function() {
+define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1.min","nbextensions/pako.min","nbextensions/pako_inflate.min","nbextensions/pako_deflate.min"], function() {
 /*jslint plusplus: true */
 console.log("glowscript loading");
 
 var glowObjs = []
 var activeCvsIdx = null
 var forward, range, up, autoscale
+
+var pako = require('nbextensions/pako.min');
 
 //scene.title.text("fps = frames/sec\n ");
 // Display frames per second and render time:
@@ -14,6 +16,26 @@ var forward, range, up, autoscale
 function o2vec3(p) {
     "use strict";
     return vec(p[0], p[1], p[2]);
+}
+
+function decode_base64_zipped_json(b64Data) {
+
+    // Decode base64 (convert ascii to binary)
+    var strData     = atob(b64Data);
+
+    // Convert binary string to character-number array
+    var charData    = strData.split('').map(function(x){return x.charCodeAt(0);});
+
+    // Turn number array into byte-array
+    var binData     = new Uint8Array(charData);
+
+    // Pako magic
+    var pdata        = pako.inflate(binData);
+
+    // Convert gunzipped byteArray back to ascii string:
+    strData     = String.fromCharCode.apply(null, new Uint16Array(pdata));
+    
+    return JSON.parse(strData)
 }
 
 comm = IPython.notebook.kernel.comm_manager.new_comm('glow')
@@ -72,9 +94,14 @@ function send_pick(cvs, p, seg) {
 function handler(msg) {
     "use strict";
     var data = msg.content.data;
-    console.log('glow msg', msg, msg.content)
-    console.log('glow', data, data.length);
-    console.log('JSON ' + JSON.stringify(data));
+
+    if (typeof data.zipped !== 'undefined') {        
+        data = decode_base64_zipped_json(data.zipped);        
+    }
+
+    //console.log('glow msg', msg, msg.content)
+    //console.log('glow', data, data.length);
+    //console.log('JSON ' + JSON.stringify(data));
         
     if ( canvas.hasmouse !== undefined && canvas.hasmouse !== null ) {
         var c = canvas.hasmouse

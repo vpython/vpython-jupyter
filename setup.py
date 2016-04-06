@@ -29,6 +29,6 @@ setup(
           'Topic :: Multimedia :: Graphics :: 3D Rendering',
           'Topic :: Scientific/Engineering :: Visualization',
     ],
-    install_requires=['jupyter', 'vpnotebook'],
+    install_requires=['jupyter', 'vpnotebook','ujson'],
     package_data={'vpython': ['data/*']},
 )
