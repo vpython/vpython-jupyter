@@ -35,7 +35,7 @@ from random import random
 
 import platform
 
-version = ['0.3.4', 'jupyter']
+version = ['0.3.5', 'jupyter']
 GSversion = ['2.1', 'glowscript']
 
 def send_base64_zipped_json(comm, req, level=zlib.Z_BEST_SPEED):
@@ -2412,35 +2412,15 @@ class Camera(object):
     def up(self, value):
         self._canvas.up = value
         
-    def rotate(self, angle=0, axis=None):
-        if axis is None: axis = self._canvas.up
-        self.axis = self.axis.rotate(angle=angle, axis=axis)
-        
-    def old_rotate(self, **args):
-        if args == {} or 'angle' not in args:
-            raise AttributeError("object.rotate() requires an angle") 
-        angle = args['angle']
-        X = self.axis.norm()
-        rotaxis = X
-        if 'axis' in args: rotaxis = args['axis'].norm()
-        origin = self.pos
-        org = False
-        if 'origin' in args:
-            origin = args['origin']
-            org = True
-        
-        Y = self._canvas.up.norm()
-        Z = X.cross(Y)
-        if Z.dot(Z) < 1e-10:
-            Y = vector(1,0,0)
-            Z = X.cross(Y)
-            if Z.dot(Z) < 1e-10:
-                Y = vec(0,1,0)
-        
-        #self.pos = origin.add(self.pos.sub(origin).rotate(angle=angle, axis=rotaxis))
-        #self.axis = self.axis.rotate(angle=angle, axis=rotaxis)
-        self.pos = origin + (self.pos-origin).rotate(angle=angle, axis=rotaxis)
-        self.axis = self.axis.rotate(angle=angle, axis=rotaxis)
+    def rotate(self, angle=0, axis=None, origin=None):
+        c = self._canvas
+        if axis is None: axis = c.up
+        newaxis = self.axis.rotate(angle=angle, axis=axis)
+        newpos = self.pos
+        if origin is not None:
+            newpos = origin + (self.pos-origin).rotate(angle=angle, axis=axis)
+        c.center = newpos + newaxis
+        c.forward = norm(newaxis)
         
     @property
     def follow(self):
@@ -2474,13 +2454,20 @@ class canvas(baseObj):
         self._ambient = vector(0.2, 0.2, 0.2)
         self._height = 480
         self._width = 640
-        self._forward = vector(0,0,-1)
-        self._fov = math.pi/3.
-        self._range = 1
-        self._scale = 1
-        self._up = vector(0,1,0)
-        self._center = vector(0,0,0)
-        self._autoscale = True
+        self._fov = math.pi/3
+        
+        # The following determine the view:
+        self._range = 1 # user can alter with zoom
+        self._forward = vector(0,0,-1) # user can alter with spin
+        self._up = vector(0,1,0) # user with touch screen can rotate around z
+        self._autoscale = True # set False if user zooms
+        self._center = vector(0,0,0) # cannot be altered by user
+        # Reject JavaScript canvas_update user values immediately following Python setting of values:
+        self._set_range = False
+        self._set_forward = False
+        self._set_up = False
+        self._set_autoscale = False
+        
         self._userzoom = True
         self._userspin = True
         self._pixel_to_world = 0
@@ -2496,7 +2483,7 @@ class canvas(baseObj):
     # send only nondefault values to GlowScript
         
         canvasVecAttrs = ['background', 'ambient','forward','up', 'center']
-        canvasNonVecAttrs = ['visible', 'height', 'width', 'title','fov', 'range', 'scale',
+        canvasNonVecAttrs = ['visible', 'height', 'width', 'title','fov', 'range',
                              'autoscale', 'userzoom', 'userspin', 'title', 'caption']
  
         for a in canvasNonVecAttrs:
@@ -2636,9 +2623,36 @@ class canvas(baseObj):
         return self._forward    
     @forward.setter
     def forward(self,value):
-        self._forward = value
+        self._forward = self._set_forward = value
         if not self._constructing:    
             self.addattr('forward')
+
+    @property
+    def range(self):
+        return self._range    
+    @range.setter
+    def range(self,value):
+        self._range = self._set_range = value
+        if not self._constructing:
+            self.addattr('range')
+
+    @property
+    def up(self):
+        return self._up   
+    @up.setter
+    def up(self,value):
+        self._up = self._set_up = value
+        if not self._constructing:    
+            self.addattr('up')
+
+    @property
+    def autoscale(self):
+        return self._autoscale    
+    @autoscale.setter
+    def autoscale(self,value):
+        self._autoscale = self._set_autoscale = value
+        if not self._constructing:    
+            self.addattr('autoscale')
 
     @property
     def fov(self):
@@ -2648,34 +2662,6 @@ class canvas(baseObj):
         self._fov = value
         if not self._constructing:    
             self.addattr('fov')
-
-    @property
-    def range(self):
-        return self._range    
-    @range.setter
-    def range(self,value):
-        self._range = value
-        if not self._constructing:
-            self.addattr('range')
-            commsend() # send immediately, before glowcomm/update_canvas overwrites self._range
-
-    @property
-    def up(self):
-        return self._up   
-    @up.setter
-    def up(self,value):
-        self._up = value
-        if not self._constructing:    
-            self.addattr('up')
-
-    @property
-    def autoscale(self):
-        return self._autoscale    
-    @autoscale.setter
-    def autoscale(self,value):
-        self._autoscale = value
-        if not self._constructing:    
-            self.addattr('autoscale')
 
     @property
     def userzoom(self):
@@ -2753,13 +2739,21 @@ class canvas(baseObj):
                 self.mouse._ctrl = evt['ctrl']
                 evt1 = event_return(evt)  ## turn it into an object
                 for fct in self._binds[ev]: fct( evt1 ) 
-            else:  ## user can change forward or range with mouse (up with touch gesture)
-                fwd = evt['forward']
-                cup = evt['up']
-                self._range = evt['range']
-                self._forward = vector(fwd[0], fwd[1], fwd[2])
-                self._up = vector( cup[0], cup[1], cup[2] )
-                self._autoscale = evt['autoscale']
+            else:  ## user can change forward with spin, range/autoscale with zoom, up with touch gesture
+                if 'forward' in evt and self.userspin and not self._set_forward:
+                    fwd = evt['forward']
+                    self._forward = vector(fwd[0], fwd[1], fwd[2])
+                self._set_forward = False
+                if 'up' in evt and self.userspin and not self._set_up:
+                    cup = evt['up']
+                    self._up = vector( cup[0], cup[1], cup[2] )
+                self._set_up = False
+                if 'range' in evt and self.userzoom and not self._set_range:
+                    self._range = evt['range']
+                self._set_range = False
+                if 'autoscale' in evt and self.userzoom and not self._set_autoscale:
+                    self._autoscale = evt['autoscale']
+                self._set_autoscale = False
 
     def bind(self, eventtype, whattodo):
         evts = eventtype.split()

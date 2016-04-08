@@ -4,8 +4,6 @@ define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1.min","nbexten
 console.log("glowscript loading");
 
 var glowObjs = []
-var activeCvsIdx = null
-var forward, range, up, autoscale
 
 var pako = require('nbextensions/pako.min');
 
@@ -76,10 +74,14 @@ function update_canvas() {    // mouse location and other stuff updated every re
     var pos = cvs.mouse.pos
     evt.pos = [pos.x, pos.y, pos.z] 
     // forward and range may be changed by user (and up with touch), and autoscale (by zoom)
-    evt.forward = [forward.x, forward.y, forward.z]
-    evt.range = range
-    evt.up = [up.x, up.y, up.z]
-    evt.autoscale = autoscale 
+    if (cvs.userspin) {
+        evt.forward = [forward.x, forward.y, forward.z]
+        evt.up = [up.x, up.y, up.z]
+    }
+    if (cvs.userzoom) {
+        evt.range = range
+        evt.autoscale = autoscale 
+    }
     comm.send( {arguments: [evt]} )    
 }
 
@@ -102,15 +104,6 @@ function handler(msg) {
     //console.log('glow msg', msg, msg.content)
     //console.log('glow', data, data.length);
     //console.log('JSON ' + JSON.stringify(data));
-        
-    if ( canvas.hasmouse !== undefined && canvas.hasmouse !== null ) {
-        var c = canvas.hasmouse
-        activeCvsIdx = c.idx
-        forward = c.forward
-        range = c.range
-        up = c.up
-        autoscale = c.autoscale
-    }
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -128,16 +121,6 @@ function handler(msg) {
                         vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward',
                                 'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin',
                                 'normal', 'bumpaxis', 'texpos'];
-                                
-                        // if program changes any of cvsParams, ignore user mouse changes
-                        cvsParams = ['forward', 'range', 'up', 'autoscale'] // canvas attributes that user can change
-                        if (cvsParams.indexOf(cmd.attr) != -1 && cmd.idx === activeCvsIdx) {
-                            // program setting of forward/range/up overrides user manipulation
-                            if (cmd.attr == 'forward') forward = o2vec3(cmd.val)
-                            else if (cmd.attr == 'range') range = cmd.val
-                            else if (cmd.attr == 'up') up = o2vec3(cmd.val)
-                            else if (cmd.attr == 'autoscale') autoscale = cmd.val
-                        }
                         
                         if (vlst.indexOf(cmd.attr) !== -1) {
                             if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {                       
