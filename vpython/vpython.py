@@ -27,6 +27,10 @@ import weakref
 import zlib
 import base64
 import ujson
+try:
+    import ujson
+except ImportError:
+    import json as ujson
 from random import random
 
 # To print immediately, do this:
@@ -889,7 +893,7 @@ class standardAttributes(baseObj):
     @axis.setter
     def axis(self,other):
         self._axis.value = other
-        self._size.x = other.mag
+        self._size._x = other.mag
         if not self._constructing:
             self.addattr('axis')
             
@@ -1131,7 +1135,7 @@ class standardAttributes(baseObj):
         self.addattr('pos')
 
     def _on_axis_change(self):
-        self._size.x = self._axis.mag
+        self._size._x = self._axis.mag
         self.addattr('axis')
 
     def _on_up_change(self):
