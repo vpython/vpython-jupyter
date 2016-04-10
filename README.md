@@ -17,4 +17,4 @@ This will create a 3D window in the Notebook containing a 3D sphere, with mouse 
          On a two-button mouse, middle is left + right.
     Touch screen: pinch/extend to zoom, swipe or two-finger rotate.
 
-
+Run example VPython programs: [![Binder](http://mybinder.org/badge.svg)](http://mybinder.org/repo/BruceSherwood/vpython-jupyter)
