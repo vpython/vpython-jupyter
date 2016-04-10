@@ -26,7 +26,6 @@ import sys
 import weakref
 import zlib
 import base64
-import ujson
 try:
     import ujson
 except ImportError:
