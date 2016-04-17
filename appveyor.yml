@@ -1,0 +1,68 @@
+# Configure appveyor for builds.
+
+environment:
+  # Appveyor machines come with miniconda already installed.
+  CONDA_INSTALL_LOCN: "C:\\Miniconda-x64"
+
+  # Need this to set up compilation on Windows.
+  CMD_IN_ENV: cmd /E:ON /V:ON /C Obvious-CI\scripts\obvci_appveyor_python_build_env.cmd
+
+  BINSTAR_TOKEN:
+    secure: 0
+
+  matrix:
+    # Unfortunately, compiler/SDK configuration for 64 bit builds depends on
+    # python version. Right now conda build does not configure the SDK, and
+    # the appveyor setup only sets up the SDK once, so separate by python
+    # versions.
+    - TARGET_ARCH: "x64"
+      PYTHON_BUILD_RESTRICTIONS: "2.7*"
+      CONDA_PY: "27"
+    - TARGET_ARCH: "x64"
+      PYTHON_BUILD_RESTRICTIONS: "3.4*"
+      CONDA_PY: "34"
+    - TARGET_ARCH: "x64"
+      PYTHON_BUILD_RESTRICTIONS: "3.5*"
+      CONDA_PY: "35"
+    # For 32 bit builds there are no compiler issues, let Obvious-CI
+    # handle the matrix.
+    # - TARGET_ARCH: "x86"
+    #   PYTHON_BUILD_RESTRICTIONS: "2.7*|>=3.4"
+
+# We always use a 64-bit machine, but can build x86 distributions
+# with the TARGET_ARCH variable.
+platform:
+    - x64
+
+install:
+    # Clone simply to get the script for setting up Windows build environment.
+    - cmd: git clone https://github.com/pelson/Obvious-CI.git
+
+    # No need to install miniconda because appveyor comes with it.
+    - cmd: SET PATH=%CONDA_INSTALL_LOCN%;%CONDA_INSTALL_LOCN%\Scripts;%PATH%
+
+    # Gets us vpnotebook
+    - cmd: conda config --add channels vpython
+
+    - cmd: conda config --set always_yes true
+    - cmd: conda update --quiet conda
+
+    - cmd: conda install --quiet jinja2 conda-build anaconda-client
+    # These installs are needed on windows but not other platforms.
+    - cmd: conda install patch psutil
+
+# Skip .NET project specific build phase.
+build: off
+
+test_script:
+    # Not much of a real test yet, just try to build myself...
+    - "%CMD_IN_ENV% conda build vpython.recipe"
+
+on_success:
+    - echo %APPVEYOR_REPO_TAG%
+    # Write the output file location to a file...
+    - conda build --output vpython.recipe > to_upload.txt
+    # ...so that we can set a variable to the name of that output file.
+    - set /P BUILT_PACKAGE=<to_upload.txt
+    # If this build is because of a tag make the conda package and upload it.
+    - cmd: if "%APPVEYOR_REPO_TAG%"=="true" anaconda -t %BINSTAR_TOKEN% upload -u vpython %BUILT_PACKAGE%

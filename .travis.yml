@@ -1,0 +1,36 @@
+# The language in this case has no bearing - we are going to be making use of "conda" for a
+# python distribution for the scientific python stack.
+os:
+  - linux
+  - osx
+
+env:
+    global:
+        - TARGET_ARCH="x64"
+        - secure: ""
+        - CONDA_INSTALL_LOCN="${HOME}/miniconda"
+
+install:
+    # Install and set up miniconda.
+    - if [ $TRAVIS_OS_NAME == "linux" ]; then wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh; fi
+    - if [ $TRAVIS_OS_NAME == "osx" ]; then wget http://repo.continuum.io/miniconda/Miniconda-latest-MacOSX-x86_64.sh -O miniconda.sh; fi
+    - bash miniconda.sh -b -p $CONDA_INSTALL_LOCN
+    - export PATH=${CONDA_INSTALL_LOCN}/bin:$PATH
+    - conda config --set always_yes true
+
+    # Gets us vpnotebook
+    - conda config --add channels vpython
+
+    - conda update --quiet conda
+
+    # Install a couple of dependencies we need for sure.
+    - conda install --quiet --yes jinja2 conda-build anaconda-client
+
+script:
+    # Not much of a real test yet, just try to build myself...
+    - conda build vpython.recipe
+
+after_success:
+    - echo $TRAVIS_TAG
+    # If this build is because of a tag, upload the build if it succeeds.
+    - if [ "$TRAVIS_TAG" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython $(conda build --output vpython.recipe); fi
