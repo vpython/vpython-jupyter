@@ -25,11 +25,16 @@ install:
 
     # Install a couple of dependencies we need for sure.
     # Not sure why cython is necessary since it is listed as a build dependency.
-    - conda install --quiet --yes jinja2 conda-build anaconda-client cython
+    - conda install --quiet jinja2 conda-build anaconda-client cython
+
+    - conda install --quiet wheel
 
 script:
     # Not much of a real test yet, just try to build myself...
     - conda build vpython.recipe
+
+    # And try making a wheel
+    - python setup.py bdist_wheel
 
 after_success:
     - echo $TRAVIS_TAG
