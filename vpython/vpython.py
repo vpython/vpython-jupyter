@@ -153,14 +153,14 @@ class baseObj(object):
     qTime = 0.034
     glow = None
     cmds = collections.deque()
-    updtobjs = set()
+    updtobjs = collections.deque()
     objCnt = 0
     
     def __init__(self, **kwargs):
         idx = baseObj.objCnt   ## an integer
         object_registry[idx] = self 
         object.__setattr__(self, 'idx', idx)
-        object.__setattr__(self, 'attrsupdt', set())
+        object.__setattr__(self, 'attrsupdt', collections.deque())
         object.__setattr__(self, 'methodsupdt', [] )
         if kwargs is not None:
             for key, value in kwargs.items():
@@ -183,12 +183,12 @@ class baseObj(object):
             baseObj.cmds.append(cmd)
     
     def addattr(self, name):
-        self.attrsupdt.add(name)
-        baseObj.updtobjs.add(self.idx)
+        self.attrsupdt.append(name)
+        baseObj.updtobjs.append(self.idx)
         
     def addmethod(self, name, data):
         self.methodsupdt.append( [name, data] )
-        baseObj.updtobjs.add(self.idx)
+        baseObj.updtobjs.append(self.idx)
             
     @classmethod
     def incrObjCnt(cls):
@@ -209,7 +209,7 @@ commcmds = []
 
 for i in range(baseObj.qSize):
     commcmds.append({"idx": -1, "attr": 'dummy', "val": 0})
-updtobjs2 = set()
+updtobjs2 = collections.deque()
 next_call = time.time()
 prev_sz = 0
 glowqueue = collections.deque(maxlen=30)
@@ -245,20 +245,28 @@ def commsend():
                         
             L = prev_sz
             if len(updtobjs2) == 0:
-                updtobjs2 = baseObj.updtobjs.copy()
-                baseObj.updtobjs.clear()
+                dl = len(baseObj.updtobjs)
+                for di in range(dl):
+                    updtobjs2.append(baseObj.updtobjs.popleft())
                                         
             if L < baseObj.qSize:
                 # print('commsend stuff to update', baseObj.updtobjs)
+                attr_set = set()
                 while updtobjs2:
-                    idx = updtobjs2.pop()
+                    idx = updtobjs2.popleft()
                     ob = object_registry[idx]
                     #print('commsend object', ob.attrsupdt, ob.methodsupdt)
                     #sys.stdout.flush()
                     if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
-                        while ob.attrsupdt:
+                        attr_set.clear()
+                        dl = len(ob.attrsupdt)
+                        for di in range(dl):
+                            attr = ob.attrsupdt.popleft()
+                            if attr is not None:
+                                attr_set.add(attr)
+                        while attr_set:
                             if 'method' in commcmds[L]: del commcmds[L]['method']
-                            attr = ob.attrsupdt.pop()
+                            attr = attr_set.pop()
                             if attr is not None:
                                 attrval = getattr(ob,attr)
                                 if attrval is not None:
@@ -288,8 +296,11 @@ def commsend():
                                         commcmds[L]['val'] = attrval
                                     L += 1
                                     if L >= baseObj.qSize:
-                                        if (len(ob.attrsupdt) > 0):
-                                            updtobjs2.add(ob.idx)
+                                        if (len(attr_set) > 0):
+                                            sl = len(attr_set)
+                                            for si in range(sl):
+                                                ob.attrsupdt.append(attr_set.pop())
+                                            updtobjs2.append(ob.idx)
                                         break
                     if (ob is not None) and (hasattr(ob,'methodsupdt')) and (len(ob.methodsupdt) > 0 ):
                         for m in ob.methodsupdt:
@@ -303,10 +314,6 @@ def commsend():
                             #print('commsend methods', ob.idx, method, data)
                             #sys.stdout.flush()
                             L += 1
-                            # if L >= baseObj.qSize:   ## put this in
-                                # if (len(ob.methodsupdt) > 0):
-                                    # updtobjs2.add(ob.idx)
-                                # break
                         while len(ob.methodsupdt) > 0:
                             del ob.methodsupdt[-1]
                     if L >= baseObj.qSize:
@@ -317,10 +324,7 @@ def commsend():
             if L > 0:
                 if not rate.active:
                     L = L if (L <= baseObj.qSize) else baseObj.qSize
-                    req = []
-                    for item in commcmds[:L]:
-                        req.append(item.copy())
-                    baseObj.glow.comm.send(req)  # Send attributes and methods to glowcomm
+                    send_base64_zipped_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
                     prev_sz = 0
 
                 else:        
