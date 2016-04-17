@@ -1,0 +1,63 @@
+{% set data = load_setuptools() %}
+
+package:
+  name: vpython
+  version: {{data.get('version')}}
+
+source:
+  path: ../
+#  patches:
+   # List any patch files here
+   # - fix.patch
+
+build:
+  # noarch_python: True
+  # preserve_egg_dir: True
+  # entry_points:
+    # Put any entry points (scripts to be generated automatically) here. The
+    # syntax is module:function.  For example
+    #
+    # - vpython = vpython:main
+    #
+    # Would create an entry point called vpython that calls vpython.main()
+
+  script: python setup.py install --single-version-externally-managed --record record.txt # [ not win ]
+  # If this is a new build for the same version, increment the build
+  # number. If you do not include this key, it defaults to 0.
+  number: 0
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - jupyter
+    - vpnotebook
+    - ujson
+    - cython
+
+  run:
+    - python
+    - jupyter
+    - vpnotebook
+    - ujson
+
+test:
+  # Python imports
+
+  # Import test below fails because vpython needs to be run in a notebook.
+  # imports:
+    # - vpython
+
+  # commands:
+    # You can put test commands to be run here.  Use this to test that the
+    # entry points work.
+
+  # requires:
+    # Put any additional test requirements here.  For example
+    # - nose
+
+about:
+  home: http://vpython.org
+  license: MIT
+  summary: 'VPython for Jupyter Notebook'
+
