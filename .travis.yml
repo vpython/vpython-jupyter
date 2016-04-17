@@ -24,7 +24,8 @@ install:
     - conda update --quiet conda
 
     # Install a couple of dependencies we need for sure.
-    - conda install --quiet --yes jinja2 conda-build anaconda-client
+    # Not sure why cython is necessary since it is listed as a build dependency.
+    - conda install --quiet --yes jinja2 conda-build anaconda-client cython
 
 script:
     # Not much of a real test yet, just try to build myself...
