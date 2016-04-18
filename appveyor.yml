@@ -47,7 +47,9 @@ install:
     - cmd: conda config --set always_yes true
     - cmd: conda update --quiet conda
 
-    - cmd: conda install --quiet jinja2 conda-build anaconda-client
+    - cmd: conda install --quiet jinja2 conda-build anaconda-client cython
+    - cmd: conda install --quiet wheel
+
     # These installs are needed on windows but not other platforms.
     - cmd: conda install patch psutil
 
