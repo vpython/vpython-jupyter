@@ -75,12 +75,14 @@ function update_canvas() {    // mouse location and other stuff updated every re
     evt.pos = [pos.x, pos.y, pos.z] 
     // forward and range may be changed by user (and up with touch), and autoscale (by zoom)
     if (cvs.userspin) {
+        var forward = cvs.forward
+        var up = cvs.up
         evt.forward = [forward.x, forward.y, forward.z]
         evt.up = [up.x, up.y, up.z]
     }
     if (cvs.userzoom) {
-        evt.range = range
-        evt.autoscale = autoscale 
+        evt.range = cvs.range
+        evt.autoscale = cvs.autoscale 
     }
     comm.send( {arguments: [evt]} )    
 }

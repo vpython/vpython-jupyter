@@ -1,6 +1,7 @@
 ## vectors and associated methods
 from __future__ import division, print_function, absolute_import
 import math
+from random import random
 
 class vector(object):
     'vector class'
