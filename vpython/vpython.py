@@ -314,10 +314,12 @@ def commsend():
                             #print('commsend methods', ob.idx, method, data)
                             #sys.stdout.flush()
                             L += 1
-                        while len(ob.methodsupdt) > 0:
-                            del ob.methodsupdt[-1]
+                            if L >= baseObj.qSize:   # queue is full
+                                break
+                        if L < baseObj.qSize:      # if queue not full
+                            while len(ob.methodsupdt) > 0:
+                                del ob.methodsupdt[-1]
                     if L >= baseObj.qSize:
-                        #L = 0
                         break
                 prev_sz = L
                     
