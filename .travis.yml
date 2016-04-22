@@ -1,0 +1,42 @@
+# The language in this case has no bearing - we are going to be making use of "conda" for a
+# python distribution for the scientific python stack.
+os:
+  - linux
+  - osx
+
+env:
+    global:
+        - TARGET_ARCH="x64"
+        - secure: "DdBmm9e1IFJxB6yQxEY6eD4jjw1WlqT0cUQJvblEU65v8Vm5nA7JEhHJjtyHkg8ISZnr9/fRM/qEAXuP+u1Uq/BIfaiZnJVng5bkeTfHhEUQWhyOEuPhopKeAVvYQBlD/Dim6TG3YPLXZOJJTM98z5al4cRd4jcVB2gR+BvzaxuXFq+HDQA4gkN9QMt1+MEKDPqqIdPgYMktfkdaB5kMcD1xkg5D06WFYigxPnrdU84YI94DZ/7EtEDF9TKHVATNmZk83LMPMvsC9THaa6t0uU66k5vRwfrMXRLKP37THfc7a+Fb1urLWMHebvJIXvnlauI4agJmr+WOtORH1z29hNI9b1o3YdmuHJcMdZtV/zu72v6Eh7tQwYGHoGMIJVoMS1pc0D8DL5UgjVN9GBGddcK9yFce14DcIbJWZpel8jzyg5lCLHoPCHoPukti+w/O5q/0HTg+Vq92kvdE9qPmndLUSOI2Vma1XBpcpYKKzdcRs/eGJbg3CKc3MNKqTNkocNVpJboShikzvnJSxIj59VByC6yBqZs32IETKAg3GKM9+HF8WU+fx+JyGvj6tYPtFr+RIox+iSkOz4Db0kb16nDp2X2daiH2+91MA7LPB3j1vD3/R3eGW4VYORbbmMQ1FSFDAP0Q21rky8boQlO7rpZQ+E1V9IHnRLVTWOxaD38="
+        - CONDA_INSTALL_LOCN="${HOME}/miniconda"
+
+install:
+    # Install and set up miniconda.
+    - if [ $TRAVIS_OS_NAME == "linux" ]; then wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh; fi
+    - if [ $TRAVIS_OS_NAME == "osx" ]; then wget http://repo.continuum.io/miniconda/Miniconda-latest-MacOSX-x86_64.sh -O miniconda.sh; fi
+    - bash miniconda.sh -b -p $CONDA_INSTALL_LOCN
+    - export PATH=${CONDA_INSTALL_LOCN}/bin:$PATH
+    - conda config --set always_yes true
+
+    # Gets us vpnotebook
+    - conda config --add channels vpython
+
+    - conda update --quiet conda
+
+    # Install a couple of dependencies we need for sure.
+    # Not sure why cython is necessary since it is listed as a build dependency.
+    - conda install --quiet jinja2 conda-build anaconda-client cython
+
+    - conda install --quiet wheel
+
+script:
+    # Not much of a real test yet, just try to build myself...
+    - conda build vpython.recipe
+
+    # And try making a wheel
+    - python setup.py bdist_wheel
+
+after_success:
+    - echo $TRAVIS_TAG
+    # If this build is because of a tag, upload the build if it succeeds.
+    - if [ "$TRAVIS_TAG" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython $(conda build --output vpython.recipe); fi
