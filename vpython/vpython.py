@@ -33,8 +33,10 @@ import zlib
 import base64
 try:
     import ujson
+    ultrajson = True
 except ImportError:
-    import json as ujson
+    import json
+    ultrajson = False
 
 # To print immediately, do this:
 #    print(.....)
@@ -47,7 +49,10 @@ GSversion = ['2.1', 'glowscript']
 
 def send_base64_zipped_json(comm, req, level=zlib.Z_BEST_SPEED):
     """json encode req, and zip the json before sending it as base64 encoded string"""
-    json_str = ujson.dumps(req, ensure_ascii=False)
+    if ultrajson:
+        json_str = ujson.dumps(req, ensure_ascii=False, double_precision=17)
+    else:
+        json_str = json.dumps(req, ensure_ascii=False)
     z = None
     if (sys.version_info > (3, 0)):
         # Python 3.4 and above code in this block
@@ -60,7 +65,10 @@ def send_base64_zipped_json(comm, req, level=zlib.Z_BEST_SPEED):
 
 def convert_base64_zipped_json(req, level=zlib.Z_BEST_SPEED):
     """json encode req, and zip the json before sending it as base64 encoded string"""
-    json_str = ujson.dumps(req, ensure_ascii=False)
+    if ultrajson:
+        json_str = ujson.dumps(req, ensure_ascii=False, double_precision=17)
+    else:
+        json_str = json.dumps(req, ensure_ascii=False)
     z = None
     if (sys.version_info > (3, 0)):
         # Python 3.4 and above code in this block
@@ -149,7 +157,7 @@ object_registry = {}    ## idx -> instance
 class baseObj(object):
     txtime = 0.0
     idx = 1
-    qSize = 512
+    qSize = 1024
     qTime = 0.034
     glow = None
     cmds = collections.deque()
