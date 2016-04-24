@@ -105,7 +105,7 @@ function handler(msg) {
 
     //console.log('glow msg', msg, msg.content)
     //console.log('glow', data, data.length);
-    //console.log('JSON ' + JSON.stringify(data));
+    console.log('JSON ' + JSON.stringify(data));
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -120,11 +120,13 @@ function handler(msg) {
                 if (cmd.idx !== undefined) {
                     if (cmd.attr !== undefined) {  
 //                        console.log('commsend cmd.attr not undefined', cmd.attr)
-                        vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward',
-                                'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'origin',
-                                'normal', 'bumpaxis', 'texpos'];
-                        
-                        if (vlst.indexOf(cmd.attr) !== -1) {
+//                        vlst = ['pos', 'size', 'color', 'axis', 'up', 'direction', 'center', 'forward',
+//                                'foreground', 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 
+//                                'origin','normal', 'bumpaxis', 'texpos'];
+//                        if (vlst.indexOf(cmd.attr) !== -1) {
+    
+//  vector attrs in attach_arrow have arbitrary names, so check for length 3 array instead
+                        if (cmd.val instanceof Array && cmd.val.length === 3) {                        
                             if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {                       
                                 var ptlist = []
                                 for (var kk = 0; kk < cmd.val.length; kk++) {
@@ -332,6 +334,17 @@ function handler(msg) {
                             glowObjs[cmd.idx]['idx'] = cmd.idx
                                 // Display frames per second and render time:
                                 //$("<div id='fps'/>").appendTo(glowObjs[cmd.idx].title);
+                        } else if (cmd.cmd === 'attach_arrow') {
+                            var obj = glowObjs[cfg['_obj']]
+                            delete cfg['_obj']
+                            var attr = cfg['_attr']
+                            delete cfg['_attr']
+                            glowObjs[cmd.idx] = attach_arrow( obj, attr, cfg )
+                        } else if (cmd.cmd === 'attach_trail') {
+                            var obj = glowObjs[cfg['_obj']]
+                            delete cfg['_obj']                            
+                            glowObjs[cmd.idx] = attach_trail(obj, cfg)
+
                         } else {
                             console.log("Unrecognized Object");
                         }

@@ -31,12 +31,16 @@ import sys
 import weakref
 import zlib
 import base64
-try:
-    import ujson
-    ultrajson = True
-except ImportError:
-    import json
-    ultrajson = False
+
+import json
+ultrajson = False
+
+# try:
+    # import ujson
+    # ultrajson = True
+# except ImportError:
+    # import json
+    # ultrajson = False
 
 # To print immediately, do this:
 #    print(.....)
@@ -153,6 +157,8 @@ else:
 
 
 object_registry = {}    ## idx -> instance
+attach_arrows = []
+attach_trails = []  ## needed only for functions
 
 class baseObj(object):
     txtime = 0.0
@@ -169,7 +175,7 @@ class baseObj(object):
         object_registry[idx] = self 
         object.__setattr__(self, 'idx', idx)
         object.__setattr__(self, 'attrsupdt', collections.deque())
-        object.__setattr__(self, 'methodsupdt', [] )
+        object.__setattr__(self, 'methodsupdt', [] )  ## list -- must be done in order
         if kwargs is not None:
             for key, value in kwargs.items():
                 object.__setattr__(self, key, value)
@@ -250,6 +256,20 @@ def commsend():
                 rate.sendcnt = 0
             else:
                 rate.sendcnt = 0
+                
+            ## update every attach_arrow if relevant vector has changed    
+            for aa in attach_arrows:
+                ob = object_registry[aa._obj]
+                vval = getattr(ob, aa._attr)
+                if not isinstance(vval, vector) :
+                    continue
+                if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
+                    continue
+                ob.addattr(aa._attr)
+                aa._last_val = vval
+                
+            ## update every attach_trail that depends on a function
+                
                         
             L = prev_sz
             if len(updtobjs2) == 0:
@@ -285,10 +305,11 @@ def commsend():
                                         commcmds[L]['idx'] = ob.idx
                                         commcmds[L]['attr'] = attr
                                         commcmds[L]['val'] = poslist                                                
-                                    elif attr in ['axis','pos', 'up','color', 
-                                                  'center','forward', 'direction', 'ambient',
-                                                  'texpos', 'normal', 'bumpaxis',
-                                                  'background','origin', 'trail_color', 'dot_color', 'size']:
+                                    # elif attr in ['axis','pos', 'up','color', 
+                                                  # 'center','forward', 'direction', 'ambient',
+                                                  # 'texpos', 'normal', 'bumpaxis',
+                                                  # 'background','origin', 'trail_color', 'dot_color', 'size']:
+                                    elif isinstance(getattr(ob,attr), vector):  ## include attach_arrow attribute
                                         attrvalues = attrval.value
                                         if attrvalues is not None:
                                             commcmds[L]['idx'] = ob.idx
@@ -522,7 +543,15 @@ class standardAttributes(baseObj):
                  'quad': [ [],
                         [],
                         ['texture', 'bumpmap', 'visible', 'pickable'],
-                        ['v0', 'v1', 'v2', 'v3'] ]
+                        ['v0', 'v1', 'v2', 'v3'] ],
+                 'attach_arrow': [ [ 'color'],
+                        [],
+                        ['shaftwidth','scale', '_obj', '_attr'],
+                        [] ],
+                 'attach_trail': [ ['color'],
+                        [],
+                        ['radius', 'pps', 'retain', 'type', '_obj'],
+                        [] ]
                         }
  
     attrLists['pyramid'] = attrLists['box']
@@ -565,6 +594,7 @@ class standardAttributes(baseObj):
         self._size_units = 'pixels'
         self._texture = None
         self._pickable = True
+
         
         argsToSend = []  ## send to GlowScript only attributes specified in constructor
         
@@ -648,6 +678,7 @@ class standardAttributes(baseObj):
         self.canvas.objz(self,'add')
                    
         self._constructing = False  ## from now on any setter call will not be from constructor        
+##        GSprint(cmd)
         self.appendcmd(cmd)
        
         # if ('frame' in args and args['frame'] != None):
@@ -655,13 +686,13 @@ class standardAttributes(baseObj):
             # frame.update_obj_list()
 
     # attribute vectors have these methods which call self.addattr()
-        noSize = ['points', 'label', 'vertex', 'triangle', 'quad']
+        noSize = ['points', 'label', 'vertex', 'triangle', 'quad', 'attach_arrow', 'attach_trail']
         if objName not in noSize:
 #        if objName != 'points' and objName != 'label':
             self._axis.on_change = self._on_axis_change
             self._size.on_change = self._on_size_change
             self._up.on_change = self._on_up_change
-        noPos = ['curve', 'points', 'triangle', 'quad']
+        noPos = ['curve', 'points', 'triangle', 'quad', 'attach_arrow']
         if objName not in noPos:
         # if objName != 'curve' and objName != 'points':
             self._pos.on_change = self._on_pos_change
@@ -1141,6 +1172,112 @@ class arrow(standardAttributes):
         self._headlength =value
         if not self._constructing:
             self.addattr('headlength')
+            
+class attach_arrow(standardAttributes):
+    def __init__(self, obj, attr, **args):
+        global attach_arrows
+        args['_default_size'] = None
+        self._obj = obj.idx
+        args['_obj'] = self._obj
+        self._attr = attr
+        args['_attr'] = self._attr
+        args['_objName'] = "attach_arrow"
+        self._last_val = None
+        self._scale = 1
+        self._shaftwidth = 0
+        super(attach_arrow, self).setup(args)
+        attach_arrows.append(self)
+        
+    @property
+    def scale(self):
+        return self._scale
+    @scale.setter
+    def scale(self, value):
+        self._scale = value
+        if not self._constructing:
+            self.addattr("scale")
+    
+    @property 
+    def shaftwidth(self):
+        return self._shaftwidth
+    @shaftwidth.setter
+    def shaftwidth(self, value):
+        self._shaftwidth = value
+        if not self._constructing:
+            self.addattr("shaftwidth")
+            
+    def stop(self):
+        self.addmethod('stop', 'None')
+        
+    def start(self):
+        self.addmethod('start', 'None')
+        
+class attach_trail(standardAttributes):
+    def __init__(self, obj, **args):
+        global attach_trails
+        args['_default_size'] = None
+        args['_objName'] = "attach_trail"
+        if obj in object_registry:
+            self._radius = obj.size.y * 0.1
+            self._last_value = None
+            self._color = obj.color
+        else:
+            self._radius = 0    ## this may not be right value
+            self._last_value = None
+            attach_trails.append(self)
+        self._obj = obj.idx
+        args['_obj'] = self._obj
+        
+        self._type = "curve"
+        self._retain = -1
+        self._pps = 0
+        super(attach_trail, self).setup(args)
+        
+    @property
+    def radius(self):
+        return self._radius
+    @radius.setter
+    def radius(self, value):
+        self._radius = value
+        if not self._constructing:
+            self.addattr('radius')
+            
+    @property
+    def retain(self):
+        return self._retain
+    @retain.setter
+    def retain(self, value):
+        self._retain = value
+        if not self._constructing:
+            self.addattr("retain")
+            
+    @property
+    def pps(self):
+        return self._pps
+    @pps.setter
+    def pps(self, value):
+        self._pps = value
+        if not self._constructing:
+            self.addattr("pps")
+            
+    @property
+    def type(self):
+        return self._type
+    @type.setter
+    def type(self, value):
+        self._type = value
+        if not self._constructing:
+            self.addattr("type")
+            
+    def stop(self):
+        self.addmethod('stop', 'None')
+        
+    def start(self):
+        self.addmethod('start', 'None')
+
+    def clear(self):
+        self.addmethod('clear', 'None')
+        
         
 class helix(standardAttributes):
     def __init__(self,**args):
@@ -2731,5 +2868,5 @@ def print_to_string(*args):
     for a in args:
         s += str(a)+' '
     s = s[:-1]
-    return(s)
-
+    return(s)  
+    
