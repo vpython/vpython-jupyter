@@ -10,7 +10,7 @@ from vpython import *
 sphere()
 ```
 
-This will create a 3D window in the Notebook containing a 3D sphere, with mouse controls available to zoom and rotate the camera:
+This will create a 3D window in the Notebook containing a 3D sphere, with mouse and touch controls available to zoom and rotate the camera:
 
     Right button drag or Ctrl-drag to rotate "camera" to view scene.
     To zoom, drag with middle button or Alt/Option depressed, or use scroll wheel.
