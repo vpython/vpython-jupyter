@@ -261,7 +261,7 @@ def commsend():
             for aa in attach_arrows:
                 ob = object_registry[aa._obj]
                 vval = getattr(ob, aa._attr)
-                if not isinstance(vval, vector) :
+                if not isinstance(vval, vector):
                     continue
                 if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
                     continue
@@ -269,7 +269,18 @@ def commsend():
                 aa._last_val = vval
                 
             ## update every attach_trail that depends on a function
-                
+            for aa in attach_trails:
+                if aa._obj == '_funcvalue':
+                    fval = aa._func()
+                    aa._funcvalue = fval
+                else:
+                    fval = getattr(aa, aa._obj)
+                if not isinstance(fval, vector):
+                    continue
+                if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
+                    continue                
+                aa.addattr(aa._obj)
+                aa._last_val = fval
                         
             L = prev_sz
             if len(updtobjs2) == 0:
@@ -305,10 +316,6 @@ def commsend():
                                         commcmds[L]['idx'] = ob.idx
                                         commcmds[L]['attr'] = attr
                                         commcmds[L]['val'] = poslist                                                
-                                    # elif attr in ['axis','pos', 'up','color', 
-                                                  # 'center','forward', 'direction', 'ambient',
-                                                  # 'texpos', 'normal', 'bumpaxis',
-                                                  # 'background','origin', 'trail_color', 'dot_color', 'size']:
                                     elif isinstance(getattr(ob,attr), vector):  ## include attach_arrow attribute
                                         attrvalues = attrval.value
                                         if attrvalues is not None:
@@ -1217,17 +1224,21 @@ class attach_trail(standardAttributes):
         global attach_trails
         args['_default_size'] = None
         args['_objName'] = "attach_trail"
-        if obj in object_registry:
-            self._radius = obj.size.y * 0.1
-            self._last_value = None
-            self._color = obj.color
-        else:
-            self._radius = 0    ## this may not be right value
-            self._last_value = None
+        self._radius = 0
+        if callable(obj): # true if obj is a function
             attach_trails.append(self)
-        self._obj = obj.idx
+            self._obj = "_funcvalue"
+            self._func = obj
+        elif isinstance(obj, str):
+            attach_trails.append(self)
+            self._obj = obj
+            setattr(self, obj, None)
+        else:
+            self._radius = obj.size.y * 0.1
+            self._color = obj.color
+            self._obj = obj.idx
+        self._last_val = None
         args['_obj'] = self._obj
-        
         self._type = "curve"
         self._retain = -1
         self._pps = 0
