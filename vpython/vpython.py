@@ -48,7 +48,7 @@ ultrajson = False
 
 import platform
 
-version = ['0.3.6', 'jupyter']
+version = ['0.3.7', 'jupyter']
 GSversion = ['2.1', 'glowscript']
 
 def send_base64_zipped_json(comm, req, level=zlib.Z_BEST_SPEED):
@@ -571,7 +571,8 @@ class standardAttributes(baseObj):
         super(standardAttributes, self).__init__() 
         self._constructing = True  ## calls to setters are from constructor
 
-        objName = args['_objName']  ## identifies object type
+        objName = self._objName = args['_objName']  ## identifies object type
+        if objName[:8] == 'compound': objName = 'compound'
         del args['_objName']
         
     # default values
@@ -1001,8 +1002,11 @@ class standardAttributes(baseObj):
         pass
         
     def clone(self, **args):
+        if isinstance(self, triangle) or isinstance(self, quad):
+            raise TypeError('Cannot clone a '+self._objName+' object')
+        if isinstance(self, compound):
+            raise TypeError('Currently cannot clone a compound object')
         newAtts = {}
-        #exclude = ['guid', 'idx', 'attrsupdt', 'oid', '_constructing']
         exclude = ['idx', 'attrsupdt', '_constructing']
         for k,v in vars(self).items():
             if k not in exclude:
@@ -1017,7 +1021,7 @@ class standardAttributes(baseObj):
            
     def __del__(self):
         super(standardAttributes, self).__del__()
-        
+
 
 class box(standardAttributes):
     def __init__(self, **args):
@@ -1324,31 +1328,31 @@ class helix(standardAttributes):
     def radius(self,value):
         d = 2*value
         self.size = vector(self._size.x,d,d) # size will call addattr if appropriate
+
+compound_idx = 0 # same numbering scheme as in GlowScript
         
 class compound(standardAttributes):
     def __init__(self, objList, **args):
-        args['_objName'] = 'compound'
+        global compound_idx
         args['_default_size'] = vector(1,1,1)
         self._obj_idxs = None
         idxlist = []
-        clonelist = []
         ineligible = [label, curve, helix, points]  ## type objects
         cvs = objList[0].canvas
         for obj in objList:
             if obj.canvas is not cvs:
                 raise AttributeError('all objects used in compound must belong to the same canvas')
             if type(obj) in ineligible:
-                raise TypeError(str(type(obj)) + ' cannot be used in a compound')
-            clonelist.append(obj.clone())  ## make sure to get current values of attributes
-            idxlist.append(clonelist[-1].idx)
+                raise TypeError('A ' + obj._objName + ' object cannot be used in a compound')
+            idxlist.append(obj.idx)
         args['obj_idxs'] = idxlist
         
+        compound_idx += 1
+        args['_objName'] = 'compound'+str(compound_idx)
         super(compound, self).setup(args)
         
         for obj in objList:
             obj.visible = False         ## ideally these should be deleted
-        for obj in clonelist:
-            obj._visible = False
 
     @property
     def obj_idxs(self):
@@ -2142,7 +2146,6 @@ class label(standardAttributes):
         self._space = 0
         
         super(label, self).setup(args)
-
             
     @property
     def xoffset(self):
