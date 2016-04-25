@@ -41,23 +41,7 @@ requirements:
     - vpnotebook
     - ujson
 
-test:
-  # Python imports
-
-  # Import test below fails because vpython needs to be run in a notebook.
-  # imports:
-    # - vpython
-
-  # commands:
-    # You can put test commands to be run here.  Use this to test that the
-    # entry points work.
-
-  # requires:
-    # Put any additional test requirements here.  For example
-    # - nose
-
 about:
   home: http://vpython.org
   license: MIT
   summary: 'VPython for Jupyter Notebook'
-
