@@ -48,7 +48,7 @@ ultrajson = False
 
 import platform
 
-version = ['0.3.7', 'jupyter']
+version = ['0.3.8', 'jupyter']
 GSversion = ['2.1', 'glowscript']
 
 def send_base64_zipped_json(comm, req, level=zlib.Z_BEST_SPEED):
