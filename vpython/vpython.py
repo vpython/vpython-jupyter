@@ -2335,12 +2335,13 @@ class Mouse(baseObj):
         if 'd' in args:
             dist = args['d']
         elif 'point' in args:
-            point=args['point']
+            point = args['point']
             dist = dot(normal, point)
         ndc = dot(normal, self._canvas.camera.pos) - dist
         ndr = dot(normal, self._ray)
+        if ndr == 0: return None
         t = -ndc/ndr
-        return self._canvas.camera.pos.add(self._ray.multiply(t))
+        return self._canvas.camera.pos + t*self._ray
         
 class Camera(object):
     def __init__(self, canvas):
