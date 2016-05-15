@@ -1995,6 +1995,7 @@ class graph(baseObj):
     ## default values
         self._width = 640
         self._height = 400
+        self._align = 'none'
         self._foreground = vector(0,0,0)
         self._background = vector(1,1,1)
         self._title = ""
@@ -2013,7 +2014,7 @@ class graph(baseObj):
                 del args[a]
         
         ## override default scalar attributes
-        scalarAttributes = ['width', 'height', 'title', 'xtitle', 'ytitle',
+        scalarAttributes = ['width', 'height', 'title', 'xtitle', 'ytitle','align',
                             'xmin', 'xmax', 'ymin', 'ymax']
         for a in scalarAttributes:
             if a in args:
@@ -2050,6 +2051,15 @@ class graph(baseObj):
     def height(self,val): 
         self._height = val
         self.addattr('height')
+
+    @property
+    def align(self): return self._align
+    @align.setter
+    def align(self,val):
+        if not (val == 'left' or val == 'right' or val == 'none'):
+            raise NameError("align must be 'left', 'right', or 'none' (the default).")
+        self._align = val
+        self.addattr('align')
 
     @property
     def title(self): 
@@ -2425,6 +2435,7 @@ class canvas(baseObj):
         self._ambient = vector(0.2, 0.2, 0.2)
         self._height = 480
         self._width = 640
+        self._align = 'none'
         self._fov = math.pi/3
         
         # The following determine the view:
@@ -2454,7 +2465,7 @@ class canvas(baseObj):
     # send only nondefault values to GlowScript
         
         canvasVecAttrs = ['background', 'ambient','forward','up', 'center']
-        canvasNonVecAttrs = ['visible', 'height', 'width', 'title','fov', 'range',
+        canvasNonVecAttrs = ['visible', 'height', 'width', 'title','fov', 'range','align',
                              'autoscale', 'userzoom', 'userspin', 'title', 'caption']
  
         for a in canvasNonVecAttrs:
@@ -2576,6 +2587,15 @@ class canvas(baseObj):
         self._height = value
         if not self._constructing:
             self.appendcmd({"val":value,"attr":"height","idx":self.idx})
+
+    @property
+    def align(self): return self._align
+    @align.setter
+    def align(self,val):
+        if not (val == 'left' or val == 'right' or val == 'none'):
+            raise NameError("align must be 'left', 'right', or 'none' (the default).")
+        self._align = val
+        self.addattr('align')
 
     @property
     def center(self):
