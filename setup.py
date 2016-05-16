@@ -31,7 +31,7 @@ setup(
           'Topic :: Multimedia :: Graphics :: 3D Rendering',
           'Topic :: Scientific/Engineering :: Visualization',
     ],
-    ext_modules = cythonize("vpython/cyvector.pyx"),
+    ext_modules = cythonize("cyvector.pyx"),
     install_requires=['jupyter', 'vpnotebook'],
     package_data={'vpython': ['data/*']},
 )
