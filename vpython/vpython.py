@@ -747,7 +747,7 @@ class standardAttributes(baseObj):
     @axis.setter
     def axis(self,other):
         self._axis.value = other
-        self._size._x = other.mag
+        self._size.x = other.mag
         if not self._constructing:
             self.addattr('axis')
             
