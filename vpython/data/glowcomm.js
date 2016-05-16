@@ -105,7 +105,7 @@ function handler(msg) {
 
     //console.log('glow msg', msg, msg.content)
     //console.log('glow', data, data.length);
-    //console.log('JSON ' + JSON.stringify(data));
+    console.log('JSON ' + JSON.stringify(data));
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -129,8 +129,16 @@ function handler(msg) {
                                 glowObjs[cmd.idx][cmd.attr] = ptlist                                
                             } else {
                                 var v = o2vec3(cmd.val)
-                                if (glowObjs[cmd.idx] instanceof arrow && cmd.attr === 'axis') {
-                                    glowObjs[cmd.idx]['axis_and_length'] = v
+                                if (cmd.attr === 'axis') {
+                                    if (glowObjs[cmd.idx] instanceof arrow) {
+                                        glowObjs[cmd.idx]['axis_and_length'] = v
+                                    } else {
+                                        glowObjs[cmd.idx][cmd.attr] = v
+                                        glowObjs[cmd.idx]['size'].x = mag(v)
+                                    }
+                                } else if (cmd.attr === 'size') {
+                                    glowObjs[cmd.idx][cmd.attr] = v
+                                    glowObjs[cmd.idx]['axis'] = norm(glowObjs[cmd.idx]['axis']).multiply(v.x)
                                 } else {
                                     glowObjs[cmd.idx][cmd.attr] = v
                                 }
@@ -335,12 +343,14 @@ function handler(msg) {
                             delete cfg['_attr']
                             glowObjs[cmd.idx] = attach_arrow( obj, attr, cfg )
                         } else if (cmd.cmd === 'attach_trail') {
+                            console.log('attach_trail_0', cfg)
                             if ( typeof cfg['_obj'] === 'string' ) {
                                 var obj = cfg['_obj']
                             } else {
                                 var obj = glowObjs[cfg['_obj']]
                             }
                             delete cfg['_obj'] 
+                            console.log('attach_trail_1', obj, cfg)
                             glowObjs[cmd.idx] = attach_trail(obj, cfg) 
                         } else {
                             console.log("Unrecognized Object");

@@ -48,7 +48,7 @@ ultrajson = False
 
 import platform
 
-version = ['0.3.8', 'jupyter']
+version = ['0.3.9', 'jupyter']
 GSversion = ['2.1', 'glowscript']
 
 def send_base64_zipped_json(comm, req, level=zlib.Z_BEST_SPEED):
@@ -667,7 +667,6 @@ class standardAttributes(baseObj):
         for key, value in args.items(): # Assign all other properties
             setattr(self, key, value)
         
-        #cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, "attrs":[]}
         cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
 
     # now put all args to send into cmd
@@ -684,6 +683,11 @@ class standardAttributes(baseObj):
             self.canvas = canvas.get_selected()
         cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
         self.canvas.objz(self,'add')
+        
+        if objName == 'compound':
+            while True:
+                self.canvas.waitfor('redraw') # objects must exist before compounding them
+                if len(baseObj.cmds) == 0: break
                    
         self._constructing = False  ## from now on any setter call will not be from constructor        
 ##        GSprint(cmd)
@@ -736,7 +740,7 @@ class standardAttributes(baseObj):
         return self._size   
     @size.setter
     def size(self,other):
-        self._axis.value = self.axis.norm() * other.x
+        self._axis.value = self._axis.norm() * other.x
         self._size.value = other
         if not self._constructing:
             self.addattr('size')                
@@ -747,7 +751,7 @@ class standardAttributes(baseObj):
     @axis.setter
     def axis(self,other):
         self._axis.value = other
-        self._size.x = other.mag
+        self._size._x = other.mag
         if not self._constructing:
             self.addattr('axis')
             
