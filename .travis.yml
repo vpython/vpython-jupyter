@@ -7,7 +7,7 @@ os:
 env:
     global:
         - TARGET_ARCH="x64"
-        - secure: "UT3HxgjgBrW2Obs2Zb5Hyayx0bsjP3dFpCeLMQ54eE4gksTMtWz7t/K292A6FhInP1DXV52wDIVkj0g6WWf3R8kVlnQKTV5MyLIvJSuse+6QiXO4ph7czm60vqv+yOLwveQxXvbVk8xEfR7V8DinvisWnPTw5EBbR6iqVBogmeCoX8bso4tRHWQ2i6idkKq310VuvQIrNqjngUClx7gZiaiIf+VXGjwf15ubgW14bb19sVQjnEV1fZoL78DJWT5FVp7RkaV2scxfBgii3bA74Wrdl1AOZWbBtliyearOToLfyNfqDKQuaPuAUlY3uG+VUe5X/IsJnMlIOQ5d1KDrxBYp5ZsWoEHAGT260mttU9P52r78O+3RZnhO+YGM3nyaXPDMNzl+6Q+l77qlFLSlqdB7xer8xPhSCi9QiNGjlZ1cmoygQel7d6L6JlzdzTkcXMKnixB02n9Cg1LKyTjxCUUB/x60YPYUIzuOD2BIcS7yn6zzVWvxb3hZrh6b+lYELJeZQAEI1q71Gynt3FofZ6UhFBlJQ6UcMxcPM+IgtPZ8QsoMwPRhyNjQ/YAB+N8Cqp10F/x/TppkMWpZl81jEDhZw3KzM+5zLgW9zLREDE3CUeLXhP5XLzPl/O5o7OzPKYGhN9c5ewaGNU2Us63auhiS0A6gyiF78YOxGTgM/u4="
+        - secure: "UuKK9DpfwEOEw9vA/OigVdDQP/nC2b2gGr5us2fDBJwfWMPTOOfkQxczuRZ/LDxLGT9ELMyKE6l3lvpoSlJc3gwNtPDiUg5waJvqqqfCVxP0V5etyCDMycge8f8PuvKhb+PgmKmf/xGBBQ9En7B7ES/hpAf5AwBPlJDHqQ/1BytqtnCUVuDCHcIwYdT4HLR/UXwO6y80D4xK/jP4XW3eeOxpMMVgf+5GqWXvSVY3GG4iSwC/Y4veeTBwPxnxEbVAgiMWR9CT0KRSBFXBqDkJLi1kJlp8y2UsOSKt/GE5lOHLjiKyMcSncejCVik4DllmkbQvPWC3p4wUXzfCmcoXWPSYgVbIoGm6VRLtSJCM3S//+tIXHhHIfzN7dj4LRncnx6DEUFuS0OtDh8zxaNaWxL+RtppKp3x89R6Avodt/MYMMOz0+rgYALutpcrLjSI7Q2Qppza3yv3YkAwL0SoztCk6ChBk7xaMRua1QoW0qTW7CFGLI5MzKUKLXA2EGMbYAOsBx4kdG+SKQ742QK/6lcEA0BjaXs6mgNtvyQuaFXzZfnh7ORlMq/W0vF20BV1yNByL3NprtlbocuSfJKEdp6zyrQ4IMxoqXvbXD15oBtXVyQ5XPMbFowZn29WXieW6pNqlL4uneQaMW4/Vgg3XA5K65w/+jYbkWtIFQcDmZwk="
         - CONDA_INSTALL_LOCN="${HOME}/miniconda"
 
 install:
@@ -40,5 +40,6 @@ after_success:
     - echo $TRAVIS_TAG
     # Remove line below once conda-build 1.20.3 is released...
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
+    - echo $BINSTAR_TOKEN
     # If this build is because of a tag, upload the build if it succeeds.
     - if [ "$TRAVIS_TAG" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython $CONDA_PACKAGE; fi
