@@ -7,8 +7,12 @@ os:
 env:
     global:
         - TARGET_ARCH="x64"
-        - secure: "DdBmm9e1IFJxB6yQxEY6eD4jjw1WlqT0cUQJvblEU65v8Vm5nA7JEhHJjtyHkg8ISZnr9/fRM/qEAXuP+u1Uq/BIfaiZnJVng5bkeTfHhEUQWhyOEuPhopKeAVvYQBlD/Dim6TG3YPLXZOJJTM98z5al4cRd4jcVB2gR+BvzaxuXFq+HDQA4gkN9QMt1+MEKDPqqIdPgYMktfkdaB5kMcD1xkg5D06WFYigxPnrdU84YI94DZ/7EtEDF9TKHVATNmZk83LMPMvsC9THaa6t0uU66k5vRwfrMXRLKP37THfc7a+Fb1urLWMHebvJIXvnlauI4agJmr+WOtORH1z29hNI9b1o3YdmuHJcMdZtV/zu72v6Eh7tQwYGHoGMIJVoMS1pc0D8DL5UgjVN9GBGddcK9yFce14DcIbJWZpel8jzyg5lCLHoPCHoPukti+w/O5q/0HTg+Vq92kvdE9qPmndLUSOI2Vma1XBpcpYKKzdcRs/eGJbg3CKc3MNKqTNkocNVpJboShikzvnJSxIj59VByC6yBqZs32IETKAg3GKM9+HF8WU+fx+JyGvj6tYPtFr+RIox+iSkOz4Db0kb16nDp2X2daiH2+91MA7LPB3j1vD3/R3eGW4VYORbbmMQ1FSFDAP0Q21rky8boQlO7rpZQ+E1V9IHnRLVTWOxaD38="
+        - secure: "GUZgrWEs3UL+lD8L59QuWgj07nK6qsTbW6Y7g9ryWiYeohJ0BmovCf+904LodRRDUWTuTx9SSpISvDU28Dj5I0rPLKDiqyrSrEFF0sm/MttNlrfcRso+lmdBStbtlqki9TrWo6qdTBKkmHYgiWGJEewDBuRZxxtcJBkU7NdtsGBr+srtk1fwRR1dSKf00XGaCQzrgjFuzkHv8NB6DMZQvt+vMolmQlw2wRtGrKFb465OKw6aVXDOWtRo5VvSTz9bLT6F1VYjmQfOfn/wa5Svb59m+55EXRQX0dp5Rarv9GfErQ6TBCW0vMEYjFC7puY9esE9zwT25xjxkghhYi4l+8PWNMl1jW33e26G5RiOyj0kiozHCtrVS7M6GnYvuVGTgHysZtacl572NOLvX06VKJxQJoihzlMC8ILb9LljoK6/buEjyaUY1B2dGZ5pCeksZNsBidMfk8kTQp460ZHbeayh0VzhO65L1MoJuxU2IqLHjuNobn86PI1BIu1jqOw+d9og5Kd/X5v3cZiUGr8O3u/RPLKSZ7gF5kLtmvYocOZ7nHihOBXlg3gvVPCs1R57+64SVsdTHVhiUHW8JbcP+G3q2vyVcCYSb5LvwQK7aj7pS4H+6dc9nRd2MWtlW5a13d5sKnnjT+EC5cse+0zx/zYuGG+9z6zCnRrGv6tS63w="
         - CONDA_INSTALL_LOCN="${HOME}/miniconda"
+    matrix:
+        - CONDA_PY=2.7
+        - CONDA_PY=3.4
+        - CONDA_PY=3.5
 
 install:
     # Install and set up miniconda.
@@ -27,18 +31,33 @@ install:
     # Not sure why cython is necessary since it is listed as a build dependency.
     - conda install --quiet jinja2 conda-build anaconda-client cython
 
-    - conda install --quiet wheel
+    # make a wheel building environment to ensure correct python version.
+    - conda create --quiet -n wheel-build python=$CONDA_PY wheel cython
 
 script:
     # Not much of a real test yet, just try to build myself...
-    - conda build vpython.recipe
+    - conda build --quiet vpython.recipe
 
     # And try making a wheel
+    - source activate wheel-build
     - python setup.py bdist_wheel
+    - source deactivate
 
 after_success:
     - echo $TRAVIS_TAG
     # Remove line below once conda-build 1.20.3 is released...
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
     # If this build is because of a tag, upload the build if it succeeds.
-    - if [ "$TRAVIS_TAG" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython CONDA_PACKAGE; fi
+    - if [ "$TRAVIS_TAG" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython $CONDA_PACKAGE; fi
+deploy:
+  provider: pypi
+  user: mwcraig
+  password:
+    secure: t4SUebn2FYy4FK6kLNt//srRvzz7bYhHXT7fMu98svUjwT92InT3TIvpE+6AXvtZeRJL3CnUD9yO6c6xJXZ5Lj4f++P+GA9qz+ji4qBxOHO6qip9eDghwFzSx65pgc5vRMSJnL6h/iFPdfkpG76WNp3OA0vlaRLQw7GSBbV5+ZSpbhIHAPVMoTzDvcmBYe5eszf/Meig6uOdf4yh7Cik0sw/OztXlmq9gRgwVI1CwWkw7uK388yWujul5zpKFvyVBuycrfooGpibtfvZNu6xpVpWnqVT1jnNA9mj03A5wlk7RwmcRabWTa3x2FHJVtnUmDEgMaali4N95Fw3WJi8L6hdNDkkkamfkPEogka7buNpSrkBXW9K722WmxQ6KYA5It2dUO/KkWIaMoIumIuJyWEA6UHih1vxDZyWqCZakqyloE8g9wZGrUPqtpqEFwY4E6f1LesbgWHIrtbm6LOWwltYma0TfTLpAYRCCMTJMAXi3z1udjtrOCt7NEpsJaj17H5wh8nh1XwEpLS9dNcWqtRqqSF5YRHmnFo2TeefIzGH5VDp2PG94bOFTJhKKU224rEHXIo1vb4HyL0Gye7ilyZij5kdSEX6LiJbsmOpPp1e6lc83MIM1x9Cti1inIW4ZH0Y9QhwMd9SnAEr9b8vgOk5ozIi8hZmVtbA8bJhjoc=
+  upload_docs: no
+  skip_cleanup: true
+  on:
+    tags: true
+    distributions: "sdist bdist_wheel"
+    repo: BruceSherwood/vpython-jupyter
+    all_branches: true
