@@ -7,8 +7,8 @@ environment:
   # Need this to set up compilation on Windows.
   CMD_IN_ENV: cmd /E:ON /V:ON /C Obvious-CI\scripts\obvci_appveyor_python_build_env.cmd
 
-  BINSTAR_TOKEN: "test"
-    #secure: 0
+  BINSTAR_TOKEN:
+    secure: eSsu75dpqknmh2NnrfPASDSvzojBRSyoyW9ZdF5VauukhWxmYHbW8E5UE2ZmYnxT
 
   matrix:
     # Unfortunately, compiler/SDK configuration for 64 bit builds depends on
