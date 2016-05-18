@@ -41,4 +41,4 @@ after_success:
     # Remove line below once conda-build 1.20.3 is released...
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
     # If this build is because of a tag, upload the build if it succeeds.
-    - if [ "$TRAVIS_TAG" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython CONDA_PACKAGE; fi
+    - if [ "$TRAVIS_TAG" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython $CONDA_PACKAGE; fi
