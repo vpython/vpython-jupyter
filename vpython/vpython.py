@@ -1798,6 +1798,7 @@ class gobj(baseObj):
         super(gobj, self).__init__()
     ## default values of shared attributes
         self._color = vector(0,0,0)
+        self._interval = -1
         self._graph = None
         #self._plot = []
         objName = args['_objName']
@@ -1830,7 +1831,6 @@ class gobj(baseObj):
                 val = val.idx
             setattr(self, '_'+a, val)
                
-        #cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, "attrs":[]}      
         cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
            
         for a in argsToSend:
@@ -1858,6 +1858,13 @@ class gobj(baseObj):
             raise AttributeError('graph cannot be modified')
         else:
             self._graph = val.idx
+
+    @property
+    def interval(self): return self._interval
+    @interval.setter
+    def size(self,val): 
+        self._interval = val
+        self.addattr('interval')
 
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
@@ -2030,7 +2037,6 @@ class graph(baseObj):
         for a in args:
             setattr(self, '_'+a, args[a])
 
-        #cmd = {"cmd": objName, "idx": self.idx, "guid": self.guid, "attrs":[]}
         cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
         
         ## send only args specified in constructor
@@ -2092,15 +2098,15 @@ class graph(baseObj):
     @foreground.setter
     def foreground(self,val): 
         if not isinstance(val, vector): raise TypeError('foreground must be a vector')
-        self._foreground = val
+        self._foreground.value = val
         self.addattr('foreground')
 
     @property
     def background(self): return self._background
     @background.setter
-    def background(self,val): 
+    def background(self,val):
         if not isinstance(val,vector): raise TypeError('background must be a vector')
-        self._background = val
+        self._background.value = val
         self.addattr('background')
         
     @property
