@@ -51,7 +51,7 @@ class vector(object):
 
     def __div__(self, other): # used by Python 2 in the absence of __future__ division
         if isinstance(other, (int, float)):
-            return vector(self._x / other, self._y / other, self.vz / other)
+            return vector(self._x / other, self._y / other, self._z / other)
         raise TypeError('a vector can only be divided by a scalar')
     
     def __truediv__(self, other): # used by Python 3, and by Python 2 in the presence of __future__ division
