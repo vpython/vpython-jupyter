@@ -50,6 +50,6 @@ deploy:
   upload_docs: no
   on:
     tags: true
-    distributions: bdist_wheel
+    distributions: "bdist_wheel"
     repo: BruceSherwood/vpython-jupyter
     all_branches: true
