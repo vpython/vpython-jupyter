@@ -65,8 +65,7 @@ test_script:
 on_success:
     - echo %APPVEYOR_REPO_TAG%
     # Write the output file location to a file...
-    # Remove pipe to more once conda-build 1.20.3 is released.
-    - conda build --output vpython.recipe | more +2 > to_upload.txt
+    - conda build --output vpython.recipe > to_upload.txt
     # ...so that we can set a variable to the name of that output file.
     - set /P BUILT_PACKAGE=<to_upload.txt
     # If this build is because of a tag make the conda package and upload it.
