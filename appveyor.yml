@@ -10,6 +10,11 @@ environment:
   BINSTAR_TOKEN:
     secure: eSsu75dpqknmh2NnrfPASDSvzojBRSyoyW9ZdF5VauukhWxmYHbW8E5UE2ZmYnxT
 
+  PYPI_PASSWORD:
+    secure: Xtu8c7MEUwNUJN08oehTSQ==
+
+  PYPI_USER:
+    secure: hSkBSpb86gg/J+PxsYWbeg==
   matrix:
     # Unfortunately, compiler/SDK configuration for 64 bit builds depends on
     # python version. Right now conda build does not configure the SDK, and
@@ -70,3 +75,5 @@ on_success:
     - set /P BUILT_PACKAGE=<to_upload.txt
     # If this build is because of a tag make the conda package and upload it.
     - cmd: if "%APPVEYOR_REPO_TAG%"=="true" anaconda -t %BINSTAR_TOKEN% upload -u vpython %BUILT_PACKAGE%
+    - cmd: pip install twine
+    - cmd: if "%APPVEYOR_REPO_TAG%"=="true" twine upload -u %PYPI_USER% -p %PYPI_PASSWORD% dist\*
