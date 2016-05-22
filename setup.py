@@ -12,7 +12,7 @@ from Cython.Build import cythonize
 setup(
     name='vpython',
     packages=['vpython'],
-    version='0.0.5.dev1',
+    version='0.0.5.dev2',
     description='VPython for Jupyter Notebook',
     long_description=open('README.md').read(),
     author='John Coady / Ruth Chabay / Bruce Sherwood / Steve Spicklemire',
