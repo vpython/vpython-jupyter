@@ -59,6 +59,8 @@ build: off
 test_script:
     # Not much of a real test yet, just try to build myself...
     - "%CMD_IN_ENV% conda build vpython.recipe"
+    # ...and build a wheel.
+    - "%CMD_IN_ENV% python setup.py wheel"
 
 on_success:
     - echo %APPVEYOR_REPO_TAG%
