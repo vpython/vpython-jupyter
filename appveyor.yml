@@ -58,7 +58,7 @@ install:
     # These installs are needed on windows but not other platforms.
     - cmd: conda install patch psutil
 
-    - conda create -n wheel-build python=%CONDA_PY% wheel
+    - conda create -n wheel-build python=%CONDA_PY% wheel cython
 
 # Skip .NET project specific build phase.
 build: off

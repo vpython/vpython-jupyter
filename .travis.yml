@@ -30,7 +30,7 @@ install:
     - conda install --quiet jinja2 conda-build anaconda-client cython
 
     # make a wheel building environment to ensure correct python version.
-    - conda create -n wheel-build python=$CONDA_PY wheel
+    - conda create -n wheel-build python=$CONDA_PY wheel cython
 
 script:
     # Not much of a real test yet, just try to build myself...
