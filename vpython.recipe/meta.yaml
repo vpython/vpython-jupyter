@@ -29,7 +29,7 @@ build:
 requirements:
   build:
     - python
-    - setuptools 20*
+    - setuptools
     - jupyter
     - vpnotebook
     - ujson
