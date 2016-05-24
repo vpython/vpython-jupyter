@@ -22,13 +22,13 @@ environment:
     # versions.
     - TARGET_ARCH: "x64"
       PYTHON_BUILD_RESTRICTIONS: "2.7*"
-      CONDA_PY: "27"
+      CONDA_PY: "2.7"
     - TARGET_ARCH: "x64"
       PYTHON_BUILD_RESTRICTIONS: "3.4*"
-      CONDA_PY: "34"
+      CONDA_PY: "3.4"
     - TARGET_ARCH: "x64"
       PYTHON_BUILD_RESTRICTIONS: "3.5*"
-      CONDA_PY: "35"
+      CONDA_PY: "3.5"
     # For 32 bit builds there are no compiler issues, let Obvious-CI
     # handle the matrix.
     # - TARGET_ARCH: "x86"
@@ -58,14 +58,19 @@ install:
     # These installs are needed on windows but not other platforms.
     - cmd: conda install patch psutil
 
+    - conda create -n wheel-build python=%CONDA_PY% wheel
+
 # Skip .NET project specific build phase.
 build: off
 
 test_script:
     # Not much of a real test yet, just try to build myself...
     - "%CMD_IN_ENV% conda build vpython.recipe"
-    # ...and build a wheel.
+    # ...and build a wheel, in the test environment so we have the right
+    # python version.
+    - activate wheel-build
     - "%CMD_IN_ENV% python setup.py bdist_wheel"
+    - deactivate
 
 on_success:
     - echo %APPVEYOR_REPO_TAG%
