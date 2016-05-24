@@ -36,7 +36,7 @@ install:
 
 script:
     # Not much of a real test yet, just try to build myself...
-    - conda build vpython.recipe
+    - conda build --quiet vpython.recipe
 
     # And try making a wheel
     - source activate wheel-build

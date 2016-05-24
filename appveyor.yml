@@ -65,7 +65,7 @@ build: off
 
 test_script:
     # Not much of a real test yet, just try to build myself...
-    - "%CMD_IN_ENV% conda build vpython.recipe"
+    - "%CMD_IN_ENV% conda build --quiet vpython.recipe"
     # ...and build a wheel, in the test environment so we have the right
     # python version.
     - activate wheel-build
