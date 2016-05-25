@@ -197,7 +197,7 @@ class baseObj(object):
             if len(baseObj.cmds) > 0:
                 for c in baseObj.cmds:
                     baseObj.glow.comm.send([c])
-                baseObj.cmds = []
+                baseObj.cmds.clear()
             baseObj.glow.comm.send([cmd])
         else:
             baseObj.cmds.append(cmd)
