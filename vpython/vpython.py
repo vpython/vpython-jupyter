@@ -192,6 +192,12 @@ class baseObj(object):
 
     def appendcmd(self,cmd):
         if (baseObj.glow != None):
+            # The following code makes sure that those commands appended
+            # while baseObj.glow was None are sent to the front end first.
+            if len(baseObj.cmds) > 0:
+                for c in baseObj.cmds:
+                    baseObj.glow.comm.send([c])
+                baseObj.cmds = []
             baseObj.glow.comm.send([cmd])
         else:
             baseObj.cmds.append(cmd)
@@ -690,7 +696,6 @@ class standardAttributes(baseObj):
                 if len(baseObj.cmds) == 0: break
                    
         self._constructing = False  ## from now on any setter call will not be from constructor        
-##        GSprint(cmd)
         self.appendcmd(cmd)
        
         # if ('frame' in args and args['frame'] != None):
@@ -1541,8 +1546,6 @@ class curveMethods(standardAttributes):
     def curveSetup(self, *args1, **args):
         self._constructing = True
         
-        # print('curveSetup1, args=', args)
-        # print('curveSetup1, args1=', list(args1))
         self.append(list(args))
         self.append(list(args1))
 
@@ -2888,7 +2891,7 @@ degrees = math.degrees
 
 # Tried waiting for baseObj.glow to not be None and/or waiting for _sent to be True,
 # but these attempts to make sure everything was properly initialized, with scene existing,
-# failed, for unknow reasons.
+# failed, for unknown reasons.
 scene = canvas()
 
 # This must come after creating a canvas

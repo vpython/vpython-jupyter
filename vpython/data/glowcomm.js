@@ -5,33 +5,33 @@ console.log("glowscript loading");
 
 var glowObjs = []
 
-var pako = require('nbextensions/pako.min');
+var pako = require('nbextensions/pako.min')
 
-//scene.title.text("fps = frames/sec\n ");
+//scene.title.text("fps = frames/sec\n ")
 // Display frames per second and render time:
-//$("<div id='fps'/>").appendTo(scene.title);
+//$("<div id='fps'/>").appendTo(scene.title)
 
 function o2vec3(p) {
     "use strict";
-    return vec(p[0], p[1], p[2]);
+    return vec(p[0], p[1], p[2])
 }
 
 function decode_base64_zipped_json(b64Data) {
 
     // Decode base64 (convert ascii to binary)
-    var strData     = atob(b64Data);
+    var strData     = atob(b64Data)
 
     // Convert binary string to character-number array
     var charData    = strData.split('').map(function(x){return x.charCodeAt(0);});
 
     // Turn number array into byte-array
-    var binData     = new Uint8Array(charData);
+    var binData     = new Uint8Array(charData)
 
     // Pako magic
-    var pdata        = pako.inflate(binData);
+    var pdata        = pako.inflate(binData)
 
     // Convert gunzipped byteArray back to ascii string:
-    strData     = String.fromCharCode.apply(null, new Uint16Array(pdata));
+    strData     = String.fromCharCode.apply(null, new Uint16Array(pdata))
     
     return JSON.parse(strData)
 }
@@ -97,23 +97,23 @@ function send_pick(cvs, p, seg) {
 
 function handler(msg) {
     "use strict";
-    var data = msg.content.data;
+    var data = msg.content.data
 
     if (typeof data.zipped !== 'undefined') {        
-        data = decode_base64_zipped_json(data.zipped);        
+        data = decode_base64_zipped_json(data.zipped)        
     }
 
     //console.log('glow msg', msg, msg.content)
-    //console.log('glow', data, data.length);
-    //console.log('JSON ' + JSON.stringify(data));
+    //console.log('glow', data, data.length)
+    //console.log('JSON ' + JSON.stringify(data))
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
         var triangle_quad, objects, cvsParams
-        var len = data.length;
-        triangle_quad = ['v0', 'v1', 'v2', 'v3'];
+        var len = data.length
+        triangle_quad = ['v0', 'v1', 'v2', 'v3']
         for (i = 0; i < len; i++) {
-            cmd = data.shift();
+            cmd = data.shift()
 //            console.log('\n\n-------------------')
 //            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
             if (cmd.cmd === undefined) { //  not a constructor
@@ -214,8 +214,8 @@ function handler(msg) {
             } else { // processing a constructor           
                 /*
                 if (cmd.cmd !== 'heartbeat') {
-                    console.log('glow', data, data.length);
-                    console.log('JSON ' + JSON.stringify(data));
+                    console.log('glow', data, data.length)
+                    console.log('JSON ' + JSON.stringify(data))
                 }
                 */
                 //assembling cfg
@@ -224,21 +224,21 @@ function handler(msg) {
                 if (cmd.attrs !== undefined) {
                      vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
                              'background', 'ambient', 'linecolor', 'dot_color', 'trail_color',
-                             'origin', 'normal', 'bumpaxis','texpos'];
+                             'origin', 'normal', 'bumpaxis','texpos']
                     if ((cmd.cmd != 'gcurve') && ( cmd.cmd != 'gdots' ) ) {
                         vlst.push( 'size' )
                     }
 
-                    len2 = cmd.attrs.length;
-                    cfg = {};
-                    objects = [];
+                    len2 = cmd.attrs.length
+                    cfg = {}
+                    objects = []
                     for (j = 0; j < len2; j++) {
-                        attr = cmd.attrs.shift();
+                        attr = cmd.attrs.shift()
                         if (attr.attr === "size") {
                             if ( (cmd.cmd == 'gcurve') || ( cmd.cmd == 'gdots' ) ) {
-                                cfg[attr.attr] = attr.value;   // size is a scalar
+                                cfg[attr.attr] = attr.value   // size is a scalar
                             } else {
-                               cfg[attr.attr] = o2vec3(attr.value);
+                               cfg[attr.attr] = o2vec3(attr.value)
                             }                            
                         } else if (attr.attr ==='pos' && (cmd.cmd === 'curve' || cmd.cmd === 'points')) {
                             var ptlist = []
@@ -247,24 +247,24 @@ function handler(msg) {
                             }
                             cfg[attr.attr] = ptlist                          
                         } else if (attr.attr === "axis" && cmd.cmd == 'arrow') {
-                            cfg['axis_and_length'] = o2vec3(attr.value);
+                            cfg['axis_and_length'] = o2vec3(attr.value)
                         } else if (vlst.indexOf(attr.attr) !== -1) {
-                            cfg[attr.attr] = o2vec3(attr.value);
+                            cfg[attr.attr] = o2vec3(attr.value)
                         } else if (triangle_quad.indexOf(attr.attr) !== -1) {
                             cfg[attr.attr] = glowObjs[attr.value]
                         } else if (attr.attr === "canvas" ) {
-                            cfg[attr.attr] = glowObjs[attr.value];
+                            cfg[attr.attr] = glowObjs[attr.value]
                         } else if (attr.attr === "graph" ) {
-                            cfg[attr.attr] = glowObjs[attr.value];
+                            cfg[attr.attr] = glowObjs[attr.value]
                         } else if (attr.attr === "obj_idxs") {
-                            len4 = attr.value.length;
+                            len4 = attr.value.length
                             if (len4 > 0) {
                                 for (k = 0; k < len4; k++) {
-                                    objects[k] = glowObjs[attr.value[k]];
+                                    objects[k] = glowObjs[attr.value[k]]
                                 }
                             }
                         } else {
-                            cfg[attr.attr] = attr.value;
+                            cfg[attr.attr] = attr.value
                             // console.log(attr.attr, attr.value)
                         }
                     }
@@ -272,21 +272,21 @@ function handler(msg) {
                     if (cmd.idx !== undefined) {
                         cfg.idx = cmd.idx
                         if (cmd.cmd === 'box') {
-                            glowObjs[cmd.idx] = box(cfg);
+                            glowObjs[cmd.idx] = box(cfg)
                         } else if (cmd.cmd === 'sphere') {
-                            glowObjs[cmd.idx] = sphere(cfg);
+                            glowObjs[cmd.idx] = sphere(cfg)
                         } else if (cmd.cmd === 'arrow') {
-                            glowObjs[cmd.idx] = arrow(cfg);
+                            glowObjs[cmd.idx] = arrow(cfg)
                         } else if (cmd.cmd === 'cone') {
-                            glowObjs[cmd.idx] = cone(cfg);
+                            glowObjs[cmd.idx] = cone(cfg)
                         } else if (cmd.cmd === 'cylinder') {
-                            glowObjs[cmd.idx] = cylinder(cfg);
+                            glowObjs[cmd.idx] = cylinder(cfg)
                         } else if (cmd.cmd === 'helix') {
-                            glowObjs[cmd.idx] = helix(cfg);
+                            glowObjs[cmd.idx] = helix(cfg)
                         } else if (cmd.cmd === 'pyramid') {
-                            glowObjs[cmd.idx] = pyramid(cfg);
+                            glowObjs[cmd.idx] = pyramid(cfg)
                         } else if (cmd.cmd === 'ring') {
-                            glowObjs[cmd.idx] = ring(cfg);
+                            glowObjs[cmd.idx] = ring(cfg)
 						} else if  (cmd.cmd === 'gcurve') {
                             delete cfg.idx // currently gcurve give an error for non-fundamental arguments
 							glowObjs[cmd.idx] = gcurve(cfg)
@@ -301,41 +301,42 @@ function handler(msg) {
 							glowObjs[cmd.idx] = ghbars(cfg)
                         } else if (cmd.cmd == 'graph') {
                             delete cfg.idx // currently graph give an error for non-fundamental arguments
+                            console.log('graph', cfg)
                             glowObjs[cmd.idx] = vp_graph(cfg)
                             //glowObjs[cmd.idx]['idx'] = cmd.idx // should handle this in a more principled way
                         } else if (cmd.cmd === 'curve') {
-                            glowObjs[cmd.idx] = curve(cfg);
+                            glowObjs[cmd.idx] = curve(cfg)
                             glowObjs[cmd.idx]['idx'] = cmd.idx // should handle this in a more principled way
                         } else if (cmd.cmd === 'points') {
-                            glowObjs[cmd.idx] = points(cfg);
+                            glowObjs[cmd.idx] = points(cfg)
                             glowObjs[cmd.idx]['idx'] = cmd.idx // should handle this in a more principled way
                         } else if (cmd.cmd === 'vertex') {
-                            glowObjs[cmd.idx] = vertex(cfg);
+                            glowObjs[cmd.idx] = vertex(cfg)
                         } else if (cmd.cmd === 'triangle') {
-                            glowObjs[cmd.idx] = triangle(cfg);
+                            glowObjs[cmd.idx] = triangle(cfg)
                         } else if (cmd.cmd === 'quad') {
-                            glowObjs[cmd.idx] = quad(cfg);
+                            glowObjs[cmd.idx] = quad(cfg)
                         } else if (cmd.cmd === 'push') {
-                            glowObjs[cmd.idx].push(cfg);
+                            glowObjs[cmd.idx].push(cfg)
                         } else if (cmd.cmd === 'label') {
-                            glowObjs[cmd.idx] = label(cfg);
+                            glowObjs[cmd.idx] = label(cfg)
                         } else if (cmd.cmd === 'ellipsoid') {
-                            glowObjs[cmd.idx] = sphere(cfg);
+                            glowObjs[cmd.idx] = sphere(cfg)
                         } else if (cmd.cmd === 'lights') {
-                            glowObjs[cmd.idx] = lights(cfg);
+                            glowObjs[cmd.idx] = lights(cfg)
                         } else if (cmd.cmd === 'rotate') {
-                            glowObjs[cmd.idx].rotate(cfg);
+                            glowObjs[cmd.idx].rotate(cfg)
                         } else if (cmd.cmd === 'local_light') {
-                            glowObjs[cmd.idx] = local_light(cfg);
+                            glowObjs[cmd.idx] = local_light(cfg)
                         } else if (cmd.cmd === 'distant_light') {
-                            glowObjs[cmd.idx] = distant_light(cfg);
+                            glowObjs[cmd.idx] = distant_light(cfg)
                         } else if (cmd.cmd === 'compound') {
-                            glowObjs[cmd.idx] = compound(objects, cfg);
+                            glowObjs[cmd.idx] = compound(objects, cfg)
                         } else if (cmd.cmd === 'canvas') {
-                            glowObjs[cmd.idx] = canvas(cfg);
+                            glowObjs[cmd.idx] = canvas(cfg)
                             glowObjs[cmd.idx]['idx'] = cmd.idx
                                 // Display frames per second and render time:
-                                //$("<div id='fps'/>").appendTo(glowObjs[cmd.idx].title);
+                                //$("<div id='fps'/>").appendTo(glowObjs[cmd.idx].title)
                         } else if (cmd.cmd === 'attach_arrow') {
                             var obj = glowObjs[cfg['_obj']]
                             delete cfg['_obj']
@@ -351,50 +352,50 @@ function handler(msg) {
                             delete cfg['_obj'] 
                             glowObjs[cmd.idx] = attach_trail(obj, cfg) 
                         } else {
-                            console.log("Unrecognized Object");
+                            console.log("Unrecognized Object")
                         }
                     } else {
-                        console.log("Unable to create object, idx attribute is not provided");
+                        console.log("Unable to create object, idx attribute is not provided")
                     }
                 }
                 if (cmd.cmd === 'redisplay') {
-                    var c = document.getElementById(cmd.sceneId);
+                    var c = document.getElementById(cmd.sceneId)
                     if (c !== null) {
-                        var scn = "#" + cmd.sceneId;
-                        glowObjs[cmd.idx].sceneclone = $(scn).clone(true,true);
-                        //document.getElementById('glowscript2').appendChild(c);
-                        //document.getElementById('glowscript2').replaceWith(c);
-                        $('#glowscript2').replaceWith(c);
-                        c = document.getElementById(cmd.sceneId);
-                        var cont = scn + " .glowscript";
-                        window.__context = { glowscript_container:    $(cont) };
+                        var scn = "#" + cmd.sceneId
+                        glowObjs[cmd.idx].sceneclone = $(scn).clone(true,true)
+                        //document.getElementById('glowscript2').appendChild(c)
+                        //document.getElementById('glowscript2').replaceWith(c)
+                        $('#glowscript2').replaceWith(c)
+                        c = document.getElementById(cmd.sceneId)
+                        var cont = scn + " .glowscript"
+                        window.__context = { glowscript_container:    $(cont) }
                     } else {
-                        window.__context = { glowscript_container: $("#glowscript").removeAttr("id") };                    
-                        var newcnvs = canvas();
+                        window.__context = { glowscript_container: $("#glowscript").removeAttr("id") }                    
+                        var newcnvs = canvas()
                         for (var obj in glowObjs[cmd.idx].objects) {
-                            var o = glowObjs[cmd.idx].objects[obj];
+                            var o = glowObjs[cmd.idx].objects[obj]
                             if ((o.constructor.name !== 'curve') && (o.constructor.name !== 'points')) {
-                                glowObjs[o.gidx] = o.clone({canvas: newcnvs});
-                                var olen = newcnvs.objects.length;
+                                glowObjs[o.gidx] = o.clone({canvas: newcnvs})
+                                var olen = newcnvs.objects.length
                                 if (olen > 0) {
-                                    newcnvs.objects[olen - 1].gidx = o.gidx;
+                                    newcnvs.objects[olen - 1].gidx = o.gidx
                                 }
                             }
                         }
-                        glowObjs[cmd.idx] = newcnvs;
-                        $("#glowscript2").attr("id",cmd.sceneId);
+                        glowObjs[cmd.idx] = newcnvs
+                        $("#glowscript2").attr("id",cmd.sceneId)
                     }
                 } else if (cmd.cmd === 'delete') {
-                    b = glowObjs[cmd.idx];
-                    //console.log("delete : ",cmd.idx);
+                    b = glowObjs[cmd.idx]
+                    //console.log("delete : ",cmd.idx)
                     if ((b !== null) || (b.visible !== undefined)) {
-                        b.visible = false;
+                        b.visible = false
                     }
-                    glowObjs[cmd.idx] = null;
+                    glowObjs[cmd.idx] = null
                 } else if (cmd.cmd === 'heartbeat') {
-                    //console.log("heartbeat");
+                    //console.log("heartbeat")
                 } else if (cmd.cmd === 'debug') {
-                    console.log("debug : ", cmd);
+                    console.log("debug : ", cmd)
                 }
             }
         }
