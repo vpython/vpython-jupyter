@@ -529,7 +529,7 @@ class standardAttributes(baseObj):
                  'label':[['pos', 'color', 'background', 'linecolor'],  
                          [],
                          ['visible', 'text', 'xoffset', 'yoffset', 'font', 'height', 'opacity', 
-                           'border', 'line', 'box', 'space'],
+                           'border', 'line', 'box', 'space', 'align', 'linewidth', 'pixel_pos'],
                          []],
                  'local_light':[['pos', 'color'],  
                          [],
@@ -2156,17 +2156,20 @@ class label(standardAttributes):
     def __init__(self, **args):
         args['_objName'] = 'label'
         args['_default_size'] = None
-        self._xoffset = 20
-        self._yoffset = 12
+        self._xoffset = 0
+        self._yoffset = 0
         self._text = " "
         self._font = "sans"
         self._height = 13
-        self._background = vector(0,0,0)
+        self._background = None
         self._border = 5
+        self._align = None
         self._box = True
         self._line = True
-        self._linecolor = vector(1,1,1)
+        self._linecolor = None
+        self._linewidth = 1
         self._space = 0
+        self._pixel_pos = False
         
         super(label, self).setup(args)
             
@@ -2196,6 +2199,15 @@ class label(standardAttributes):
         self._text = print_to_string(value)
         if not self._constructing:
             self.addattr('text')
+
+    @property
+    def align(self):
+        return self._align
+    @align.setter
+    def align(self,value):
+        self._align = value
+        if not self._constructing:
+            self.addattr('align')
 
     @property
     def font(self):
@@ -2255,6 +2267,15 @@ class label(standardAttributes):
             self.addattr('line')
 
     @property
+    def linewidth(self):
+        return self._linewidth
+    @linewidth.setter
+    def linewidth(self,value):
+        self._linewidth = value
+        if not self._constructing:
+            self.addattr('linewidth')
+
+    @property
     def linecolor(self):
         return self._linecolor
     @linecolor.setter
@@ -2273,7 +2294,16 @@ class label(standardAttributes):
     def space(self,value):
         self._space = value
         if not self._constructing:
-            self.addattr('space')    
+            self.addattr('space')
+
+    @property
+    def pixel_pos(self):
+        return self._pixel_pos
+    @pixel_pos.setter
+    def pixel_pos(self,value):
+        self._pixel_pos = value
+        if not self._constructing:
+            self.addattr('pixel_pos')  
 
              
 class frame(object):
