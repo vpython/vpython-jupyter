@@ -552,11 +552,11 @@ class standardAttributes(baseObj):
                  'triangle': [ [],
                         [],
                         ['texture', 'bumpmap', 'visible', 'pickable'],
-                        ['v0', 'v1', 'v2'] ],
+                        ['vs', 'v0', 'v1', 'v2'] ],
                  'quad': [ [],
                         [],
                         ['texture', 'bumpmap', 'visible', 'pickable'],
-                        ['v0', 'v1', 'v2', 'v3'] ],
+                        ['vs', 'v0', 'v1', 'v2', 'v3'] ],
                  'attach_arrow': [ [ 'color'],
                         [],
                         ['shaftwidth','scale', '_obj', '_attr'],
@@ -658,13 +658,14 @@ class standardAttributes(baseObj):
 
         scalarInteractions={'red':'color', 'green':'color', 'blue':'color', 'radius':'size', 'thickness':'size',
                                 'length':'size', 'height':'size', 'width':'size', 'v0':'v0', 'v1':'v1',
-                                'v2':'v2', 'v3':'v3'}
+                                'v2':'v2', 'v3':'v3', 'vs':'vs'}
     
     # override defaults for scalar attributes with side effects       
         attrs = standardAttributes.attrLists[objName][3]
         for a in attrs:
             if a in args:
                 setattr(self, a, args[a])  ## use setter to take care of side effects
+                # vs sets individual v0, v1, v2 for triangle, plus v3 for quad
                 if scalarInteractions[a] not in argsToSend:
                     argsToSend.append(scalarInteractions[a])  # e.g. if a is radius, send size
                 del args[a]                
@@ -1512,6 +1513,21 @@ class triangle(standardAttributes):
             self.addattr('v2')
         self._v2 = value
         self._v2.triangleCount = 1
+        
+    @property
+    def vs(self):
+        return [self._v0, self._v1, self._v2]
+    @vs.setter
+    def vs(self, value):
+        if not isinstance(value, list) or len(value) != 3:
+            raise AttributeError('A triangle must be a list of 3 vertex objects.') 
+        for i in range(3):
+            if not isinstance(value[i], vertex):
+                raise AttributeError('triangle.vs must contain vertex objects.')
+            val = value[i]
+            if i == 0: self.v0 = val
+            elif i == 1: self.v1 = val
+            elif i == 2: self.v2 = val
 
 class quad(triangle):
     def __init__(self, **args):
@@ -1540,7 +1556,22 @@ class quad(triangle):
             self.addattr('v3')
         self._v3 = value
         self._v3.triangleCount = 1
-
+        
+    @property
+    def vs(self):
+        return [self._v0, self._v1, self._v2, self._v3]
+    @vs.setter
+    def vs(self, value):
+        if not isinstance(value, list) or len(value) != 4:
+            raise AttributeError('A quad must be a list of 4 vertex objects.') 
+        for i in range(4):
+            if not isinstance(value[i], vertex):
+                raise AttributeError('quad.vs must contain vertex objects.')
+            val = value[i]
+            if i == 0: self.v0 = val
+            elif i == 1: self.v1 = val
+            elif i == 2: self.v2 = val
+            elif i == 4: self.v3 = val
     
 class curveMethods(standardAttributes):
     def curveSetup(self, *args1, **args):
