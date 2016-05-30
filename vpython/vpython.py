@@ -552,11 +552,11 @@ class standardAttributes(baseObj):
                  'triangle': [ [],
                         [],
                         ['texture', 'bumpmap', 'visible', 'pickable'],
-                        ['vs', 'v0', 'v1', 'v2'] ],
+                        ['v0', 'v1', 'v2'] ],
                  'quad': [ [],
                         [],
                         ['texture', 'bumpmap', 'visible', 'pickable'],
-                        ['vs', 'v0', 'v1', 'v2', 'v3'] ],
+                        ['v0', 'v1', 'v2', 'v3'] ],
                  'attach_arrow': [ [ 'color'],
                         [],
                         ['shaftwidth','scale', '_obj', '_attr'],
@@ -658,14 +658,13 @@ class standardAttributes(baseObj):
 
         scalarInteractions={'red':'color', 'green':'color', 'blue':'color', 'radius':'size', 'thickness':'size',
                                 'length':'size', 'height':'size', 'width':'size', 'v0':'v0', 'v1':'v1',
-                                'v2':'v2', 'v3':'v3', 'vs':'vs'}
+                                'v2':'v2', 'v3':'v3'}
     
     # override defaults for scalar attributes with side effects       
         attrs = standardAttributes.attrLists[objName][3]
         for a in attrs:
             if a in args:
                 setattr(self, a, args[a])  ## use setter to take care of side effects
-                # vs sets individual v0, v1, v2 for triangle, plus v3 for quad
                 if scalarInteractions[a] not in argsToSend:
                     argsToSend.append(scalarInteractions[a])  # e.g. if a is radius, send size
                 del args[a]                
@@ -1397,7 +1396,13 @@ class compound(standardAttributes):
         return self._pos+(v.x*x_axis) + (v.y*y_axis) + (v.z*z_axis)
         
 class vertex(standardAttributes):   
-    def __init__(self, **args):
+    def __init__(self, **args):    
+        if 'canvas' in args:
+            cv = args['canvas']
+        else:
+            cv = canvas.get_selected()
+        if cv.vertexCount > canvas.maxVertices-1:
+            raise ValueError('too many vertex objects in use for this canvas')        
         args['_default_size'] = None
         args['_objName'] = "vertex"
         self._triangleCount = 0
@@ -1405,23 +1410,23 @@ class vertex(standardAttributes):
         self._bumpaxis = vector(1,0,0)
         self._texpos = vector(0,0,0)
         super(vertex, self).setup(args)
-      
+              
     @property
     def triangleCount(self):
-        return self._triangleCount
+        return self._triangleCount       
     @triangleCount.setter
     def triangleCount(self, val):
-        tc = self._triangleCount
-        if self._triangleCount + val < 0:
-            raise ValueError('value too large')
-        else:
-            self._triangleCount += val
-        if tc == 0 and self._triangleCount == 1:
-            self.canvas.vertexCount += 1
-            if self.canvas.vertexCount > canvas.maxVertices:
-                raise ValueError('too many vertex objects in use for this canvas')
-        if tc == 1 and self._triangleCount == 0:
-            self.canvas.vertexCount -= 1
+        raise AttributeError('use decrementTriangleCount or incrementTriangleCount')
+            
+    def decrementTriangleCount(self):
+        if self._triangleCount <= 0:
+            raise ValueError('triangleCount is already 0')
+        self._triangleCount -= 1
+
+    def incrementTriangleCount(self):
+        self._triangleCount += 1
+        
+            
                         
     @property
     def normal(self):
@@ -1472,25 +1477,29 @@ class triangle(standardAttributes):
         self._v0 = None
         self._v1 = None
         self._v2 = None
+        if 'vs' in args:
+            vlist = ['v0', 'v1', 'v2']
+            for i,val in enumerate(args['vs']):
+                args[vlist[i]] = val
+            del args['vs']        
         super(triangle, self).setup(args)
         
     def __del__(self):
-        self._v0.triangleCount = -1
-        self._v1.triangleCount = -1
-        self._v2.triangleCount = -1
+        self._v0.decrementTriangleCount()
+        self._v1.decrementTriangleCount()
+        self._v2.decrementTriangleCount()
         super(triangle, self).__del__()
-        
-        
+                
     @property
     def v0(self):
         return self._v0
     @v0.setter
-    def v0(self, value):
+    def v0(self, value):    
         if not self._constructing:
-            self._v0.triangleCount = -1
+            self._v0.decrementTriangleCount()  ## current v0 now used less
             self.addattr('v0')
         self._v0 = value
-        self._v0.triangleCount = 1
+        self._v0.incrementTriangleCount()   ## new v0 now used more
         
     @property
     def v1(self):
@@ -1498,10 +1507,10 @@ class triangle(standardAttributes):
     @v1.setter
     def v1(self, value):
         if not self._constructing:
-            self._v1.triangleCount = -1
+            self._v1.decrementTriangleCount()  ## current v1 now used less
             self.addattr('v1')
         self._v1 = value
-        self._v1.triangleCount = 1
+        self._v1.incrementTriangleCount()   ## new v1 now used more
         
     @property
     def v2(self):
@@ -1509,11 +1518,11 @@ class triangle(standardAttributes):
     @v2.setter
     def v2(self, value):
         if not self._constructing:
-            self._v2.triangleCount = -1
+            self._v2.decrementTriangleCount()  ## current v2 now used less
             self.addattr('v2')
         self._v2 = value
-        self._v2.triangleCount = 1
-        
+        self._v2.incrementTriangleCount()   ## new v2 now used more
+       
     @property
     def vs(self):
         return [self._v0, self._v1, self._v2]
@@ -1522,8 +1531,8 @@ class triangle(standardAttributes):
         if not isinstance(value, list) or len(value) != 3:
             raise AttributeError('A triangle must be a list of 3 vertex objects.') 
         for i in range(3):
-            if not isinstance(value[i], vertex):
-                raise AttributeError('triangle.vs must contain vertex objects.')
+            # if not isinstance(value[i], vertex):
+                # raise AttributeError('triangle.vs must contain vertex objects.')
             val = value[i]
             if i == 0: self.v0 = val
             elif i == 1: self.v1 = val
@@ -1537,13 +1546,18 @@ class quad(triangle):
         self._v1 = None
         self._v2 = None
         self._v3 = None
+        if 'vs' in args:
+            vlist = ['v0', 'v1', 'v2', 'v3']
+            for i,val in enumerate(args['vs']):
+                args[vlist[i]] = val
+            del args['vs']  
         super(quad, self).setup(args)
         
     def __del__(self):
-        self._v0.triangleCount = -1
-        self._v1.triangleCount = -1
-        self._v2.triangleCount = -1
-        self._v3.triangleCount = -1
+        self._v0.decrementTriangleCount()
+        self._v1.decrementTriangleCount()
+        self._v2.decrementTriangleCount()
+        self._v3.decrementTriangleCount()
         super(triangle, self).__del__()
         
     @property
@@ -1552,10 +1566,10 @@ class quad(triangle):
     @v3.setter
     def v3(self, value):
         if not self._constructing:
-            self._v3.triangleCount = -1
+            self._v3.decrementTriangleCount()  ## current v3 now used less
             self.addattr('v3')
         self._v3 = value
-        self._v3.triangleCount = 1
+        self._v3.incrementTriangleCount()   ## new v3 now used more
         
     @property
     def vs(self):
@@ -1565,8 +1579,8 @@ class quad(triangle):
         if not isinstance(value, list) or len(value) != 4:
             raise AttributeError('A quad must be a list of 4 vertex objects.') 
         for i in range(4):
-            if not isinstance(value[i], vertex):
-                raise AttributeError('quad.vs must contain vertex objects.')
+            # if not isinstance(value[i], vertex):
+                # raise AttributeError('quad.vs must contain vertex objects.')
             val = value[i]
             if i == 0: self.v0 = val
             elif i == 1: self.v1 = val
