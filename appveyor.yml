@@ -73,12 +73,13 @@ test_script:
     - deactivate
 
 on_success:
-    - echo %APPVEYOR_REPO_TAG%
+    - set upload_builds=
+    - if "%APPVEYOR_REPO_BRANCH%"=="master" if "%APPVEYOR_REPO_TAG%"=="true" set upload_builds=1
     # Write the output file location to a file...
     - conda build --output vpython.recipe > to_upload.txt
     # ...so that we can set a variable to the name of that output file.
     - set /P BUILT_PACKAGE=<to_upload.txt
-    # If this build is because of a tag make the conda package and upload it.
-    - cmd: if "%APPVEYOR_REPO_TAG%"=="true" anaconda -t %BINSTAR_TOKEN% upload -u vpython %BUILT_PACKAGE%
+    # If this build is because of a tag on master make the conda package and upload it.
+    - cmd: if defined upload_builds anaconda -t %BINSTAR_TOKEN% upload -u vpython %BUILT_PACKAGE%
     - cmd: pip install twine
-    - cmd: if "%APPVEYOR_REPO_TAG%"=="true" twine upload -u %PYPI_USER% -p %PYPI_PASSWORD% dist\*
+    - cmd: if defined upload_builds twine upload -u %PYPI_USER% -p %PYPI_PASSWORD% dist\*
