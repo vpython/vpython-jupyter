@@ -8,8 +8,13 @@ environment:
   CMD_IN_ENV: cmd /E:ON /V:ON /C Obvious-CI\scripts\obvci_appveyor_python_build_env.cmd
 
   BINSTAR_TOKEN:
-    secure: 0
+    secure: eSsu75dpqknmh2NnrfPASDSvzojBRSyoyW9ZdF5VauukhWxmYHbW8E5UE2ZmYnxT
 
+  PYPI_PASSWORD:
+    secure: Xtu8c7MEUwNUJN08oehTSQ==
+
+  PYPI_USER:
+    secure: hSkBSpb86gg/J+PxsYWbeg==
   matrix:
     # Unfortunately, compiler/SDK configuration for 64 bit builds depends on
     # python version. Right now conda build does not configure the SDK, and
@@ -17,13 +22,13 @@ environment:
     # versions.
     - TARGET_ARCH: "x64"
       PYTHON_BUILD_RESTRICTIONS: "2.7*"
-      CONDA_PY: "27"
+      CONDA_PY: "2.7"
     - TARGET_ARCH: "x64"
       PYTHON_BUILD_RESTRICTIONS: "3.4*"
-      CONDA_PY: "34"
+      CONDA_PY: "3.4"
     - TARGET_ARCH: "x64"
       PYTHON_BUILD_RESTRICTIONS: "3.5*"
-      CONDA_PY: "35"
+      CONDA_PY: "3.5"
     # For 32 bit builds there are no compiler issues, let Obvious-CI
     # handle the matrix.
     # - TARGET_ARCH: "x86"
@@ -51,21 +56,30 @@ install:
     - cmd: conda install --quiet wheel
 
     # These installs are needed on windows but not other platforms.
-    - cmd: conda install patch psutil
+    - cmd: conda install --quiet patch psutil
+
+    - conda create --quiet -n wheel-build python=%CONDA_PY% wheel cython
 
 # Skip .NET project specific build phase.
 build: off
 
 test_script:
     # Not much of a real test yet, just try to build myself...
-    - "%CMD_IN_ENV% conda build vpython.recipe"
+    - "%CMD_IN_ENV% conda build --quiet vpython.recipe"
+    # ...and build a wheel, in the test environment so we have the right
+    # python version.
+    - activate wheel-build
+    - "%CMD_IN_ENV% python setup.py bdist_wheel"
+    - deactivate
 
 on_success:
-    - echo %APPVEYOR_REPO_TAG%
+    - set upload_builds=
+    - if "%APPVEYOR_REPO_BRANCH%"=="master" if "%APPVEYOR_REPO_TAG%"=="true" set upload_builds=1
     # Write the output file location to a file...
-    # Remove pipe to more once conda-build 1.20.3 is released.
-    - conda build --output vpython.recipe | more +2 > to_upload.txt
+    - conda build --output vpython.recipe > to_upload.txt
     # ...so that we can set a variable to the name of that output file.
     - set /P BUILT_PACKAGE=<to_upload.txt
-    # If this build is because of a tag make the conda package and upload it.
-    - cmd: if "%APPVEYOR_REPO_TAG%"=="true" anaconda -t %BINSTAR_TOKEN% upload -u vpython %BUILT_PACKAGE%
+    # If this build is because of a tag on master make the conda package and upload it.
+    - cmd: if defined upload_builds anaconda -t %BINSTAR_TOKEN% upload -u vpython %BUILT_PACKAGE%
+    - cmd: pip install twine
+    - cmd: if defined upload_builds twine upload -u %PYPI_USER% -p %PYPI_PASSWORD% dist\*
