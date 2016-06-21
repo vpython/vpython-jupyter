@@ -32,6 +32,8 @@ import weakref
 import zlib
 import base64
 
+from . import __version__, __gs_version__
+
 import json
 ultrajson = False
 
@@ -48,8 +50,8 @@ ultrajson = False
 
 import platform
 
-version = ['0.3.11', 'jupyter']
-GSversion = ['2.1', 'glowscript']
+version = [__version__, 'jupyter']
+GSversion = [__gs_version__, 'glowscript']
 
 def send_base64_zipped_json(comm, req, level=zlib.Z_BEST_SPEED):
     """json encode req, and zip the json before sending it as base64 encoded string"""
