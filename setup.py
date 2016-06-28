@@ -9,10 +9,13 @@ except ImportError:
 
 from Cython.Build import cythonize
 
+import versioneer
+
 setup(
     name='vpython',
     packages=['vpython'],
-    version='0.3.8',
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     description='VPython for Jupyter Notebook',
     long_description=open('README.md').read(),
     author='John Coady / Ruth Chabay / Bruce Sherwood / Steve Spicklemire',
