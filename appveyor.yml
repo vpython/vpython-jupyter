@@ -74,7 +74,7 @@ test_script:
 
 on_success:
     - set upload_builds=
-    - if "%APPVEYOR_REPO_BRANCH%"=="master" if "%APPVEYOR_REPO_TAG%"=="true" set upload_builds=1
+    - if "%APPVEYOR_REPO_TAG%"=="true" set upload_builds=1
     # Write the output file location to a file...
     - conda build --output vpython.recipe > to_upload.txt
     # ...so that we can set a variable to the name of that output file.

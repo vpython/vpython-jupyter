@@ -46,7 +46,7 @@ script:
 after_success:
     - echo $TRAVIS_TAG
     - git branch --contains $TRAVIS_TAG
-    - if [[ "$TRAVIS_TAG" && -n "$(git branch --contains $TRAVIS_TAG | grep '^[\* ] master$' -l)" ]]; then upload_build="true"; else upload_build=; fi
+    - if [[ "$TRAVIS_TAG" ]]; then upload_build="true"; else upload_build=; fi
     - echo $upload_build
     # Remove line below once conda-build 1.20.3 is released...
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
@@ -63,4 +63,3 @@ deploy:
     tags: true
     distributions: "sdist bdist_wheel"
     repo: BruceSherwood/vpython-jupyter
-    condition: $(git branch --contains $TRAVIS_TAG | grep -l '^[\* ] master$')
