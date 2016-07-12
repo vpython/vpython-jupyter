@@ -7,7 +7,14 @@ except ImportError:
     use_setuptools()
     from setuptools import setup
 
-from Cython.Build import cythonize
+from distutils.extension import Extension
+
+try:
+    from Cython.Build import cythonize
+    USE_CYTHON = True
+    extensions = cythonize('vpython/cyvector.pyx')
+except ImportError:
+    extensions = [Extension('vpython.cyvector', ['vpython/cyvector.c'])]
 
 import versioneer
 
@@ -34,7 +41,7 @@ setup(
           'Topic :: Multimedia :: Graphics :: 3D Rendering',
           'Topic :: Scientific/Engineering :: Visualization',
     ],
-    ext_modules = cythonize("vpython/cyvector.pyx"),
+    ext_modules=extensions,
     install_requires=['jupyter', 'vpnotebook'],
     package_data={'vpython': ['data/*']},
 )
