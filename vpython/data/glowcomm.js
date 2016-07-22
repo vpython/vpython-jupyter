@@ -133,14 +133,16 @@ function handler(msg) {
                                     if (glowObjs[cmd.idx] instanceof arrow) {
                                         glowObjs[cmd.idx]['axis_and_length'] = v
                                     } else {
-                                        glowObjs[cmd.idx][cmd.attr] = v
+                                        glowObjs[cmd.idx]['axis'] = v
                                         glowObjs[cmd.idx]['size'].x = mag(v)
                                     }
                                 } else if (cmd.attr === 'size') {
-                                    glowObjs[cmd.idx][cmd.attr] = v
-                                    glowObjs[cmd.idx]['axis'] = norm(glowObjs[cmd.idx]['axis']).multiply(v.x)
-                                } else {
-                                    glowObjs[cmd.idx][cmd.attr] = v
+                                    if (glowObjs[cmd.idx] instanceof arrow) {
+                                        glowObjs[cmd.idx]['axis_and_length'] = norm(glowObjs[cmd.idx]['axis_and_length']).multiply(v.x)
+                                    } else {
+                                        glowObjs[cmd.idx]['size'] = v
+                                        glowObjs[cmd.idx]['axis'] = norm(glowObjs[cmd.idx]['axis']).multiply(v.x)
+                                    }
                                 }
                             }
                         } else {
