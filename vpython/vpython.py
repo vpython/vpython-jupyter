@@ -347,13 +347,15 @@ def commsend():
             if L > 0:
                 if not rate.active:
                     L = L if (L <= baseObj.qSize) else baseObj.qSize
-                    send_base64_zipped_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
+                    baseObj.glow.comm.send(commcmds[:])
+                    #send_base64_zipped_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
                     prev_sz = 0
 
                 else:        
                     rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
-                    z64 = convert_base64_zipped_json(commcmds[:L])
-                    glowqueue.append(dict(zipped = z64))
+                    #z64 = convert_base64_zipped_json(commcmds[:L])
+                    #glowqueue.append(dict(zipped = z64))
+                    glowqueue.append(commcmds[:L])
                     rate.send = True
                     prev_sz = 0
                         
@@ -2221,8 +2223,10 @@ class label(standardAttributes):
     @text.setter
     def text(self,value):
         self._text = print_to_string(value)
+        #if not self._constructing:
+        #    self.addattr('text')
         if not self._constructing:
-            self.addattr('text')
+            self.appendcmd({"val":value,"attr":"text","idx":self.idx})
 
     @property
     def align(self):
@@ -2576,7 +2580,9 @@ class canvas(baseObj):
     @title.setter
     def title(self,value):
         self._title = value
-        self.addmethod('title',value)
+        #self.addmethod('title',value)
+        if not self._constructing:
+            self.appendcmd({"val":value,"attr":"title","idx":self.idx})
 
     @property
     def caption(self):
@@ -2584,7 +2590,9 @@ class canvas(baseObj):
     @caption.setter
     def caption(self,value):
         self._caption = value
-        self.addmethod('caption', value)
+        #self.addmethod('caption', value)
+        if not self._constructing:
+            self.appendcmd({"val":value,"attr":"caption","idx":self.idx})
             
     def append_to_title(self, *args):
         t = print_to_string(*args)
