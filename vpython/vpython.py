@@ -347,15 +347,13 @@ def commsend():
             if L > 0:
                 if not rate.active:
                     L = L if (L <= baseObj.qSize) else baseObj.qSize
-                    baseObj.glow.comm.send(commcmds[:])
-                    #send_base64_zipped_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
+                    send_base64_zipped_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
                     prev_sz = 0
 
                 else:        
                     rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
-                    #z64 = convert_base64_zipped_json(commcmds[:L])
-                    #glowqueue.append(dict(zipped = z64))
-                    glowqueue.append(commcmds[:L])
+                    z64 = convert_base64_zipped_json(commcmds[:L])
+                    glowqueue.append(dict(zipped = z64))
                     rate.send = True
                     prev_sz = 0
                         
