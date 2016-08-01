@@ -13,6 +13,7 @@ def glowscript_version():
     for f in files:
         if f[:5] == 'glow.':
             gs_version = f[5:8]
+            break
 
     if gs_version is None:
         raise RuntimeError("Could not determine glowscript version.")

@@ -34,15 +34,7 @@ import base64
 
 from . import __version__, __gs_version__
 
-import json
-ultrajson = False
-
-# try:
-    # import ujson
-    # ultrajson = True
-# except ImportError:
-    # import json
-    # ultrajson = False
+import json # ultrajson was tried but did not provide adequate floating-point accuracy
 
 # To print immediately, do this:
 #    print(.....)
@@ -54,27 +46,12 @@ version = [__version__, 'jupyter']
 GSversion = [__gs_version__, 'glowscript']
 
 def send_base64_zipped_json(comm, req, level=zlib.Z_BEST_SPEED):
-    """json encode req, and zip the json before sending it as base64 encoded string"""
-    if ultrajson:
-        json_str = ujson.dumps(req, ensure_ascii=False, double_precision=17)
-    else:
-        json_str = json.dumps(req, ensure_ascii=False)
-    z = None
-    if (sys.version_info > (3, 0)):
-        # Python 3.4 and above code in this block
-        z = zlib.compress(json_str.encode('utf-8'),level)
-    else:
-        # Python 2 code in this block
-        z = zlib.compress(json_str,level)
-    z64 = base64.b64encode(z)
+    z64 = convert_base64_zipped_json(req, level=zlib.Z_BEST_SPEED)
     return comm.send(dict(zipped = z64))
 
 def convert_base64_zipped_json(req, level=zlib.Z_BEST_SPEED):
     """json encode req, and zip the json before sending it as base64 encoded string"""
-    if ultrajson:
-        json_str = ujson.dumps(req, ensure_ascii=False, double_precision=17)
-    else:
-        json_str = json.dumps(req, ensure_ascii=False)
+    json_str = json.dumps(req, ensure_ascii=False)
     z = None
     if (sys.version_info > (3, 0)):
         # Python 3.4 and above code in this block
