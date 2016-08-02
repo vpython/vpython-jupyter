@@ -133,16 +133,14 @@ function handler(msg) {
                                     if (glowObjs[cmd.idx] instanceof arrow) {
                                         glowObjs[cmd.idx]['axis_and_length'] = v
                                     } else {
-                                        glowObjs[cmd.idx]['axis'] = v
+                                        glowObjs[cmd.idx][cmd.attr] = v
                                         glowObjs[cmd.idx]['size'].x = mag(v)
                                     }
                                 } else if (cmd.attr === 'size') {
-                                    if (glowObjs[cmd.idx] instanceof arrow) {
-                                        glowObjs[cmd.idx]['axis_and_length'] = norm(glowObjs[cmd.idx]['axis_and_length']).multiply(v.x)
-                                    } else {
-                                        glowObjs[cmd.idx]['size'] = v
-                                        glowObjs[cmd.idx]['axis'] = norm(glowObjs[cmd.idx]['axis']).multiply(v.x)
-                                    }
+                                    glowObjs[cmd.idx][cmd.attr] = v
+                                    glowObjs[cmd.idx]['axis'] = norm(glowObjs[cmd.idx]['axis']).multiply(v.x)
+                                } else {
+                                    glowObjs[cmd.idx][cmd.attr] = v
                                 }
                             }
                         } else {
@@ -303,7 +301,6 @@ function handler(msg) {
 							glowObjs[cmd.idx] = ghbars(cfg)
                         } else if (cmd.cmd == 'graph') {
                             delete cfg.idx // currently graph give an error for non-fundamental arguments
-                            console.log('graph', cfg)
                             glowObjs[cmd.idx] = vp_graph(cfg)
                             //glowObjs[cmd.idx]['idx'] = cmd.idx // should handle this in a more principled way
                         } else if (cmd.cmd === 'curve') {
