@@ -727,7 +727,8 @@ class standardAttributes(baseObj):
         self._axis.value = self._axis.norm() * other.x
         self._size.value = other
         if not self._constructing:
-            self.addattr('size')                
+            self.addattr('axis')
+            self.addattr('size')
 
     @property
     def axis(self):
@@ -738,6 +739,7 @@ class standardAttributes(baseObj):
         self._size._x = other.mag
         if not self._constructing:
             self.addattr('axis')
+            self.addattr('size')
             
     @property
     def length(self): 
@@ -747,6 +749,7 @@ class standardAttributes(baseObj):
         self._axis = self._axis.norm() * value
         self._size._x = value
         if not self._constructing:
+            self.addattr('axis')
             self.addattr('size')
 
     @property
@@ -966,7 +969,7 @@ class standardAttributes(baseObj):
             Z = X.cross(Y)
             if Z.dot(Z) < 1e-10:
                 Y = vector(0,1,0)            
-        self.axis = axis.rotate(angle, rotaxis)          
+        self.axis = axis.rotate(angle, rotaxis)
         self.up = Y.rotate(angle, rotaxis)
 
     def _on_size_change(self):

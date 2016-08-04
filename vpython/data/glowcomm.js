@@ -129,16 +129,15 @@ function handler(msg) {
                                 glowObjs[cmd.idx][cmd.attr] = ptlist                                
                             } else {
                                 var v = o2vec3(cmd.val)
+                                // VPython interactions between axis and size are dealt with in vpython.py
                                 if (cmd.attr === 'axis') {
                                     if (glowObjs[cmd.idx] instanceof arrow) {
                                         glowObjs[cmd.idx]['axis_and_length'] = v
                                     } else {
                                         glowObjs[cmd.idx][cmd.attr] = v
-                                        glowObjs[cmd.idx]['size'].x = mag(v)
                                     }
                                 } else if (cmd.attr === 'size') {
                                     glowObjs[cmd.idx][cmd.attr] = v
-                                    glowObjs[cmd.idx]['axis'] = norm(glowObjs[cmd.idx]['axis']).multiply(v.x)
                                 } else {
                                     glowObjs[cmd.idx][cmd.attr] = v
                                 }
