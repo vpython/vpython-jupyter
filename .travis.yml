@@ -49,6 +49,7 @@ after_success:
     - if [[ "$TRAVIS_TAG" ]]; then upload_build="true"; else upload_build=; fi
     - echo $upload_build
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
+    - echo $CONDA_PACKAGE
     - export CONDA_PACKAGE=`from __future__ import print_function; from glob import glob; import os; from conda_build import config; pattern = os.path.join(config.config.bldpkgs_dir, 'vpython-*.tar.bz2'); print(glob(pattern)[0])"`
     - echo $CONDA_PACKAGE
     # If this build is because of a tag, upload the build if it succeeds.
