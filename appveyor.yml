@@ -76,7 +76,7 @@ test_script:
     - python -c "from __future__ import print_function; from glob import glob; import os; from conda_build import config; pattern = os.path.join(config.config.bldpkgs_dir, 'vpython-*.tar.bz2'); print(glob(pattern)[0])" > to_upload.txt
     - set /P BUILT_PACKAGE=<to_upload.txt
     - echo %BUILT_PACKAGE%
-    - if EXIST %BUILT_PACKAGE% exit /b 1
+    - if NOT EXIST %BUILT_PACKAGE% exit /b 1
     - activate wheel-build
     - "%CMD_IN_ENV% python setup.py bdist_wheel"
     - deactivate
