@@ -48,8 +48,9 @@ after_success:
     - git branch --contains $TRAVIS_TAG
     - if [[ "$TRAVIS_TAG" ]]; then upload_build="true"; else upload_build=; fi
     - echo $upload_build
-    # Remove line below once conda-build 1.20.3 is released...
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
+    - export CONDA_PACKAGE=`from __future__ import print_function; from glob import glob; import os; from conda_build import config; pattern = os.path.join(config.config.bldpkgs_dir, 'vpython-*.tar.bz2'); print(glob(pattern)[0])"`
+    - echo $CONDA_PACKAGE
     # If this build is because of a tag, upload the build if it succeeds.
     - if [ -n "$upload_build" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython $CONDA_PACKAGE; fi
 deploy:
