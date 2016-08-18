@@ -1,8 +1,8 @@
 # Configure appveyor for builds.
 
 environment:
-  # Appveyor machines come with miniconda already installed.
-  CONDA_INSTALL_LOCN: "C:\\Miniconda-x64"
+  # Install appropriate conda here based on TARGET_ARCH
+  CONDA_INSTALL_LOCN: "C:\\conda"
 
   # Need this to set up compilation on Windows.
   CMD_IN_ENV: cmd /E:ON /V:ON /C Obvious-CI\scripts\obvci_appveyor_python_build_env.cmd
@@ -21,18 +21,19 @@ environment:
     # the appveyor setup only sets up the SDK once, so separate by python
     # versions.
     - TARGET_ARCH: "x64"
-      PYTHON_BUILD_RESTRICTIONS: "2.7*"
-      CONDA_PY: "2.7"
+      CONDA_PY: "3.5"
     - TARGET_ARCH: "x64"
-      PYTHON_BUILD_RESTRICTIONS: "3.4*"
       CONDA_PY: "3.4"
     - TARGET_ARCH: "x64"
-      PYTHON_BUILD_RESTRICTIONS: "3.5*"
+      CONDA_PY: "2.7"
+
+    # 32-bit builds
+    - TARGET_ARCH: "x86"
       CONDA_PY: "3.5"
-    # For 32 bit builds there are no compiler issues, let Obvious-CI
-    # handle the matrix.
-    # - TARGET_ARCH: "x86"
-    #   PYTHON_BUILD_RESTRICTIONS: "2.7*|>=3.4"
+    - TARGET_ARCH: "x86"
+      CONDA_PY: "3.4"
+    - TARGET_ARCH: "x86"
+      CONDA_PY: "2.7"
 
 # We always use a 64-bit machine, but can build x86 distributions
 # with the TARGET_ARCH variable.
@@ -40,11 +41,12 @@ platform:
     - x64
 
 install:
-    # Clone simply to get the script for setting up Windows build environment.
+    # Clone  to get the script for setting up Windows build environment and the script for installing conda.
     - cmd: git clone https://github.com/pelson/Obvious-CI.git
 
-    # No need to install miniconda because appveyor comes with it.
-    - cmd: SET PATH=%CONDA_INSTALL_LOCN%;%CONDA_INSTALL_LOCN%\Scripts;%PATH%
+    - cmd: python Obvious-CI\bootstrap-obvious-ci-and-miniconda.py %CONDA_INSTALL_LOCN% %TARGET_ARCH% %CONDA_PY:~0,1% --without-obvci
+
+    - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
 
     # Gets us vpnotebook
     - cmd: conda config --add channels vpython
@@ -68,17 +70,20 @@ test_script:
     - "%CMD_IN_ENV% conda build --quiet vpython.recipe"
     # ...and build a wheel, in the test environment so we have the right
     # python version.
+    # Write the output file location to a file...
+    - conda build --output vpython.recipe > to_upload.txt
+    # ...so that we can set a variable to the name of that output file.
+    - set /P BUILT_PACKAGE=<to_upload.txt
+
     - activate wheel-build
     - "%CMD_IN_ENV% python setup.py bdist_wheel"
     - deactivate
 
 on_success:
+    # Make sure appveyor still knows about conda...
+    - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
     - set upload_builds=
     - if "%APPVEYOR_REPO_TAG%"=="true" set upload_builds=1
-    # Write the output file location to a file...
-    - conda build --output vpython.recipe > to_upload.txt
-    # ...so that we can set a variable to the name of that output file.
-    - set /P BUILT_PACKAGE=<to_upload.txt
     # If this build is because of a tag on master make the conda package and upload it.
     - cmd: if defined upload_builds anaconda -t %BINSTAR_TOKEN% upload -u vpython %BUILT_PACKAGE%
     - cmd: pip install twine
