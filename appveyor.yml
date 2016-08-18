@@ -72,9 +72,11 @@ test_script:
     # python version.
     # Write the output file location to a file...
     - conda build --output vpython.recipe > to_upload.txt
-    # ...so that we can set a variable to the name of that output file.
     - set /P BUILT_PACKAGE=<to_upload.txt
-
+    - type to_upload.txt
+    - for /F "delims=" %%i in (to_upload.txt) do set "BUILT_PACKAGE=%%i"
+    - echo %BUILT_PACKAGE%
+    - if NOT EXIST %BUILT_PACKAGE% exit /b 1
     - activate wheel-build
     - "%CMD_IN_ENV% python setup.py bdist_wheel"
     - deactivate
