@@ -37,7 +37,8 @@ install:
 script:
     # Not much of a real test yet, just try to build myself...
     - conda build --quiet vpython.recipe
-
+    - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
+    - echo $CONDA_PACKAGE
     # And try making a wheel
     - source activate wheel-build
     - python setup.py bdist_wheel
@@ -48,10 +49,6 @@ after_success:
     - git branch --contains $TRAVIS_TAG
     - if [[ "$TRAVIS_TAG" ]]; then upload_build="true"; else upload_build=; fi
     - echo $upload_build
-    - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
-    - echo $CONDA_PACKAGE
-    - export CONDA_PACKAGE=`from __future__ import print_function; from glob import glob; import os; from conda_build import config; pattern = os.path.join(config.config.bldpkgs_dir, 'vpython-*.tar.bz2'); print(glob(pattern)[0])"`
-    - echo $CONDA_PACKAGE
     # If this build is because of a tag, upload the build if it succeeds.
     - if [ -n "$upload_build" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython $CONDA_PACKAGE; fi
 deploy:
