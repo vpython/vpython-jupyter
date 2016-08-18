@@ -80,6 +80,8 @@ test_script:
     - deactivate
 
 on_success:
+    # Make sure appveyor still knows about conda...
+    - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
     - set upload_builds=
     - if "%APPVEYOR_REPO_TAG%"=="true" set upload_builds=1
     # If this build is because of a tag on master make the conda package and upload it.
