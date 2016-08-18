@@ -39,6 +39,8 @@ script:
     - conda build --quiet vpython.recipe
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
     - echo $CONDA_PACKAGE
+    # This will fail if the package does not actually exist
+    - ls $CONDA_PACKAGE
     # And try making a wheel
     - source activate wheel-build
     - python setup.py bdist_wheel
