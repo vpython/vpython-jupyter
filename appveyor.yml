@@ -73,8 +73,9 @@ test_script:
     # Write the output file location to a file...
     - conda build --output vpython.recipe > to_upload.txt
     # ...so that we can set a variable to the name of that output file.
+    - python -c "from __future__ import print_function; from glob import glob; import os; from conda_build import config; pattern = os.path.join(config.config.bldpkgs_dir, 'vpython-*.tar.bz2'); print(glob(pattern)[0])" > to_upload.txt
     - set /P BUILT_PACKAGE=<to_upload.txt
-
+    - echo %BUILT_PACKAGE%
     - activate wheel-build
     - "%CMD_IN_ENV% python setup.py bdist_wheel"
     - deactivate
