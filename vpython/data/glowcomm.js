@@ -6,6 +6,7 @@ console.log("glowscript loading");
 var glowObjs = []
 
 var pako = require('nbextensions/pako.min')
+require("nbextensions/pako_inflate.min")
 
 //scene.title.text("fps = frames/sec\n ")
 // Display frames per second and render time:
