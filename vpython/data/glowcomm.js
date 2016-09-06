@@ -1,12 +1,47 @@
 // MAKE SURE THE GLOW LIBRARY HAS THE CORRECT VERSION NUMBER:
-define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1.min","nbextensions/pako.min","nbextensions/pako_inflate.min","nbextensions/pako_deflate.min"], function() {
+define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1a.min","nbextensions/glow.2.1b.min"], function() {
 /*jslint plusplus: true */
+
 console.log("glowscript loading");
 
-var glowObjs = []
+function msclock() {
+    if (performance.now) return performance.now()
+    else return new Date().getTime()
+}
 
-var pako = require('nbextensions/pako.min')
-require("nbextensions/pako_inflate.min")
+/*
+var done = false
+function get_library(URL) { // import a JavaScript library file, by URL
+    var tries = 0
+    var t1 = msclock()
+
+    $.getScript(URL)
+      .done(function(script, textStatus) {
+          done = true
+      })
+
+      .fail(function(jqxhr, settings, exception) {
+          alert('Could not access the '+URL+' library')
+          return
+      })
+
+    function waiting() {
+        if (done) return
+        var t2 = msclock()
+        if (t2-t1 > 6000) {
+            var yes = confirm('Timed out trying to access the '+URL+' library.\nTry again?')
+            if (yes) t1 = msclock()
+            else return
+        }
+        setTimeout(waiting, 30)
+    }
+    waiting()
+}
+
+get_library("http://www.glowscript.org/lib/jquery/2.1/jquery.min.js")
+*/
+
+var glowObjs = []
 
 //scene.title.text("fps = frames/sec\n ")
 // Display frames per second and render time:
@@ -15,26 +50,6 @@ require("nbextensions/pako_inflate.min")
 function o2vec3(p) {
     "use strict";
     return vec(p[0], p[1], p[2])
-}
-
-function decode_base64_zipped_json(b64Data) {
-
-    // Decode base64 (convert ascii to binary)
-    var strData     = atob(b64Data)
-
-    // Convert binary string to character-number array
-    var charData    = strData.split('').map(function(x){return x.charCodeAt(0);});
-
-    // Turn number array into byte-array
-    var binData     = new Uint8Array(charData)
-
-    // Pako magic
-    var pdata        = pako.inflate(binData)
-
-    // Convert gunzipped byteArray back to ascii string:
-    strData     = String.fromCharCode.apply(null, new Uint16Array(pdata))
-    
-    return JSON.parse(strData)
 }
 
 comm = IPython.notebook.kernel.comm_manager.new_comm('glow')
@@ -60,9 +75,33 @@ function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mous
 }
 
 function process_pause(event) {
+    "use strict";
     return // ignore return from pause; a regular click event will follow
 }
 
+function control_handler(obj) {  // button, menu, slider, radio, checkbox
+    "use strict";
+    var evt = { idx: obj.idx}
+    if (obj.objName === 'button') {
+        evt.value = 0 
+        evt.widget = 'button'
+    } else if (obj.objName === 'slider') {
+        evt.value = obj.value
+        evt.widget = 'slider'
+    } else if (obj.objName === 'checkbox') {
+        evt.value = obj.checked
+        evt.widget = 'checkbox'
+    } else if (obj.objName === 'radio') {
+        evt.value = obj.checked
+        evt.widget = 'radio'
+    } else if (obj.objName === 'menu') {
+        evt.value = obj.index
+        evt.widget = 'menu'
+    } else {
+        console.log('nothing matched', 'obj=', obj, obj.text)
+    }
+    comm.send( {arguments: [evt]} )
+}
 function update_canvas() {    // mouse location and other stuff updated every render
     "use strict";
     var evt = {event:'update_canvas'}
@@ -89,24 +128,131 @@ function update_canvas() {    // mouse location and other stuff updated every re
 }
 
 function send_pick(cvs, p, seg) {
-    var evt = {event: 'pick', canvas: cvs, pick: p}
-    if (glowObjs[p] instanceof curve) {
-        evt.segment = seg
-    }
+    "use strict";
+    var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg}
     comm.send( {arguments: [evt]} ) 
+}
+
+// attrs are X in {'a': '23X....'}
+var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: +-, 
+         'e':'ambient', 'f':'axis', 'g':'size', 'h':'origin', 'i':'textcolor',
+         'j':'direction', 'k':'linecolor', 'l':'bumpaxis', 'm':'dotcolor',
+         'n':'foreground', 'o':'background', 'p':'ray', 'E':'center', '#':'forward',
+         
+         // scalar attributes
+         'q':'graph', 'r':'canvas', 's':'trail_radius', 
+         't':'visible', 'u':'opacity', 'v':'shininess', 'w':'emissive',  
+         'x':'make_trail', 'y':'trail_type', 'z':'interval', 'A':'pps', 'B':'retain',  
+         'C':'red', 'D':'green', 'F':'blue', 'G':'length', 'H':'width', 'I':'height', 'J':'radius',
+         'K':'thickness', 'L':'shaftwidth', 'M':'headwidth', 'N':'headlength', 'O':'pickable',
+         'P':'coils', 'Q':'xoffset', 'R':'yoffset',
+         'S':'border', 'T':'line', 'U':'box', 'V':'space', 'W':'linewidth',
+         'X':'xmin', 'Y':'xmax', 'Z':'ymin', '`':'ymax',
+         '~':'ctrl', '!':'shift', '@':'alt',
+         
+         // text attributes: 
+         '$':'text', '%':'align', '^':'caption', '&':'title', '*':'xtitle', '(':'ytitle',
+         
+         // Miscellany:
+         ')':'lights', '_':'objects', '=':'bind',
+         '[':'pixel_pos', ']':'texpos', 
+         '{':'v0', '}':'v1', ';':'v2', ':':'v3', '<':'vs', '>':'type',
+         '?':'font', '/':'texture'}
+         
+// attrsb are X in {'b': '23X....'}; ran out of easily typable one-character codes
+var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':'fov',
+              'f':'normal', 'g':'data', 'h':'checked', 'i':'disabled'}
+
+// methods are X in {'m': '23X....'}
+var methods = {'a':'select', 'c':'start', 'd':'stop', 'f':'clear', // unused bsxyCDFghzAB
+           'i':'append', 'j':'npoints', 'k':'pop', 'l':'shift', 'm':'unshift',
+           'n':'slice', 'o':'splice', 'p':'modify', 'q':'plot', 's':'add_to_trail',
+           't':'follow', 'u':'append_to_caption', 'v':'append_to_title', 'w':'clear_trail',
+           'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick'}
+         
+var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 'textcolor',
+                'direction', 'linecolor', 'bumpaxis', 'dotcolor', 'ambient', 'add_to_trail',
+                'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
+                
+var textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle',
+                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause']
+
+// patt gets idx and attr code; vpatt gets x,y,z of a vector            
+var patt = /(\d+)(.)(.*)/
+var vpatt = /([^,]*),([^,]*),(.*)/
+var plotpatt = /([^,]*),([^,]*)/
+
+function decode(data) { // [ [{'a': '3c0.0,1.0,1.0'}], .....] or can be a method 'm'
+    "use strict";
+    var output = [], s, m, idx, attr, val, datatype, out
+    for (var i in data) { // step through the list of dictionaries
+        var d = data[i]
+        //console.log('---- in ------')
+        // constructor or appendcmd not currently compressed; complex methods or attributes:
+        if (d['pass'] !== undefined) { 
+            output.push(d)
+            continue
+        } else if (d['a'] !== undefined) { // attribute setter (attrs)
+            s = d['a']
+            datatype = 'attr'
+        } else if (d['b'] !== undefined) { // attribute setter (attrsb)
+            s = d['b']
+            datatype = 'attr'
+        } else if (d['m'] !== undefined) { // method
+            s = d['m']
+            datatype = 'method'
+        }
+        //for (var a in d) console.log(a, d[a])
+        m = s.match(patt)
+        idx = Number(m[1])
+        if (datatype == 'attr') {
+            if (d['a'] !== undefined) attr = attrs[m[2]]
+            else attr = attrsb[m[2]]
+        } else attr = methods[m[2]]
+        if (vecattrs.indexOf(attr) > -1) {
+            val = m[3].match(vpatt)
+            val = [Number(val[1]), Number(val[2]), Number(val[3])]
+        } else if (textattrs.indexOf(attr) > -1) {
+            val = m[3]
+        } else if (attr == 'plot' || attr == 'data') {
+            val = []
+            var start = m[1].length+1 // start of arguments
+            while (true) {
+                m = s.slice(start).match(plotpatt)
+                val.push([ Number(m[1]), Number(m[2]) ])
+                start += m[1].length+m[2].length+2
+                if (start > s.length) break
+            }
+        } else val = Number(m[3])
+        out = {'idx':idx, 'val':val}
+        out[datatype] = attr
+        //console.log('---- out ----')
+        //for (var a in out) console.log(a, out[a])
+        output.push(out)
+    }
+    return output
+}
+
+function fix_location(cfgx) {
+    "use strict";
+    if ('location' in cfgx) {
+        if (cfgx['location'] === 1) {cfgx['pos'] = cfgx['canvas'].title_anchor}
+        else if (cfgx['location'] === 2) {cfgx['pos'] = cfgx['canvas'].caption_anchor}
+        else if (cfgx['location'] === 3) {cfgx['pos'] = print_anchor}
+        delete cfgx['location']
+    }
+    return cfgx
+
 }
 
 function handler(msg) {
     "use strict";
     var data = msg.content.data
-
-    if (typeof data.zipped !== 'undefined') {        
-        data = decode_base64_zipped_json(data.zipped)        
-    }
-
     //console.log('glow msg', msg, msg.content)
     //console.log('glow', data, data.length)
-    //console.log('JSON ' + JSON.stringify(data))
+    //console.log(data)
+    data = decode(data)
+    console.log('JSON ' + JSON.stringify(data))
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -152,7 +298,7 @@ function handler(msg) {
                         }
                     }
                     if (cmd.method !== undefined) {
-//                        console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
+                        //console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
                         var parametric = ['splice', 'modify']
                         var val = cmd.val
                         if (cmd.method == 'GSprint') {
@@ -172,7 +318,7 @@ function handler(msg) {
                             glowObjs[cmd.idx].unbind(cmd.val, process)
                         } else if (cmd.method === 'pause') {
                             if (cmd.val.length > 0) {
-                               glowObjs[cmd.idx].pause(cmd.val[0], process_pause) 
+                               glowObjs[cmd.idx].pause(cmd.val, process_pause) 
                             } else {
                                glowObjs[cmd.idx].pause(process_pause) 
                             }
@@ -223,7 +369,7 @@ function handler(msg) {
 //                for (var i in cmd.attrs) { console.log(cmd.attrs[i]) }
                 if (cmd.attrs !== undefined) {
                      vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
-                             'background', 'ambient', 'linecolor', 'dot_color', 'trail_color',
+                             'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'textcolor',
                              'origin', 'normal', 'bumpaxis','texpos']
                     if ((cmd.cmd != 'gcurve') && ( cmd.cmd != 'gdots' ) ) {
                         vlst.push( 'size' )
@@ -349,7 +495,22 @@ function handler(msg) {
                                 var obj = glowObjs[cfg['_obj']]
                             }
                             delete cfg['_obj'] 
-                            glowObjs[cmd.idx] = attach_trail(obj, cfg) 
+                            glowObjs[cmd.idx] = attach_trail(obj, cfg)
+                        } else if (cmd.cmd === 'checkbox') {
+                            cfg.objName = cmd.cmd
+                            cfg.bind = control_handler
+                            cfg = fix_location(cfg)
+                            glowObjs[cmd.idx] = checkbox(cfg)
+                        } else if (cmd.cmd === 'radio') {
+                            cfg.objName = cmd.cmd
+                            cfg.bind = control_handler
+                            cfg = fix_location(cfg)
+                            glowObjs[cmd.idx] = radio(cfg)
+                        } else if (cmd.cmd === 'button') {
+                            cfg.objName = cmd.cmd
+                            cfg.bind = control_handler
+                            cfg = fix_location(cfg)
+                            glowObjs[cmd.idx] = button(cfg) 
                         } else {
                             console.log("Unrecognized Object")
                         }

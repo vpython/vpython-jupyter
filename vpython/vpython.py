@@ -1,4 +1,6 @@
 from __future__ import print_function, division, absolute_import
+# New compression method: change to texture setter and to curve append method
+# scene.mouse.pick has 'pass' attribute to avoid decoding
 import colorsys
 from .rate_control import *
 try:
@@ -29,12 +31,11 @@ import collections
 import copy
 import sys
 import weakref
-import zlib
-import base64
 
 from . import __version__, __gs_version__
 
-import json # ultrajson was tried but did not provide adequate floating-point accuracy
+#import json
+import ujson as json
 
 # To print immediately, do this:
 #    print(.....)
@@ -45,21 +46,112 @@ import platform
 version = [__version__, 'jupyter']
 GSversion = [__gs_version__, 'glowscript']
 
-def send_base64_zipped_json(comm, req, level=zlib.Z_BEST_SPEED):
-    z64 = convert_base64_zipped_json(req, level=zlib.Z_BEST_SPEED)
-    return comm.send(dict(zipped = z64))
+# constructor: [idx 'c' attr value attr value]
+# setter: [idx 's' attr value attr value]
+# method: [idx 'm' attr value attr value]
+# mouse? camera?
 
-def convert_base64_zipped_json(req, level=zlib.Z_BEST_SPEED):
-    """json encode req, and zip the json before sending it as base64 encoded string"""
-    json_str = json.dumps(req, ensure_ascii=False)
-    z = None
-    if (sys.version_info > (3, 0)):
-        # Python 3.4 and above code in this block
-        z = zlib.compress(json_str.encode('utf-8'),level)
-    else:
-        # Python 2 code in this block
-        z = zlib.compress(json_str,level)
-    return base64.b64encode(z)
+objs = ['box', 'sphere', 'arrow', 'ring', 'helix', 'curve', 'points',
+        'label', 'local_light', 'distant_light', 'compound',
+        'vertex', 'triangle', 'quad', 'attach_arrow', 'attach_trail',
+        'canvas', 'graph', 'gcurve', 'gdots', 'gvbars', 'ghbars',
+        'local_light', 'distant_light']
+
+# attrs are X in {'a': '23X....'}
+attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: +-,
+         'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h', 'textcolor':'i',
+         'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 'dotcolor':'m',
+         'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 
+         
+         # scalar attributes
+         'graph':'q', 'canvas':'r', 'trail_radius':'s', 
+         'visible':'t', 'opacity':'u','shininess':'v', 'emissive':'w',  
+         'make_trail':'x', 'trail_type':'y', 'interval':'z', 'pps':'A', 'retain':'B',  
+         'red':'C', 'green':'D', 'blue':'F','length':'G', 'width':'H', 'height':'I', 'radius':'J',
+         'thickness':'K', 'shaftwidth':'L', 'headwidth':'M', 'headlength':'N', 'pickable':'O',
+         'coils':'P', 'xoffset':'Q', 'yoffset':'R', 
+         'border':'S', 'line':'T', 'box':'U', 'space':'V', 'linewidth':'W',
+         'xmin':'X', 'xmax':'Y', 'ymin':'Z', 'ymax':'`',
+         'ctrl':'~', 'shift':'!', 'alt':'@',
+         
+         # text attributes:
+         'text':'$', 'align':'%', 'caption':'^', 'title':'&', 'xtitle':'*', 'ytitle':'(',
+         
+         # Miscellany:
+         'lights':')', 'objects':'_', 'bind':'=',
+         'pixel_pos':'[', 'texpos':']', 
+         'v0':'{', 'v1':'}', 'v2':';', 'v3':':', 'vs':'<', 'type':'>',
+         'font':'?', 'texture':'/'}
+         
+# attrsb are X in {'b': '23X....'}; ran out of easily typable one-character codes
+attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':'e',
+          'normal':'f', 'data':'g', 'checked':'h', 'disabled':'i'}
+
+# methods are X in {'m': '23X....'}
+methods = {'select':'a', 'start':'c', 'stop':'d', 'clear':'f', # unused bexyCDFghzAB
+           'pop':'k', 'shift':'l', 'unshift':'m',
+           'slice':'n', 'splice':'o', 'modify':'p', 'plot':'q', 'add_to_trail':'s',
+           'follow':'t', 'append_to_caption':'u', 'append_to_title':'v', 'clear_trail':'w',
+           'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K'}
+
+vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
+            'direction', 'linecolor', 'bumpaxis', 'dotcolor', 'add_to_trail', 'textcolor',
+            'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
+                
+textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle',
+                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause']
+
+def encode_attr(L): # L is a list of dictionaries
+    # For each dictionary, convert {'attr': 'opacity', 'val': 0.5, 'idx': 3} => {'a':'(idx)X(value)'}
+    # where (idx) is a number, X is the attribute code in attrs, (value) is a number or x,y,z or a string
+    # For a method, we have {'method':'add_to_trail', 'val':[x,y,z], 'idx':3} to be converted to
+    # {'m':'(idx)X(value)'
+    output = []
+    for d in L:
+        if 'attr' in d:
+            sendval = d['attr']
+            if sendval in attrs:
+                sendtype = 'a'
+                s = str(d['idx'])+attrs[sendval]
+            else:
+                sendtype = 'b'
+                s = str(d['idx'])+attrsb[sendval]
+        elif 'method' in d:
+            sendtype = 'm'
+            sendval = d['method']
+            s = str(d['idx'])+methods[sendval]
+        else:
+            output.append(d) # can be a constructor
+            continue
+        val = d['val']
+        if sendval in vecattrs: # it would be good to do some kind of compression of doubles
+            s += "{:.16G},{:.16G},{:.16G}".format(val[0], val[1], val[2])
+        elif sendval in textattrs:
+            s += val
+        elif sendval == 'append':
+            for p in val:
+                s += "{:.16G},{:.16G},{:.16G},".format(p[0], p[1], p[2])
+            s =s[:-1]
+        elif sendval == 'plot' or sendval == 'data':
+            for p in val:
+                s += "{:.16G},{:.16G},".format(p[0], p[1])
+            s =s[:-1]
+        elif sendtype == 'm':
+            s += val
+        else:
+            s += "{:.16G}".format(val)
+        output.append({sendtype:s})
+    return(output)
+
+def send_json(comm, req):
+    # req is a list of dictionaries, each of the form {'attr': 'opacity', 'val': 0.5, 'idx': 3}
+    # json_str is a character string such as '[{'attr': 'opacity', 'val': 0.5, 'idx': 3}]'
+    send = encode_attr(req)
+    comm.send(send)
+
+def convert_json(req):
+    send = encode_attr(req)
+    return send
 
 class RateKeeper2(RateKeeper):
     
@@ -72,25 +164,34 @@ class RateKeeper2(RateKeeper):
         super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
 
     def sendtofrontend(self):
+        # Jupyter does not immediately transmit data to the browser from a thread such as commsend().
+        # Instead, such accumulated data is sent only at the end of a notebook cell.
+        # Animations are nevertheless possible because the rate() function executes the
+        # function sendtofrontend(), which is not in a thread and can use comm.send to update
+        # the browser immediately. sendtofrontend() sets rate.active to True and commsend()
+        # avoids sending baseObj.cmds data and glowqueue data when rate.active is True.
+        # commsend() runs about 30 times per second off a timer, threading.Timer(), and if
+        # it detects that considerable time has passed since the last time the rate() function
+        # was called, it concludes that the user program has exited from a rate-based loop
+        # and can set rate.active to False.
         self.active = True
-        if(baseObj.glow is not None):
+        if baseObj.glow is not None:
             if (len(glowqueue) > 0) or (len(baseObj.cmds) > 0) or self.send:
                 try:
-                    if (len(baseObj.cmds) > 0):
+                    if len(baseObj.cmds) > 0:
                         a = copy.copy(baseObj.cmds)
-                        l = len(a)
+                        L = len(a)
                         baseObj.glow.comm.send(list(a))
                         a.clear()
-                        while l > 0:
+                        while L > 0:
                             if len(baseObj.cmds) > 0:
                                 del baseObj.cmds[0]
-                            l -= 1
+                            L -= 1
                             
-                    for i in range(len(glowqueue)):
+                    while len(glowqueue) > 0:
                         req = glowqueue.popleft()
                         if len(req) > 0 :
                             baseObj.glow.comm.send(req)
-
 
                 finally:
                     self.send = False
@@ -105,7 +206,7 @@ class RateKeeper2(RateKeeper):
             kernel.do_one_iteration()
             kernel.set_parent(ident, parent)
             
-    def __call__(self, maxRate = 100):
+    def __call__(self, maxRate = 100): # rate(N) calls this function
         if (self.rval != maxRate) and (maxRate >= 1.0):
             self.rval = maxRate 
         super(RateKeeper2, self).__call__(maxRate)
@@ -119,21 +220,17 @@ rate = RateKeeper2(interactFunc = ifunc)
 package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+".min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako_deflate.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/pako_inflate.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+"a.min.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+"b.min.js",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 elif IPython.__version__ >= '3.0.0' :
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+".min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako_deflate.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/pako_inflate.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+"a.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+"b.min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 else:
-    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow."+GSversion[0]+".min.js",package_dir+"/data/pako.min.js",package_dir+"/data/pako_deflate.min.js",package_dir+"/data/pako_inflate.min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
-
+    #IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow."+GSversion[0]+".min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
+    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow."+GSversion[0]+"a.min.js",package_dir+"/data/glow."+GSversion[0]+"b.min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
 
 object_registry = {}    ## idx -> instance
 attach_arrows = []
@@ -170,6 +267,7 @@ class baseObj(object):
         #baseObj.cmds.append(cmd)
 
     def appendcmd(self,cmd):
+        cmd['pass'] = 1 # indicate that this should be ignored by glowcomm/decode()
         if (baseObj.glow != None):
             # The following code makes sure that those commands appended
             # while baseObj.glow was None are sent to the front end first.
@@ -215,10 +313,21 @@ glowqueue = collections.deque(maxlen=30)
 _sent = False  ## set to True when commsend completes; needed for canvas.waitfor
 
 def commsend():
+    # Jupyter does not immediately transmit data to the browser from a thread such as commsend().
+    # Instead, such accumulated data is sent only at the end of a notebook cell.
+    # Animations are nevertheless possible because the rate() function executes the
+    # function sendtofrontend(), which is not in a thread and can use comm.send to update
+    # the browser immediately. sendtofrontend() sets rate.active to True and commsend()
+    # avoids sending baseObj.cmds data and glowqueue data when rate.active is True.
+    # commsend() runs about 30 times per second off a timer, threading.Timer(), and if
+    # it detects that considerable time has passed since the last time the rate() function
+    # was called, it concludes that the user program has exited from a rate-based loop
+    # and can set rate.active to False.
+    # The initial call to commsend() is at the end of this file.
     global next_call, commcmds, updtobjs2, rate, _sent, prev_sz, glowqueue
     _sent = False
     try:
-        if baseObj.glow != None:
+        if baseObj.glow is not None:
             if (len(baseObj.cmds) > 0) and (not rate.active):
                 a = copy.copy(baseObj.cmds)
                 L = len(a)
@@ -232,7 +341,7 @@ def commsend():
                 rate.sendcnt += 1
                 thresh = math.ceil(30.0/rate.rval) * 2 + 1
                 if (rate.sendcnt > thresh ):
-                    rate.active = False       # rate fnc no longer appears to be being called
+                    rate.active = False       # rate function no longer appears to be being called
             elif (len(glowqueue) > 0) and (not rate.active):
                 for i in range(len(glowqueue)):
                     req = glowqueue.popleft()
@@ -274,13 +383,10 @@ def commsend():
                     updtobjs2.append(baseObj.updtobjs.popleft())
                                         
             if L < baseObj.qSize:
-                # print('commsend stuff to update', baseObj.updtobjs)
                 attr_set = set()
                 while updtobjs2:
                     idx = updtobjs2.popleft()
                     ob = object_registry[idx]
-                    #print('commsend object', ob.attrsupdt, ob.methodsupdt)
-                    #sys.stdout.flush()
                     if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
                         attr_set.clear()
                         dl = len(ob.attrsupdt)
@@ -331,9 +437,7 @@ def commsend():
                             commcmds[L]['idx'] = ob.idx
                             commcmds[L]['method'] = method
                             if method == 'add_to_trail': data = data.value
-                            commcmds[L]['val'] = data  
-                            #print('commsend methods', ob.idx, method, data)
-                            #sys.stdout.flush()
+                            commcmds[L]['val'] = data
                             L += 1
                             if L >= baseObj.qSize:   # queue is full
                                 break
@@ -347,34 +451,27 @@ def commsend():
             if L > 0:
                 if not rate.active:
                     L = L if (L <= baseObj.qSize) else baseObj.qSize
-                    send_base64_zipped_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
+                    send_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
                     prev_sz = 0
 
                 else:        
                     rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
-                    z64 = convert_base64_zipped_json(commcmds[:L])
-                    glowqueue.append(dict(zipped = z64))
-                    rate.send = True
+                    send = convert_json(commcmds[:L])
+                    glowqueue.append(send)
                     prev_sz = 0
-                        
-    finally:
-        next_call = next_call+rate.interactionPeriod
-        tmr = next_call - time.time()
-        if tmr < 0.0:
-            tmr = rate.interactionPeriod
-            next_call = time.time()+tmr
-        threading.Timer(tmr, commsend ).start()
-        _sent = True
-    
-commsend()
 
-class AllMyFields(object):
-    def __init__(self, dictionary):
-        for k, v in dictionary.items():
-            setattr(self, k, v)
+    finally:
+        pass
+    next_call = next_call+rate.interactionPeriod
+    tmr = next_call - time.time()
+    if tmr < 0.0:
+        tmr = rate.interactionPeriod
+        next_call = time.time()+tmr
+    t = threading.Timer(tmr, commsend)
+    t.start()
+    _sent = True
         
-class GlowWidget(object):
-    
+class GlowWidget(object):    
     def __init__(self, comm, msg):
         self.comm = comm
         self.comm.on_msg(self.handle_msg)
@@ -384,8 +481,23 @@ class GlowWidget(object):
 ##object_registry = {}    ## idx -> instance        
     def handle_msg(self, msg):
         evt = msg['content']['data']['arguments'][0]
-        cvs = object_registry[evt['canvas']]
-        cvs.handle_event(evt)
+        if 'widget' in evt:
+            obj = object_registry[evt['idx']]
+            if evt['widget'] == 'button':
+                pass
+            elif evt['widget'] == 'slider':
+                obj.value = evt['value']
+            elif evt['widget'] == 'menu':
+                obj.index = evt['value']
+                obj.selected = obj.choices[obj.index]
+            elif evt['widget'] == 'checkbox':
+                obj._checked = evt['value']
+            elif evt['widget'] == 'radio':
+                obj._checked = evt['value']            
+            obj._bind( obj )
+        else:   ## a canvas event
+            cvs = object_registry[evt['canvas']]
+            cvs.handle_event(evt)
 
     def handle_close(self, data):
         print ("Comm closed")
@@ -395,11 +507,9 @@ if IPython.__version__ >= '3.0.0' :
 else:
     get_ipython().comm_manager.register_target('glow', GlowWidget)   
 display(Javascript("""require.undef("nbextensions/jquery-ui.custom.min");"""))
-display(Javascript('require.undef("nbextensions/glow.'+GSversion[0]+'.min");'))
+display(Javascript('require.undef("nbextensions/glow.'+GSversion[0]+'a.min");'))
+display(Javascript('require.undef("nbextensions/glow.'+GSversion[0]+'b.min");'))
 display(Javascript("""require.undef("nbextensions/glowcomm");"""))
-display(Javascript("""require.undef("nbextensions/pako.min");"""))
-display(Javascript("""require.undef("nbextensions/pako_deflate.min");"""))
-display(Javascript("""require.undef("nbextensions/pako_inflate.min");"""))
 display(Javascript("""require(["nbextensions/glowcomm"], function(){console.log("glowcomm loaded");})"""))
             
 get_ipython().kernel.do_one_iteration()
@@ -507,9 +617,9 @@ class standardAttributes(baseObj):
                          ['red', 'green', 'blue']],
                  'label':[['pos', 'color', 'background', 'linecolor'],  
                          [],
-                         ['visible', 'text', 'xoffset', 'yoffset', 'font', 'height', 'opacity', 
+                         ['visible', 'xoffset', 'yoffset', 'font', 'height', 'opacity', 
                            'border', 'line', 'box', 'space', 'align', 'linewidth', 'pixel_pos'],
-                         []],
+                         ['text']],
                  'local_light':[['pos', 'color'],  
                          [],
                          ['visible'],
@@ -637,7 +747,7 @@ class standardAttributes(baseObj):
 
         scalarInteractions={'red':'color', 'green':'color', 'blue':'color', 'radius':'size', 'thickness':'size',
                                 'length':'size', 'height':'size', 'width':'size', 'v0':'v0', 'v1':'v1',
-                                'v2':'v2', 'v3':'v3'}
+                                'v2':'v2', 'v3':'v3', 'text':'text'}
     
     # override defaults for scalar attributes with side effects       
         attrs = standardAttributes.attrLists[objName][3]
@@ -858,7 +968,7 @@ class standardAttributes(baseObj):
     def texture(self,value):
         self._texture = value
         if not self._constructing:
-            self.addattr('texture')
+            self.appendcmd({"val":value,"attr":"texture","idx":self.idx})
 
     @property
     def shininess(self):
@@ -1649,7 +1759,7 @@ class curveMethods(standardAttributes):
     def append(self, *args1, **args):
         pts, cps = self.process_args(*args1, **args)
         self._pts.extend(pts)
-        self.addmethod('append', cps[:])
+        self.appendcmd({"val":cps[:],"method":"append","idx":self.idx})
     
     def _on_origin_change(self):
         self.addattr('origin')
@@ -1674,7 +1784,7 @@ class curveMethods(standardAttributes):
         if len(self._pts) == 0: return None
         val = self._pts[-1]
         self._pts = self._pts[0:-1]
-        self.addmethod('pop', 'None')
+        self.appendcmd({"val":"None","method":"pop","idx":self.idx})
         return val
 
     def point(self,N):
@@ -1689,19 +1799,19 @@ class curveMethods(standardAttributes):
 
     def clear(self):
         self._pts = []
-        self.addmethod('clear', 'None' )
+        self.appendcmd({"val":"None","method":"clear","idx":self.idx})
 
     def shift(self):
         if len(self._pts) == 0: return None
         val = self._pts[0]
         self._pts = self._pts[1:]
-        self.addmethod( 'shift', 'None' )
+        self.appendcmd({"val":"None","method":"shift","idx":self.idx})
         return val
 
     def unshift(self, *args1, **args):
         pts, cps = self.process_args(*args1, **args)
         self._pts = pts+self._pts
-        self.addmethod( 'unshift', cps[:] )
+        self.appendcmd({"val":cps[:], "method":"unshift","idx":self.idx})
         
     def slice(self, start, end):
         return self._pts[start:end]
@@ -1719,7 +1829,7 @@ class curveMethods(standardAttributes):
                 raise ValueError('The starting position plus deletions is beyond the list of points'.format(howmany))
         pts, cps = self.process_args(*args1)
         self.pts = self._pts[:start]+pts+self._pts[start+howmany:]
-        self.addmethod( 'splice', [start, howmany, cps[:]] )
+        self.appendcmd({"val":[start, howmany, cps[:]], "method":"splice","idx":self.idx})
     
     def modify(self, N, *arg1, **args):
         attrs = ['color', 'radius', 'visible', 'retain']
@@ -1747,7 +1857,7 @@ class curveMethods(standardAttributes):
                         cp[a] = args[a].value
                     else:
                         cp[a] = args[a]
-        self.addmethod( 'modify', [N, [cp]])
+        self.appendcmd({"val":[N, [cp]], "method":"modify","idx":self.idx})
         
     @property
     def origin(self):
@@ -2389,7 +2499,7 @@ class Mouse(baseObj):
        
     @property
     def pick(self):
-        self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1 }) # fast send
+        self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1, 'pass':1 })
         self._pick_ready = False
         while self._pick_ready == False:
             rate(120)  ## wait for render to finish and call setpick
@@ -2497,7 +2607,7 @@ class canvas(baseObj):
         self._constructing = True        
         canvas.selected_canvas = self
 
-        rate.active = False  ## ??
+        rate.active = False
             
         self._objz = set()
         self.lights = []
@@ -2532,6 +2642,8 @@ class canvas(baseObj):
                         'mouseenter':[], 'mouseleave':[]}
             # no key events unless notebook command mode can be disabled
         self._camera = Camera(self)
+        self.title_anchor = 1  ## used by buttons etc.
+        self.caption_anchor = 2
         cmd = {"cmd": "canvas", "idx": self.idx, "attrs":[]}
         
     # send only nondefault values to GlowScript
@@ -2598,12 +2710,14 @@ class canvas(baseObj):
     def append_to_title(self, *args):
         t = print_to_string(*args)
         self._title += t
-        self.addmethod('append_to_title', t)
+        if not self._constructing:
+            self.appendcmd({"val":t,"method":"append_to_title","idx":self.idx})
         
     def append_to_caption(self, *args):
         t = print_to_string(*args)
         self._caption += t
-        self.addmethod('append_to_caption', t)
+        if not self._constructing:
+            self.appendcmd({"val":t,"method":"append_to_caption","idx":self.idx})
 
     @property
     def mouse(self):
@@ -2858,9 +2972,9 @@ class canvas(baseObj):
     def pause(self,*s):
         if len(s) > 0:
             s = s[0]
-            self.addmethod('pause', [s])
+            self.addmethod('pause', s)
         else:
-            self.addmethod('pause', [])
+            self.addmethod('pause', '')
         self._waitfor = False
         self.bind('click', self.fwaitfor)
         while self._waitfor is False:
@@ -2915,6 +3029,165 @@ class distant_light(standardAttributes):
         self._direction.value = other
         if not self._constructing:
             self.addattr('direction')
+   
+print_anchor = 3  ## used by buttons etc.
+## title_anchor = 1 and caption_anchor = 2 are attributes of canvas
+
+class controls(baseObj):
+    def setup(self, args):
+        super(controls, self).__init__()  ## get idx, attrsupdt from baseObj
+        ## default values of common attributes
+        self._constructing = True
+        argsToSend = []
+        objName = args['_objName']
+        del args['_objName']
+        if 'pos' in args:
+            self.location = args['pos']
+            argsToSend.append('location')
+            del args['pos']
+        if 'canvas' in args:  ## specified in constructor
+            self.canvas = args['canvas']
+            del args['canvas']
+        else:
+            self.canvas = canvas.get_selected()
+        if 'bind' in args:
+            self._bind = args['bind']
+            del args['bind']
+        else:
+            raise AttributeError('bind missing')
+            
+        ## override default vector attributes        
+        vectorAttributes = ['textcolor', 'background']        
+        for a in vectorAttributes:
+            if a in args:
+                argsToSend.append(a)
+                val = args[a]
+                if isinstance(val, vector): setattr(self, '_'+a, val)
+                else: raise AttributeError(a+' must be a vector')
+                del args[a]        
+        ## override default scalar attributes
+        for a,val in args.items():
+            argsToSend.append(a)
+            setattr(self, '_'+a, val)
+               
+        cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
+        cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})        
+                
+        ## send only args specified in constructor
+        for a in argsToSend:  ## all shared attributes are scalars
+            aval = getattr(self,a)
+            if isinstance(aval, vector):
+                aval = aval.value
+            cmd["attrs"].append({"attr":a, "value": aval})
+            
+        self.appendcmd(cmd)                     
+        self._constructing = False
+        
+    @property
+    def bind(self):
+        return self._bind
+    @bind.setter
+    def bind(self, value):
+        raise AttributeError('bind cannot be changed')
+        
+    @property
+    def pos(self):
+        return None
+        
+class button(controls):
+    def __init__(self, **args):
+        args['_objName'] = 'button'
+        self._text = ""
+        self._textcolor = color.black
+        self._background = color.white
+        self._disabled = False
+        super(button, self).setup(args)
+        
+    @property
+    def text(self):
+        return self._text
+    @text.setter
+    def text(self, value):
+        self._text = value
+        if not self._constructing:
+            self.addattr('text')   
+
+    @property
+    def textcolor(self):
+        return self._textcolor
+    @textcolor.setter
+    def textcolor(self, value):
+        self._textcolor = value
+        if not self._constructing:
+            self.addattr('textcolor')
+    
+    @property
+    def background(self):
+        return self._background
+    @background.setter
+    def background(self, value):
+        self._background = value
+        if not self._constructing:
+            self.addattr('background')
+            
+    @property
+    def disabled(self):
+        return self._disabled
+    @disabled.setter
+    def disabled(self, value):
+        self._disabled = value
+        if not self._constructing:
+            self.addattr('disabled')
+
+class checkbox(controls):
+    def __init__(self, **args):
+        args['_objName'] = 'checkbox'
+        self._checked = False
+        self._text = ''
+        super(checkbox, self).setup(args)
+        
+    @property
+    def text(self):
+        return self._text
+    @text.setter
+    def text(self, value):
+        self._text = value
+        if not self._constructing:
+            self.addattr('text')
+            
+    @property
+    def checked(self):
+        return self._checked
+    @checked.setter
+    def checked(self, value):
+        self._checked = value
+        if not self._constructing:
+            self.addattr('checked')
+            
+class radio(controls):
+    def __init__(self, **args):
+        args['_objName'] = 'radio'
+        self._checked = False
+        self._text = ''
+        super(radio, self).setup(args)
+        
+    @property
+    def text(self):
+        return self._text
+    @text.setter
+    def text(self, value):
+        self._text = value
+        if not self._constructing:
+            self.addattr('text')
+            
+    @property
+    def checked(self):
+        return self._checked
+    @checked.setter
+    def checked(self, value):
+        self._checked = value
+        if not self._constructing:
+            self.addattr('checked')
             
 # factorial and combin functions needed in statistical computations            
 def factorial(x):
@@ -2973,11 +3246,16 @@ def GSprint(*args):
         s += str(a)+' '
     s = s[:-1]
     __misc.print(s)
-    
-def print_to_string(*args):
+
+def print_to_string(*args): # treatment of <br> vs. \n not quite right here
     s = ''
     for a in args:
         s += str(a)+' '
     s = s[:-1]
-    return(s)  
-    
+    return(s)
+
+commsend()
+
+while True:
+    rate(30)
+    if baseObj.glow is not None: break
