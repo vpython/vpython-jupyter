@@ -2,43 +2,15 @@
 define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1a.min","nbextensions/glow.2.1b.min"], function() {
 /*jslint plusplus: true */
 
+require("nbextensions/glow.2.1a.min")
+
 console.log("glowscript loading");
 
+/*
 function msclock() {
     if (performance.now) return performance.now()
     else return new Date().getTime()
 }
-
-/*
-var done = false
-function get_library(URL) { // import a JavaScript library file, by URL
-    var tries = 0
-    var t1 = msclock()
-
-    $.getScript(URL)
-      .done(function(script, textStatus) {
-          done = true
-      })
-
-      .fail(function(jqxhr, settings, exception) {
-          alert('Could not access the '+URL+' library')
-          return
-      })
-
-    function waiting() {
-        if (done) return
-        var t2 = msclock()
-        if (t2-t1 > 6000) {
-            var yes = confirm('Timed out trying to access the '+URL+' library.\nTry again?')
-            if (yes) t1 = msclock()
-            else return
-        }
-        setTimeout(waiting, 30)
-    }
-    waiting()
-}
-
-get_library("http://www.glowscript.org/lib/jquery/2.1/jquery.min.js")
 */
 
 var glowObjs = []
@@ -88,6 +60,7 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
     } else if (obj.objName === 'slider') {
         evt.value = obj.value
         evt.widget = 'slider'
+        console.log('slider', evt.value)
     } else if (obj.objName === 'checkbox') {
         evt.value = obj.checked
         evt.widget = 'checkbox'
@@ -98,7 +71,7 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
         evt.value = obj.index
         evt.widget = 'menu'
     } else {
-        console.log('nothing matched', 'obj=', obj, obj.text)
+        console.log('unrecognized control', 'obj=', obj, obj.text)
     }
     comm.send( {arguments: [evt]} )
 }
@@ -161,21 +134,23 @@ var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use s
          
 // attrsb are X in {'b': '23X....'}; ran out of easily typable one-character codes
 var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':'fov',
-              'f':'normal', 'g':'data', 'h':'checked', 'i':'disabled'}
+              'f':'normal', 'g':'data', 'h':'checked', 'i':'disabled', 'j':'selected',
+              'k':'vertical', 'l':'min', 'm':'max', 'n':'step', 'o':'value',
+              'p':'left', 'q':'right', 'r':'top', 's':'bottom'}
 
 // methods are X in {'m': '23X....'}
 var methods = {'a':'select', 'c':'start', 'd':'stop', 'f':'clear', // unused bsxyCDFghzAB
            'i':'append', 'j':'npoints', 'k':'pop', 'l':'shift', 'm':'unshift',
            'n':'slice', 'o':'splice', 'p':'modify', 'q':'plot', 's':'add_to_trail',
            't':'follow', 'u':'append_to_caption', 'v':'append_to_title', 'w':'clear_trail',
-           'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick'}
+           'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint'}
          
 var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 'textcolor',
                 'direction', 'linecolor', 'bumpaxis', 'dotcolor', 'ambient', 'add_to_trail',
                 'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
                 
-var textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle',
-                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause']
+var textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected',
+                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 // patt gets idx and attr code; vpatt gets x,y,z of a vector            
 var patt = /(\d+)(.)(.*)/
@@ -252,7 +227,7 @@ function handler(msg) {
     //console.log('glow', data, data.length)
     //console.log(data)
     data = decode(data)
-    console.log('JSON ' + JSON.stringify(data))
+//    console.log('JSON ' + JSON.stringify(data))
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -511,6 +486,19 @@ function handler(msg) {
                             cfg.bind = control_handler
                             cfg = fix_location(cfg)
                             glowObjs[cmd.idx] = button(cfg) 
+                        } else if (cmd.cmd === 'menu') {
+                            cfg.objName = cmd.cmd
+                            cfg.bind = control_handler
+                            cfg = fix_location(cfg)
+                            if (cfg['selected'] === 'None') {
+                                cfg['selected'] = null                              
+                            } 
+                            glowObjs[cmd.idx] = menu(cfg)
+                        } else if (cmd.cmd === 'slider') {
+                            cfg.objName = cmd.cmd
+                            cfg.bind = control_handler
+                            cfg = fix_location(cfg)
+                            glowObjs[cmd.idx] = slider(cfg)
                         } else {
                             console.log("Unrecognized Object")
                         }

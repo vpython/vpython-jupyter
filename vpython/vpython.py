@@ -34,8 +34,8 @@ import weakref
 
 from . import __version__, __gs_version__
 
-#import json
-import ujson as json
+import json
+#import ujson as json
 
 # To print immediately, do this:
 #    print(.....)
@@ -46,16 +46,16 @@ import platform
 version = [__version__, 'jupyter']
 GSversion = [__gs_version__, 'glowscript']
 
-# constructor: [idx 'c' attr value attr value]
-# setter: [idx 's' attr value attr value]
-# method: [idx 'm' attr value attr value]
-# mouse? camera?
-
-objs = ['box', 'sphere', 'arrow', 'ring', 'helix', 'curve', 'points',
-        'label', 'local_light', 'distant_light', 'compound',
-        'vertex', 'triangle', 'quad', 'attach_arrow', 'attach_trail',
-        'canvas', 'graph', 'gcurve', 'gdots', 'gvbars', 'ghbars',
-        'local_light', 'distant_light']
+# scalar attribute:  { <'a' or 'b'>: string }
+# string is str(idx)+attrs[<attributename>]+str(attributevalue) 
+# for example:  {'a':'23K1.72'}  thickness of object 23 is 1.72
+# vector attrribute: 
+# string is str(idx)+ attrs[<attributename>]+str(val.x)+','+str(val.y)+','+str(val.z)
+# for example: {'a':'37f23.54678,32.12345,-65.00123'}  axis of object 37
+# text attribute:
+# string is str(value)
+# boolean values are integers (0,1)
+# method:  {'m': str(idx)+methods[<methodname>]+<value(s) as above>}
 
 # attrs are X in {'a': '23X....'}
 attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: +-,
@@ -85,21 +85,23 @@ attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single
          
 # attrsb are X in {'b': '23X....'}; ran out of easily typable one-character codes
 attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':'e',
-          'normal':'f', 'data':'g', 'checked':'h', 'disabled':'i'}
+          'normal':'f', 'data':'g', 'checked':'h', 'disabled':'i', 'selected':'j',
+          'vertical':'k', 'min':'l', 'max':'m', 'step':'n', 'value':'o', 'left':'p',
+          'right':'q', 'top':'r', 'bottom':'s'}
 
 # methods are X in {'m': '23X....'}
 methods = {'select':'a', 'start':'c', 'stop':'d', 'clear':'f', # unused bexyCDFghzAB
            'pop':'k', 'shift':'l', 'unshift':'m',
            'slice':'n', 'splice':'o', 'modify':'p', 'plot':'q', 'add_to_trail':'s',
            'follow':'t', 'append_to_caption':'u', 'append_to_title':'v', 'clear_trail':'w',
-           'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K'}
+           'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L'}
 
 vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
             'direction', 'linecolor', 'bumpaxis', 'dotcolor', 'add_to_trail', 'textcolor',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
                 
-textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle',
-                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause']
+textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected',
+                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 def encode_attr(L): # L is a list of dictionaries
     # For each dictionary, convert {'attr': 'opacity', 'val': 0.5, 'idx': 3} => {'a':'(idx)X(value)'}
@@ -181,7 +183,8 @@ class RateKeeper2(RateKeeper):
                     if len(baseObj.cmds) > 0:
                         a = copy.copy(baseObj.cmds)
                         L = len(a)
-                        baseObj.glow.comm.send(list(a))
+#                        baseObj.glow.comm.send(list(a))
+                        baseObj.glow.comm.send(encode_attr(list(a)))
                         a.clear()
                         while L > 0:
                             if len(baseObj.cmds) > 0:
@@ -191,7 +194,8 @@ class RateKeeper2(RateKeeper):
                     while len(glowqueue) > 0:
                         req = glowqueue.popleft()
                         if len(req) > 0 :
-                            baseObj.glow.comm.send(req)
+#                            baseObj.glow.comm.send(req)
+                            baseObj.glow.comm.send(encode_attr(req))
 
                 finally:
                     self.send = False
@@ -341,7 +345,7 @@ def commsend():
                 rate.sendcnt += 1
                 thresh = math.ceil(30.0/rate.rval) * 2 + 1
                 if (rate.sendcnt > thresh ):
-                    rate.active = False       # rate function no longer appears to be being called
+                    rate.active = False       # rate function apparently no longer being called
             elif (len(glowqueue) > 0) and (not rate.active):
                 for i in range(len(glowqueue)):
                     req = glowqueue.popleft()
@@ -486,10 +490,9 @@ class GlowWidget(object):
             if evt['widget'] == 'button':
                 pass
             elif evt['widget'] == 'slider':
-                obj.value = evt['value']
+                obj._value = evt['value']
             elif evt['widget'] == 'menu':
-                obj.index = evt['value']
-                obj.selected = obj.choices[obj.index]
+                obj._selected = obj._choices[evt['value']]
             elif evt['widget'] == 'checkbox':
                 obj._checked = evt['value']
             elif evt['widget'] == 'radio':
@@ -3068,8 +3071,7 @@ class controls(baseObj):
         ## override default scalar attributes
         for a,val in args.items():
             argsToSend.append(a)
-            setattr(self, '_'+a, val)
-               
+            setattr(self, '_'+a, val)              
         cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
         cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})        
                 
@@ -3189,18 +3191,170 @@ class radio(controls):
         if not self._constructing:
             self.addattr('checked')
             
-# factorial and combin functions needed in statistical computations            
-def factorial(x):
-    if x <= 0:
-        if x == 0: return 1
-        else: raise ValueError('Cannot take factorial of negative number %d' % x)
-    fact = 1.0
-    nn = 2
-    while nn <= x:
-        fact = fact*nn
-        nn += 1
-    if nn != x+1: raise ValueError('Argument of factorial must be an integer, not %0.1f' % x)
-    return fact
+class menu(controls):
+    def __init__(self, **args):
+        args['_objName'] = 'menu'
+        self._selected = "None"
+        self._choices = args['choices']
+        if 'index' in args:
+            args['selected'] = self._choices[ args['index'] ]
+            del args['index']
+        super(menu, self).setup(args)
+        
+    @property
+    def choices(self):
+        return self._choices
+    @choices.setter
+    def choices(self, value):
+        raise AttributeError('choices cannot be modified after a menu is created')
+        
+    @property
+    def index(self):
+        if self._selected == "None":
+            return None
+        else:
+            return self._choices.index(self._selected)
+    @index.setter
+    def index(self, value):
+        self.selected = self._choices[value]
+            
+    @property
+    def selected(self):
+        if self._selected == "None":
+            return None
+        else:
+            return self._selected
+    @selected.setter
+    def selected(self, value):
+        if value is None:
+            value = "None"
+        self._selected = value
+        if not self._constructing:
+            self.addattr('selected')
+            
+class slider(controls):
+    def __init__(self, **args):
+        args['_objName'] = 'slider'
+        self._vertical = False
+        if 'min' in args:  ## set here in order to set step
+            self._min = args['min']
+        else:
+            self._min = 0
+        if 'max' in args:
+            self._max = args['max']
+        else:
+            self._max = 1
+        self._step = 0.001*(self._max - self._min)
+        self._value = self._min
+        self._length = 400
+        self._width = 10
+        self._left = 0
+        self._right = 0
+        self._top = 0
+        self._bottom = 0
+        self._align = 'left'
+        super(slider, self).setup(args)
+
+            
+    @property
+    def vertical(self):
+        return self._vertical
+    @vertical.setter
+    def vertical(self, value):
+        raise AttributeError('vertical cannot be changed after creating a slider')
+        
+    @property
+    def min(self):
+        return self._min
+    @min.setter
+    def min(self, value):
+        raise AttributeError('min cannot be changed after creating a slider')
+        
+    @property
+    def max(self):
+        return self._max
+    @max.setter
+    def max(self, value):
+        raise AttributeError('max cannot be changed after creating a slider')
+        
+    @property
+    def step(self):
+        return self._step
+    @step.setter
+    def step(self, value):
+        raise AttributeError('step cannot be changed after creating a slider')
+          
+    @property
+    def value(self):
+        return self._value
+    @value.setter
+    def value(self, val):
+        self._value = val
+        if not self._constructing:
+            self.addattr('value')
+            
+    @property
+    def length(self):
+        return self._length
+    @length.setter
+    def length(self, value):
+        raise AttributeError('length cannot be changed after creating a slider')
+            
+    @property
+    def width(self):
+        return self._width
+    @width.setter
+    def width(self, value):
+        raise AttributeError('width cannot be changed after creating a slider')
+            
+    @property
+    def left(self):
+        return self._left
+    @left.setter
+    def left(self, value):
+        raise AttributeError('left cannot be changed after creating a slider')
+       
+    @property
+    def right(self):
+        return self._right
+    @right.setter
+    def right(self, value):
+        raise AttributeError('right cannot be changed after creating a slider')
+
+    @property
+    def top(self):
+        return self._top
+    @top.setter
+    def top(self, value):
+        raise AttributeError('top cannot be changed after creating a slider')
+            
+    @property
+    def bottom(self):
+        return self._bottom
+    @bottom.setter
+    def bottom(self, value):
+        raise AttributeError('bottom cannot be changed after creating a slider')
+            
+    @property
+    def align(self):
+        return self._align
+    @align.setter
+    def align(self, value):
+        raise AttributeError('align cannot be changed after creating a slider')   
+                        
+# factorial and combin functions needed in statistical computations   
+# factorial now exists in python math library (but not combin)         
+# def factorial(x):
+    # if x <= 0:
+        # if x == 0: return 1
+        # else: raise ValueError('Cannot take factorial of negative number %d' % x)
+    # fact = 1.0
+    # nn = 2
+    # while nn <= x:
+        # fact = fact*nn
+        # nn += 1
+    # if nn != x+1: raise ValueError('Argument of factorial must be an integer, not %0.1f' % x)
+    # return fact
 
 def combin(x, y):
     # combin(x,y) = factorial(x)/[factorial(y)*factorial(x-y)]
@@ -3256,6 +3410,6 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
 
 commsend()
 
-while True:
+while True:   ## make sure setup is complete
     rate(30)
     if baseObj.glow is not None: break
