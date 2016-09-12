@@ -80,16 +80,6 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
     comm.send( {arguments: [evt]} )
 }
 
-// function send_slider_info() {
-    // for (var ss in sliders){
-        // console.log('slider', sliders[ss] )
-        // comm.send( { arguments: [ sliders[ss] ] } )
-    // }
-    // sliders = {}
-   console.log('send slider info done')
-    // setTimeout( send_slider_info, 33 ) 
-// }
-
 var timer = null
 var lastpos = vec(0,0,0)
 var lastray = vec(0,0,0)
@@ -103,6 +93,10 @@ function update_canvas() { // mouse location and other stuff
     // Typically called at the end of handler function, but
     // if not, it will call itself every "interval" number of milliseconds
     if (timer !== null) clearTimeout(timer)
+    for (var ss in sliders){
+        comm.send( { arguments: [ sliders[ss] ] } )
+    }
+    sliders = {}
     var interval = 100 // milliseconds
     var dosend = false
     var evt = {event:'update_canvas'}
@@ -140,12 +134,6 @@ function update_canvas() { // mouse location and other stuff
         lastautoscale = autoscale
     }
     if (dosend) comm.send( {arguments: [evt]} )
-    for (var ss in sliders){
-//    console.log('slider', sliders[ss] )
-        comm.send( { arguments: [ sliders[ss] ] } )
-    }
-    sliders = {}
-//    console.log('send slider info done')
     timer = setTimeout(update_canvas, interval)
 }
 update_canvas()

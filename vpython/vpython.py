@@ -3039,6 +3039,13 @@ print_anchor = 3  ## used by buttons etc.
 ## title_anchor = 1 and caption_anchor = 2 are attributes of canvas
 
 class controls(baseObj):
+    attrlists = { 'button': ['text', 'textcolor', 'background', 'disabled'],
+                  'checkbox':['checked', 'text'],
+                  'radio':['checked', 'text'],
+                  'menu':['selected', 'choices', 'index'],
+                  'slider':['vertical', 'min', 'max', 'step', 'value', 'length',
+                            'width', 'left', 'right', 'top', 'bottom', 'align']
+                }
     def setup(self, args):
         super(controls, self).__init__()  ## get idx, attrsupdt from baseObj
         ## default values of common attributes
@@ -3071,9 +3078,13 @@ class controls(baseObj):
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]        
         ## override default scalar attributes
+
         for a,val in args.items():
-            argsToSend.append(a)
-            setattr(self, '_'+a, val)              
+            if a in controls.attrlists[objName]:
+                argsToSend.append(a)
+                setattr(self, '_'+a, val)
+            else:
+                setattr(self, a, val)
         cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
         cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})        
                 
@@ -3143,7 +3154,7 @@ class button(controls):
         if not self._constructing:
             self.addattr('disabled')
 
-class checkbox(controls):
+class checkbox(controls): 
     def __init__(self, **args):
         args['_objName'] = 'checkbox'
         self._checked = False
@@ -3235,7 +3246,7 @@ class menu(controls):
             self.addattr('selected')
             
 class slider(controls):
-    def __init__(self, **args):
+    def __init__(self, **args): 
         args['_objName'] = 'slider'
         self._vertical = False
         if 'min' in args:  ## set here in order to set step
@@ -3257,7 +3268,6 @@ class slider(controls):
         self._align = 'left'
         super(slider, self).setup(args)
 
-            
     @property
     def vertical(self):
         return self._vertical
