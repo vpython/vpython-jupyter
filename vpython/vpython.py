@@ -2909,12 +2909,14 @@ class canvas(baseObj):
         if ev == 'pick':
             self.mouse.setpick( evt )
         else:
-            pos = evt['pos']
-            evt['pos'] = vector( pos[0], pos[1], pos[2] )
-            self.mouse._pos = evt['pos']
-            ray = evt['ray']
-            evt['ray'] = vector( ray[0], ray[1], ray[2] )
-            self.mouse._ray = evt['ray']
+            if 'pos' in evt:
+                pos = evt['pos']
+                evt['pos'] = vector( pos[0], pos[1], pos[2] )
+                self.mouse._pos = evt['pos']
+            if 'ray' in evt:
+                ray = evt['ray']
+                evt['ray'] = vector( ray[0], ray[1], ray[2] )
+                self.mouse._ray = evt['ray']
             canvas.hasmouse = self  
             if ev != 'update_canvas':   ## mouse events bound to functions
                 evt['canvas'] = self

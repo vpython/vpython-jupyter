@@ -28,6 +28,8 @@ comm = IPython.notebook.kernel.comm_manager.new_comm('glow')
 comm.on_msg(handler)
 console.log("Comm created for glow target", comm)
 
+var sliders = {}
+
 function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
     "use strict";
     var evt = {event:event.event}
@@ -60,7 +62,9 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
     } else if (obj.objName === 'slider') {
         evt.value = obj.value
         evt.widget = 'slider'
-        console.log('slider', evt.value)
+        sliders[obj.idx] = evt
+        return
+//        console.log('slider', evt.value)
     } else if (obj.objName === 'checkbox') {
         evt.value = obj.checked
         evt.widget = 'checkbox'
@@ -75,30 +79,76 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
     }
     comm.send( {arguments: [evt]} )
 }
-function update_canvas() {    // mouse location and other stuff updated every render
+
+// function send_slider_info() {
+    // for (var ss in sliders){
+        // console.log('slider', sliders[ss] )
+        // comm.send( { arguments: [ sliders[ss] ] } )
+    // }
+    // sliders = {}
+   console.log('send slider info done')
+    // setTimeout( send_slider_info, 33 ) 
+// }
+
+var timer = null
+var lastpos = vec(0,0,0)
+var lastray = vec(0,0,0)
+var lastforward = vec(0,0,0)
+var lastup = vec(0,0,0)
+var lastrange = 1
+var lastautoscale = true
+
+function update_canvas() { // mouse location and other stuff
     "use strict";
+    // Typically called at the end of handler function, but
+    // if not, it will call itself every "interval" number of milliseconds
+    if (timer !== null) clearTimeout(timer)
+    var interval = 100 // milliseconds
+    var dosend = false
     var evt = {event:'update_canvas'}
-    if (canvas.hasmouse === null || canvas.hasmouse === undefined) { return } 
+    if (canvas.hasmouse === null || canvas.hasmouse === undefined) {
+        setTimeout(update_canvas, interval)
+        return
+    } 
     var cvs = canvas.hasmouse  // only way to change these values is with mouse
     var idx = cvs.idx
     evt.canvas = idx
-    var ray = cvs.mouse.ray 
-    evt.ray = [ ray.x, ray.y, ray.z ]
     var pos = cvs.mouse.pos
-    evt.pos = [pos.x, pos.y, pos.z] 
+    if (!pos.equals(lastpos)) {evt.pos = [pos.x, pos.y, pos.z]; dosend=true}
+    lastpos = pos
+    var ray = cvs.mouse.ray 
+    if (!ray.equals(lastray)) {evt.ray = [ ray.x, ray.y, ray.z ]; dosend=true}
+    lastray = ray
     // forward and range may be changed by user (and up with touch), and autoscale (by zoom)
     if (cvs.userspin) {
         var forward = cvs.forward
+        if (!forward.equals(lastforward)) {
+            evt.forward = [forward.x, forward.y, forward.z]
+            dosend=true
+        }
+        lastforward = forward
         var up = cvs.up
-        evt.forward = [forward.x, forward.y, forward.z]
-        evt.up = [up.x, up.y, up.z]
+        if (!up.equals(lastup)) {evt.up = [up.x, up.y, up.z]; dosend=true}
+        lastup = up
     }
     if (cvs.userzoom) {
-        evt.range = cvs.range
-        evt.autoscale = cvs.autoscale 
+        var range = cvs.range
+        if (range !== lastrange) {evt.range = range; dosend=true}
+        lastrange = range
+        var autoscale = cvs.autoscale
+        if (autoscale !== lastautoscale) {evt.autoscale = autoscale; dosend=true}
+        lastautoscale = autoscale
     }
-    comm.send( {arguments: [evt]} )    
+    if (dosend) comm.send( {arguments: [evt]} )
+    for (var ss in sliders){
+//    console.log('slider', sliders[ss] )
+        comm.send( { arguments: [ sliders[ss] ] } )
+    }
+    sliders = {}
+//    console.log('send slider info done')
+    timer = setTimeout(update_canvas, interval)
 }
+update_canvas()
 
 function send_pick(cvs, p, seg) {
     "use strict";
@@ -499,6 +549,7 @@ function handler(msg) {
                             cfg.bind = control_handler
                             cfg = fix_location(cfg)
                             glowObjs[cmd.idx] = slider(cfg)
+
                         } else {
                             console.log("Unrecognized Object")
                         }
