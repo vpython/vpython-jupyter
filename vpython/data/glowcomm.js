@@ -265,7 +265,7 @@ function handler(msg) {
     //console.log('glow', data, data.length)
     //console.log(data)
     data = decode(data)
-//    console.log('JSON ' + JSON.stringify(data))
+    //console.log('JSON ' + JSON.stringify(data))
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst

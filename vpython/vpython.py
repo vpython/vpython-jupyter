@@ -3352,7 +3352,15 @@ class slider(controls):
         return self._align
     @align.setter
     def align(self, value):
-        raise AttributeError('align cannot be changed after creating a slider')   
+        raise AttributeError('align cannot be changed after creating a slider') 
+
+class extrusion:
+    def __init__(self, args):
+        raise AttributeError('The extrusion object is not yet available in Jupyter VPython')
+        
+class text:
+    def __init__(self, args):
+        raise AttributeError('The 3D text object is not yet available in Jupyter VPython')
                         
 # factorial and combin functions needed in statistical computations   
 # factorial now exists in python math library (but not combin)         
