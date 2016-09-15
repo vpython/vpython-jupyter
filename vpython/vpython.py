@@ -1,6 +1,8 @@
 from __future__ import print_function, division, absolute_import
 # New compression method: change to texture setter and to curve append method
 # scene.mouse.pick has 'pass' attribute to avoid decoding
+
+# Cythonize the encode machinery?
 import colorsys
 from .rate_control import *
 try:
@@ -11,13 +13,11 @@ except:
 import IPython
 if IPython.__version__ >= '4.0.0' :
     import ipykernel
-    from ipykernel.comm import Comm
     import notebook
 else:
-    from IPython.kernel.comm import Comm
     import IPython.html.nbextensions
 from IPython.display import HTML
-from IPython.display import display, display_html, display_javascript
+from IPython.display import display
 from IPython.display import Javascript
 from IPython.core.getipython import get_ipython
 
@@ -26,16 +26,15 @@ import math
 import inspect
 from time import clock
 import os
-import datetime, threading
+import threading
 import collections
 import copy
 import sys
-import weakref
 
 from . import __version__, __gs_version__
 
 import json
-#import ujson as json
+#import ujson as json # some Python installations apparently don't have ujson
 
 # To print immediately, do this:
 #    print(.....)
@@ -223,18 +222,17 @@ rate = RateKeeper2(interactFunc = ifunc)
 
 package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+"a.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+"b.min.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
+    #notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
+    #notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+".min.js",overwrite = True,user = True,verbose = 0)
+    #notebook.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/data",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/lib",overwrite = True,user = True,verbose = 0)
 elif IPython.__version__ >= '3.0.0' :
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+"a.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+"b.min.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+".min.js",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
 else:
-    #IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow."+GSversion[0]+".min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
-    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow."+GSversion[0]+"a.min.js",package_dir+"/data/glow."+GSversion[0]+"b.min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
+    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow."+GSversion[0]+".min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
 
 object_registry = {}    ## idx -> instance
 attach_arrows = []
@@ -272,6 +270,7 @@ class baseObj(object):
 
     def appendcmd(self,cmd):
         cmd['pass'] = 1 # indicate that this should be ignored by glowcomm/decode()
+        sys.stdout.flush()
         if (baseObj.glow != None):
             # The following code makes sure that those commands appended
             # while baseObj.glow was None are sent to the front end first.
@@ -474,7 +473,9 @@ def commsend():
     t = threading.Timer(tmr, commsend)
     t.start()
     _sent = True
-        
+
+glowcomm_initialized = False
+
 class GlowWidget(object):    
     def __init__(self, comm, msg):
         self.comm = comm
@@ -485,7 +486,9 @@ class GlowWidget(object):
 ##object_registry = {}    ## idx -> instance        
     def handle_msg(self, msg):
         evt = msg['content']['data']['arguments'][0]
-        if 'widget' in evt:
+        if 'initialized' in evt:
+            glowcomm_initialized = True
+        elif 'widget' in evt:
             obj = object_registry[evt['idx']]
             if evt['widget'] == 'button':
                 pass
@@ -503,17 +506,24 @@ class GlowWidget(object):
             cvs.handle_event(evt)
 
     def handle_close(self, data):
-        print ("Comm closed")
+        print ("comm closed")
 
 if IPython.__version__ >= '3.0.0' :
     get_ipython().kernel.comm_manager.register_target('glow', GlowWidget)
 else:
-    get_ipython().comm_manager.register_target('glow', GlowWidget)   
-display(Javascript("""require.undef("nbextensions/jquery-ui.custom.min");"""))
-display(Javascript('require.undef("nbextensions/glow.'+GSversion[0]+'a.min");'))
-display(Javascript('require.undef("nbextensions/glow.'+GSversion[0]+'b.min");'))
-display(Javascript("""require.undef("nbextensions/glowcomm");"""))
-display(Javascript("""require(["nbextensions/glowcomm"], function(){console.log("glowcomm loaded");})"""))
+    get_ipython().comm_manager.register_target('glow', GlowWidget) 
+
+glowfile = '"nbextensions/data/glow.{}.min"'.format(GSversion[0])
+display(Javascript("""require.undef("nbextensions/data/jquery-ui.custom.min");"""))
+#display(Javascript("""require.undef("nbextensions/data/opentype");"""))
+#display(Javascript("""require.undef("nbextensions/data/poly2tri");"""))
+display(Javascript("""require.undef("""+glowfile+""");"""))
+display(Javascript("""require.undef("nbextensions/data/glowcomm");"""))
+display(Javascript("""require(["nbextensions/data/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
+#display(Javascript("""require(["nbextensions/data/opentype"], function(){console.log("OPENTYPE LOADED");})"""))
+#display(Javascript("""require(["nbextensions/data/poly2tri"], function(){console.log("POLY2TRI LOADED");})"""))
+display(Javascript("""require(["""+glowfile+"""], function(){console.log("GLOW LOADED");})"""))
+display(Javascript("""require(["nbextensions/data/glowcomm"], function(){console.log("GLOWCOMM LOADED");})"""))
             
 get_ipython().kernel.do_one_iteration()
 
@@ -1453,6 +1463,7 @@ class compound(standardAttributes):
         
         compound_idx += 1
         args['_objName'] = 'compound'+str(compound_idx)
+        sleep(0.1) # make sure all the object attributes are fully updated before forming the compound
         super(compound, self).setup(args)
         
         for obj in objList:
@@ -1520,9 +1531,7 @@ class vertex(standardAttributes):
 
     def incrementTriangleCount(self):
         self._triangleCount += 1
-        
-            
-                        
+           
     @property
     def normal(self):
         return self._normal
@@ -1906,7 +1915,7 @@ class curve(curveMethods):
     def _on_origin_change(self): 
         self.addattr('origin')
             
-
+            
 class points(curveMethods):
     def __init__(self,*args1, **args):
         args['_objName'] = "points"
@@ -1934,8 +1943,7 @@ class points(curveMethods):
     def origin(self,value):
         raise AttributeError('points object does not have an origin')
         
-
-
+        
 class gobj(baseObj):
     def setup(self, args):
         super(gobj, self).__init__()
@@ -2337,8 +2345,6 @@ class label(standardAttributes):
     @text.setter
     def text(self,value):
         self._text = print_to_string(value)
-        #if not self._constructing:
-        #    self.addattr('text')
         if not self._constructing:
             self.appendcmd({"val":value,"attr":"text","idx":self.idx})
 
@@ -3354,13 +3360,26 @@ class slider(controls):
     def align(self, value):
         raise AttributeError('align cannot be changed after creating a slider') 
 
-class extrusion:
-    def __init__(self, args):
-        raise AttributeError('The extrusion object is not yet available in Jupyter VPython')
+class extrusion(baseObj):
+    def __init__(self, **args):
+        #raise AttributeError('The extrusion object is not yet available in Jupyter VPython')
+        super(extrusion, self).__init__() 
+        cmd = {"cmd": 'extrusion', "idx": self.idx, "attrs":[]}
+        cmd["attrs"].append({"attr": 'pos', "value": [ [0,0,0], [0,0,-1] ]})
+        d = 0.3
+        cmd["attrs"].append({"attr": 'shape', "value": [ [[-1,-1], [1,-1], [0,1], [-1,-1]],
+               [[-d,-d], [d,-d], [0,d], [-d,-d]] ]})
+        #cmd["attrs"].append({"attr": 'show_start_face', "value": 0})
+        #cmd["attrs"].append({"attr": 'show_end_face', "value": 0})
+        self.appendcmd(cmd)
         
-class text:
-    def __init__(self, args):
+class text(baseObj):
+    def __init__(self, **args):
+        # Need to load font files
         raise AttributeError('The 3D text object is not yet available in Jupyter VPython')
+        super(text, self).__init__() 
+        cmd = {"cmd": 'text', "idx": self.idx, "attrs":[]}
+        cmd["attrs"].append({"attr": 'text', "value": 'ABC'})
                         
 # factorial and combin functions needed in statistical computations   
 # factorial now exists in python math library (but not combin)         
@@ -3428,8 +3447,9 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
     s = s[:-1]
     return(s)
 
-commsend()
-
-while True:   ## make sure setup is complete
+while True:   ## try to make sure setup is complete
     rate(30)
     if baseObj.glow is not None: break
+rate.active = False
+
+commsend()

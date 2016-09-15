@@ -1,10 +1,8 @@
 // MAKE SURE THE GLOW LIBRARY HAS THE CORRECT VERSION NUMBER:
-define(["nbextensions/jquery-ui.custom.min","nbextensions/glow.2.1a.min","nbextensions/glow.2.1b.min"], function() {
-/*jslint plusplus: true */
+define(["nbextensions/data/jquery-ui.custom.min",
+        "nbextensions/data/glow.2.1.min"], function() {
 
-require("nbextensions/glow.2.1a.min")
-
-console.log("glowscript loading");
+console.log("start of glowcomm");
 
 /*
 function msclock() {
@@ -26,7 +24,7 @@ function o2vec3(p) {
 
 comm = IPython.notebook.kernel.comm_manager.new_comm('glow')
 comm.on_msg(handler)
-console.log("Comm created for glow target", comm)
+console.log("comm created for glow target", comm)
 
 var sliders = {}
 
@@ -255,7 +253,6 @@ function fix_location(cfgx) {
         delete cfgx['location']
     }
     return cfgx
-
 }
 
 function handler(msg) {
@@ -265,7 +262,7 @@ function handler(msg) {
     //console.log('glow', data, data.length)
     //console.log(data)
     data = decode(data)
-    //console.log('JSON ' + JSON.stringify(data))
+    console.log('JSON ' + JSON.stringify(data))
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -399,7 +396,8 @@ function handler(msg) {
                             } else {
                                cfg[attr.attr] = o2vec3(attr.value)
                             }                            
-                        } else if (attr.attr ==='pos' && (cmd.cmd === 'curve' || cmd.cmd === 'points')) {
+                        } else if (attr.attr ==='pos' && (cmd.cmd === 'curve' || cmd.cmd === 'points' ||
+                                    cmd.cmd === 'extrusion')) {
                             var ptlist = []
                             for (var kk = 0; kk < attr.value.length; kk++) {
                                 ptlist.push( o2vec3(attr.value[kk]) )
@@ -480,6 +478,8 @@ function handler(msg) {
                             glowObjs[cmd.idx] = label(cfg)
                         } else if (cmd.cmd === 'ellipsoid') {
                             glowObjs[cmd.idx] = sphere(cfg)
+                        } else if (cmd.cmd === 'extrusion') {
+                            glowObjs[cmd.idx] = extrusion(cfg)
                         } else if (cmd.cmd === 'lights') {
                             glowObjs[cmd.idx] = lights(cfg)
                         } else if (cmd.cmd === 'rotate') {
@@ -589,6 +589,6 @@ function handler(msg) {
     }
     update_canvas()
 };
-
+console.log("end of glowcomm");
 
 });
