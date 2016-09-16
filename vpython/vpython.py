@@ -665,13 +665,20 @@ class standardAttributes(baseObj):
                  'attach_trail': [ ['color'],
                         [],
                         ['radius', 'pps', 'retain', 'type', '_obj'],
-                        [] ]
+                        [] ],
+                 'extrusion':[ ['origin', 'up', 'color' ],
+                        [ 'axis', 'size' ],
+                        ['pos', 'shape', 'visible', 'opacity','shininess', 'emissive',  
+                         'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
+                         'retain', 'trail_color', 'trail_radius', 'texture', 'pickable' ],
+                        ['red', 'green', 'blue','length', 'width', 'height'] ]
                         }
  
     attrLists['pyramid'] = attrLists['box']
     attrLists['cylinder'] = attrLists['sphere']
     attrLists['cone'] = attrLists['sphere']
     attrLists['ellipsoid'] = attrLists['sphere']
+
     
 
     def setup(self, args):
@@ -810,11 +817,11 @@ class standardAttributes(baseObj):
             self._axis.on_change = self._on_axis_change
             self._size.on_change = self._on_size_change
             self._up.on_change = self._on_up_change
-        noPos = ['curve', 'points', 'triangle', 'quad', 'attach_arrow']
+        noPos = ['curve', 'points', 'triangle', 'quad', 'attach_arrow', 'extrusion']
         if objName not in noPos:
         # if objName != 'curve' and objName != 'points':
             self._pos.on_change = self._on_pos_change
-        elif objName == 'curve':
+        elif objName == 'curve' or objName == 'extrusion':
             self._origin.on_change = self._on_origin_change
         if objName == 'vertex':
             self._bumpaxis.on_change = self._on_bumpaxis_change
@@ -1884,7 +1891,7 @@ class curveMethods(standardAttributes):
         raise AttributeError('object does not have a "pos" attribute')
     @pos.setter
     def pos(self,val):
-        raise AttributeError('object does not have a "pos" attribute')
+        raise AttributeError('use object methods to change its shape')
      
     # def __del__(self):
         # pass
@@ -3012,7 +3019,8 @@ class event_return(object):
         self.release = args['release']
         self.which = args['which']
 
-                
+             
+             
 class local_light(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,1,1)
@@ -3358,8 +3366,80 @@ class slider(controls):
     @align.setter
     def align(self, value):
         raise AttributeError('align cannot be changed after creating a slider') 
+        
+class extrusion(standardAttributes):
+    def __init__(self, **args):
+        args['_default_size'] = vector(1,1,1)
+        args['_objName'] = "extrusion"
+        self._shape = [ ]
+        self._origin = vector(0,0,0)
+        pozz = args['pos']
+        npozz = []
+        for pp in pozz:
+            npozz.append(pp.value)  ## convert vectors to lists
+        args['pos'] = npozz[:]
+        self._show_start_face = True
+        self._show_end_face = True
 
-class extrusion(baseObj):
+        super(extrusion, self).setup(args)
+        
+    def _on_origin_change(self):
+        self.addattr('origin')
+        
+    @property
+    def pos(self):
+        if self._constructing:
+            return self._pos
+        else:
+            return None
+    @pos.setter
+    def pos(self,value):
+        raise AttributeError('pos cannot be changed after extrusion is created')
+        
+    @property
+    def shape(self):
+        if self._constructing:
+            return self._shape
+        else:
+            return None
+    @shape.setter
+    def shape(self, value):
+        raise AttributeError('shape cannot be changed after extrusion is created')
+    
+    @property
+    def origin(self):
+        return self._origin    
+    @origin.setter
+    def origin(self,value):
+        self._origin.value = value
+        if not self._constructing:
+            self.addattr('origin')
+            
+    @property
+    def show_start_face(self):
+        if self._constructing:
+            return self._show_start_face
+        else:
+            return None
+    @show_start_face.setter
+    def show_start_face(self,value):
+        raise AttributeError('show_start_face cannot be changed after extrusion is created')
+        
+    @property
+    def show_end_face(self):
+        if self._constructing:
+            return self._show_end_face
+        else:
+            return None
+    @show_end_face.setter
+    def show_end_face(self,value):
+        raise AttributeError('show_end_face cannot be changed after extrusion is created')
+
+        
+        
+        
+
+class extrusion1(baseObj):
     def __init__(self, **args):
         #raise AttributeError('The extrusion object is not yet available in Jupyter VPython')
         super(extrusion, self).__init__() 
