@@ -21,26 +21,21 @@ function waitforfonts(cb) { // wait for sans and serif font files to be delivere
 }
 */
 
-var fsans =  '../lib/FilesInAWS/Roboto-Medium.ttf' // a sans serif font
-opentype_load(fsans, function(err, fontrefsans) {
-    if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
-    window.__font_sans = fontrefsans // an opentype.js Font object
-})
-var fserif = '../lib/FilesInAWS/NimbusRomNo9L-Med.otf' // a serif font
-opentype_load(fserif, function(err, fontrefserif) {
-    if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
-    window.__font_serif = fontrefserif // an opentype.js Font object
-})
-
-/*
-var fsans =  '../lib/FilesInAWS/Roboto-Medium.ttf' // a sans serif font
-window.__font_sans = loadSync(fsans)
-console.log('SANS font loaded')
-
-var fserif = '../lib/FilesInAWS/NimbusRomNo9L-Med.otf' // a serif font
-window.__font_serif = loadSync(fsans)
-console.log('SERIF   font loaded')
-*/
+function fontloading() {
+    var fsans =  'https://s3.amazonaws.com/glowscript/fonts/Roboto-Medium.ttf' // a sans serif font
+    opentype_load(fsans, function(err, fontrefsans) {
+        if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
+        window.__font_sans = fontrefsans // an opentype.js Font object
+        console.log('SANS-SERIF FONT LOADED')
+    })
+    var fserif = 'https://s3.amazonaws.com/glowscript/fonts/NimbusRomNo9L-Med.otf' // a serif font
+    opentype_load(fserif, function(err, fontrefserif) {
+        if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
+        window.__font_serif = fontrefserif // an opentype.js Font object
+        console.log('SERIF FONT LOADED')
+    })
+}
+fontloading()
 
 var glowObjs = []
 
@@ -511,6 +506,8 @@ function handler(msg) {
                             glowObjs[cmd.idx] = sphere(cfg)
                         } else if (cmd.cmd === 'extrusion') {
                             glowObjs[cmd.idx] = extrusion(cfg)
+                        } else if (cmd.cmd === 'text') {
+                            glowObjs[cmd.idx] = text(cfg)
                         } else if (cmd.cmd === 'lights') {
                             glowObjs[cmd.idx] = lights(cfg)
                         } else if (cmd.cmd === 'rotate') {
