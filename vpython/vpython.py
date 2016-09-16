@@ -270,7 +270,6 @@ class baseObj(object):
 
     def appendcmd(self,cmd):
         cmd['pass'] = 1 # indicate that this should be ignored by glowcomm/decode()
-        sys.stdout.flush()
         if (baseObj.glow != None):
             # The following code makes sure that those commands appended
             # while baseObj.glow was None are sent to the front end first.
@@ -3376,10 +3375,11 @@ class extrusion(baseObj):
 class text(baseObj):
     def __init__(self, **args):
         # Need to load font files
-        raise AttributeError('The 3D text object is not yet available in Jupyter VPython')
+        #raise AttributeError('The 3D text object is not yet available in Jupyter VPython')
         super(text, self).__init__() 
         cmd = {"cmd": 'text', "idx": self.idx, "attrs":[]}
         cmd["attrs"].append({"attr": 'text', "value": 'ABC'})
+        self.appendcmd(cmd)
                         
 # factorial and combin functions needed in statistical computations   
 # factorial now exists in python math library (but not combin)         

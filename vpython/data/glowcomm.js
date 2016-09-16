@@ -11,6 +11,37 @@ function msclock() {
 }
 */
 
+/*
+function waitforfonts(cb) { // wait for sans and serif font files to be delivered to opentype.js
+    function wrapCB() {
+        if ((window.__font_sans !== undefined) && (window.__font_serif !== undefined)) cb()
+        else setTimeout(wrapCB, 15)
+    }
+    wrapCB()
+}
+*/
+
+var fsans =  '../lib/FilesInAWS/Roboto-Medium.ttf' // a sans serif font
+opentype_load(fsans, function(err, fontrefsans) {
+    if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
+    window.__font_sans = fontrefsans // an opentype.js Font object
+})
+var fserif = '../lib/FilesInAWS/NimbusRomNo9L-Med.otf' // a serif font
+opentype_load(fserif, function(err, fontrefserif) {
+    if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
+    window.__font_serif = fontrefserif // an opentype.js Font object
+})
+
+/*
+var fsans =  '../lib/FilesInAWS/Roboto-Medium.ttf' // a sans serif font
+window.__font_sans = loadSync(fsans)
+console.log('SANS font loaded')
+
+var fserif = '../lib/FilesInAWS/NimbusRomNo9L-Med.otf' // a serif font
+window.__font_serif = loadSync(fsans)
+console.log('SERIF   font loaded')
+*/
+
 var glowObjs = []
 
 //scene.title.text("fps = frames/sec\n ")
