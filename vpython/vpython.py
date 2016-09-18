@@ -10,6 +10,7 @@ try:
     v = vector(0.,0.,0.)
 except:
     from .vector import *
+
 import IPython
 if IPython.__version__ >= '4.0.0' :
     import ipykernel
@@ -138,6 +139,7 @@ def encode_attr(L): # L is a list of dictionaries
                 s += "{:.16G},{:.16G},".format(p[0], p[1])
             s =s[:-1]
         elif sendtype == 'm':
+            if sendval == 'follow': val = str(val) # scene.camera.follow(object idx)
             s += val
         else:
             s += "{:.16G}".format(val)
@@ -2599,14 +2601,6 @@ class Camera(object):
             newpos = origin + (self.pos-origin).rotate(angle=angle, axis=axis)
         c.center = newpos + newaxis
         c.forward = norm(newaxis)
-        
-    @property
-    def follow(self):
-        return self._followthis
-    @follow.setter
-    def follow(self, obj):    ## should allow a function also
-        self._followthis = obj
-        self.addmethod('follow', obj.idx)
 
 class canvas(baseObj):
     selected_canvas = None
@@ -2693,6 +2687,11 @@ class canvas(baseObj):
         
         self.appendcmd(cmd)
         self._constructing = False
+        
+        self._camera.follow = self.follow
+        
+    def follow(self, obj):    ## should allow a function also
+        self.addmethod('follow', obj.idx)
 
     def select(self):
         canvas.selected_canvas = self

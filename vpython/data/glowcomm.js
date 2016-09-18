@@ -334,7 +334,7 @@ function handler(msg) {
                         }
                     }
                     if (cmd.method !== undefined) {
-                        //console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
+                        console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
                         var parametric = ['splice', 'modify']
                         var val = cmd.val
                         if (cmd.method == 'GSprint') {
@@ -351,7 +351,9 @@ function handler(msg) {
                         } else if (cmd.method === 'bind') {
                             glowObjs[cmd.idx].bind(cmd.val, process)
                         } else if (cmd.method === 'unbind') {
-                            glowObjs[cmd.idx].unbind(cmd.val, process)
+                            glowObjs[cmd.idx].unbind(cmd.val, process)                     
+                        } else if (cmd.method === "follow") {
+                            glowObjs[cmd.idx].camera.follow(glowObjs[cmd.val])
                         } else if (cmd.method === 'pause') {
                             if (cmd.val.length > 0) {
                                glowObjs[cmd.idx].pause(cmd.val, process_pause) 
@@ -430,7 +432,7 @@ function handler(msg) {
                             }
                             cfg[attr.attr] = ptlist                          
                         } else if (attr.attr === "axis" && cmd.cmd == 'arrow') {
-                            cfg['axis_and_length'] = o2vec3(attr.value)
+                            cfg['axis_and_length'] = o2vec3(attr.value) 
                         } else if (vlst.indexOf(attr.attr) !== -1) {
                             cfg[attr.attr] = o2vec3(attr.value)
                         } else if (triangle_quad.indexOf(attr.attr) !== -1) {
