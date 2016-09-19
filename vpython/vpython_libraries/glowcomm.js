@@ -1,8 +1,9 @@
 // MAKE SURE THE GLOW LIBRARY HAS THE CORRECT VERSION NUMBER:
-define(["nbextensions/data/jquery-ui.custom.min",
-        "nbextensions/data/glow.2.1.min"], function() {
+define(["nbextensions/vpython_libraries/jquery-ui.custom.min",
+        "nbextensions/vpython_libraries/glow.2.1.min"], function() {
 
 console.log("start of glowcomm");
+window.Jupyter_VPython = "/nbextensions/vpython_data/" // GlowScript library uses this to find texture jpegs
 
 /*
 function msclock() {
@@ -11,24 +12,14 @@ function msclock() {
 }
 */
 
-/*
-function waitforfonts(cb) { // wait for sans and serif font files to be delivered to opentype.js
-    function wrapCB() {
-        if ((window.__font_sans !== undefined) && (window.__font_serif !== undefined)) cb()
-        else setTimeout(wrapCB, 15)
-    }
-    wrapCB()
-}
-*/
-
 function fontloading() {
-    var fsans =  'https://s3.amazonaws.com/glowscript/fonts/Roboto-Medium.ttf' // a sans serif font
+    var fsans = '/nbextensions/vpython_data/Roboto-Medium.ttf'
     opentype_load(fsans, function(err, fontrefsans) {
         if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
         window.__font_sans = fontrefsans // an opentype.js Font object
         console.log('SANS-SERIF FONT LOADED')
     })
-    var fserif = 'https://s3.amazonaws.com/glowscript/fonts/NimbusRomNo9L-Med.otf' // a serif font
+    var fserif = '/nbextensions/vpython_data/NimbusRomNo9L-Med.otf'
     opentype_load(fserif, function(err, fontrefserif) {
         if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
         window.__font_serif = fontrefserif // an opentype.js Font object
@@ -288,7 +279,7 @@ function handler(msg) {
     //console.log('glow', data, data.length)
     //console.log(data)
     data = decode(data)
-    console.log('JSON ' + JSON.stringify(data))
+    //console.log('JSON ' + JSON.stringify(data))
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -334,7 +325,7 @@ function handler(msg) {
                         }
                     }
                     if (cmd.method !== undefined) {
-                        console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
+                        //console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
                         var parametric = ['splice', 'modify']
                         var val = cmd.val
                         if (cmd.method == 'GSprint') {

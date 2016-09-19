@@ -224,17 +224,13 @@ rate = RateKeeper2(interactFunc = ifunc)
 
 package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
-    #notebook.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    #notebook.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+".min.js",overwrite = True,user = True,verbose = 0)
-    #notebook.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/data",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/lib",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
 elif IPython.__version__ >= '3.0.0' :
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/jquery-ui.custom.min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glow."+GSversion[0]+".min.js",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/data/glowcomm.js",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
 else:
-    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/data/jquery-ui.custom.min.js",package_dir+"/data/glow."+GSversion[0]+".min.js",package_dir+"/data/glowcomm.js"],overwrite=True,verbose=0)
+    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_libraries",package_dir+"/vpython_data"],overwrite=True,verbose=0)
 
 object_registry = {}    ## idx -> instance
 attach_arrows = []
@@ -514,17 +510,13 @@ if IPython.__version__ >= '3.0.0' :
 else:
     get_ipython().comm_manager.register_target('glow', GlowWidget) 
 
-glowfile = '"nbextensions/data/glow.{}.min"'.format(GSversion[0])
-display(Javascript("""require.undef("nbextensions/data/jquery-ui.custom.min");"""))
-#display(Javascript("""require.undef("nbextensions/data/opentype");"""))
-#display(Javascript("""require.undef("nbextensions/data/poly2tri");"""))
+glowfile = '"nbextensions/vpython_libraries/glow.{}.min"'.format(GSversion[0])
+display(Javascript("""require.undef("nbextensions/vpython_libraries/jquery-ui.custom.min");"""))
 display(Javascript("""require.undef("""+glowfile+""");"""))
-display(Javascript("""require.undef("nbextensions/data/glowcomm");"""))
-display(Javascript("""require(["nbextensions/data/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
-#display(Javascript("""require(["nbextensions/data/opentype"], function(){console.log("OPENTYPE LOADED");})"""))
-#display(Javascript("""require(["nbextensions/data/poly2tri"], function(){console.log("POLY2TRI LOADED");})"""))
+display(Javascript("""require.undef("nbextensions/vpython_libraries/glowcomm");"""))
+display(Javascript("""require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
 display(Javascript("""require(["""+glowfile+"""], function(){console.log("GLOW LOADED");})"""))
-display(Javascript("""require(["nbextensions/data/glowcomm"], function(){console.log("GLOWCOMM LOADED");})"""))
+display(Javascript("""require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");})"""))
             
 get_ipython().kernel.do_one_iteration()
 
@@ -2883,7 +2875,7 @@ class canvas(baseObj):
     def lights(self, value):
         self._lights = value[:]
         if not self._constructing:
-            self.addattr('lights')
+            self.appendcmd({"val":self._lights,"attr":"lights","idx":self.idx}) # don't encode this unusual statement
             
     @property
     def pixel_to_world(self):
@@ -3016,9 +3008,7 @@ class event_return(object):
         self.pos = args['pos']
         self.press = args['press']
         self.release = args['release']
-        self.which = args['which']
-
-             
+        self.which = args['which']  
              
 class local_light(standardAttributes):
     def __init__(self, **args):
@@ -3033,6 +3023,7 @@ class distant_light(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,1,1)
         args['_objName'] = "distant_light"
+        self._direction = vector(0,0,1)
         super(distant_light, self).setup(args)
 
         if (canvas.get_selected() != None):
@@ -3042,12 +3033,12 @@ class distant_light(standardAttributes):
     def direction(self):
         return self._direction
     @direction.setter
-    def direction(self,other):
-        self._direction.value = other
+    def direction(self,value):
+        self._direction = value
         if not self._constructing:
             self.addattr('direction')
    
-print_anchor = 3  ## used by buttons etc.
+print_anchor = 3  ## problematic -- intended to point at print area
 ## title_anchor = 1 and caption_anchor = 2 are attributes of canvas
 
 class controls(baseObj):

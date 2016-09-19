@@ -6,7 +6,7 @@ def glowscript_version():
     """
 
     this_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(this_dir, 'data')
+    data_dir = os.path.join(this_dir, 'vpython_libraries')
     files = os.listdir(data_dir)
     
     gs_version = None
