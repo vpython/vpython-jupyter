@@ -10,6 +10,7 @@ try:
     v = vector(0.,0.,0.)
 except:
     from .vector import *
+from .shapes import *
 
 import IPython
 if IPython.__version__ >= '4.0.0' :
