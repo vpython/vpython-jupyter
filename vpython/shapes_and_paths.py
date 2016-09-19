@@ -1,6 +1,6 @@
 from __future__ import division
 #from vpython import vec, mag, norm
-from math import sqrt, sin, cos, tan, asin, atan, floor, pi
+from math import sqrt, sin, cos, tan, asin, acos, atan, floor, pi
 try:
     from .cyvector import vector, mag, norm
     v = vector(0.,0.,0.)
@@ -944,4 +944,137 @@ class shape_object(object):
             if rotate != 0: g2 = rotatecp(g2, pos, rotate)
             return g2
 
+def convert(pos=(0,0,0), up=(0,1,0), points=None, closed=True):
+        pos = vector(pos)
+        up = norm(vector(up))
+        up0 = vector(0,1,0)
+        angle = acos(up.dot(up0))
+        reorient = (angle > 0.0)
+        axis = up0.cross(up)
+        pts = []
+        for pt in points:
+            newpt = vector(pt[0],0,-pt[1])
+            if reorient: newpt = newpt.rotate(angle=angle, axis=axis)
+            pts.append(pos+newpt)
+        if closed and not pts[-1].equals(pts[0]): pts.append(pts[0])
+        return pts
+
+class path_object(object):
+
+    def rectangle(self, pos=vec(0,0,0), width=6, height=None, rotate=0.0, thickness=None,
+                      roundness=0.0, invert=False, scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if height == None: height = width
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in a rectangular path")
+            c = shapes.rectangle(width=width, height=height, rotate=rotate, thickness=0,
+                      roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
+            return convert(pos=pos, up=up, points=c)
+
+    def cross(self, pos=vec(0,0,0), width=5, thickness=2, rotate=0.0,
+                      roundness=0.0, invert=False, scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            c = shapes.cross(width=width, rotate=rotate, thickness=thickness,
+                      roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
+            return convert(pos=pos, up=up, points=c)
+
+    def trapezoid(self, pos=vec(0,0,0), width=6, height=3, top=None, rotate=0.0, thickness=None,
+                      roundness=0.0, invert=False, scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if height == None: height = width
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in a trapezoidal path")
+            c = shapes.trapezoid(width=width, height=height, top=top, rotate=rotate, thickness=0,
+                      roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
+            return convert(pos=pos, up=up, points=c)
+
+    def circle(self, pos=vec(0,0,0), radius=3, np=32, thickness=None,
+                      scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in a circular path")
+            c = shapes.circle(radius=radius, np=np, scale=scale, xscale=xscale, yscale=yscale)
+            return convert(pos=pos, up=up, points=c)
+
+    def line(self, start=vec(0,0,0), end=vec(0,0,-1), np=2):
+            if np < 2:
+                raise AttributeError("The minimum value of np is 2 (one segment)")
+            start = vector(start)
+            end = vector(end)
+            vline = (end-start)/(np-1)
+            pos = []
+            for i in range(np):
+                pos.append(start + i*vline)
+            return pos
+
+    def arc(self, pos=vec(0,0,0), radius=3, np=32, rotate=0.0, angle1=0, angle2=pi, thickness=None,
+                      scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in a circular path")
+            c = shapes.arc(radius=radius, angle1=angle1, angle2=angle2, rotate=rotate, np=np,
+                       scale=scale, xscale=xscale, yscale=yscale, path=True)
+            return convert(pos=pos, up=up, points=c, closed=False)
+
+    def ellipse(self, pos=vec(0,0,0), width=6, height=None, np=32, thickness=None,
+                      scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in an elliptical path")
+            c = shapes.ellipse(width=width, height=height, np=np, scale=scale, xscale=xscale, yscale=yscale)
+            return convert(pos=pos, up=up, points=c)
+
+    def ngon(self, pos=vec(0,0,0), np=3, length=6, radius=3.0, rotate=0.0, thickness=None,
+                      roundness=0.0, invert=False, scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in an ngon path")
+            c = shapes.ngon(np=np, length=length, radius=radius, rotate=rotate, thickness=0,
+                      roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
+            return convert(pos=pos, up=up, points=c)
+
+    def triangle(self, pos=vec(0,0,0), np=3, length=6, rotate=0.0, thickness=None,
+                      roundness=0.0, invert=False, scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in a triangular path")
+            c = shapes.ngon(np=np, length=length, rotate=rotate-pi/6.0, thickness=0,
+                      roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
+            return convert(pos=pos, up=up, points=c)
+
+    def pentagon(self, pos=vec(0,0,0), np=5, length=6, rotate=0.0, thickness=None,
+                      roundness=0.0, invert=False, scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in a pentagonal path")
+            c = shapes.ngon(np=np, length=length, rotate=rotate+pi/10, thickness=0,
+                      roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
+            return convert(pos=pos, up=up, points=c)
+
+    def hexagon(self, pos=vec(0,0,0), np=6, length=6, rotate=0.0, thickness=None,
+                      roundness=0.0, invert=False, scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in a hexagonal path")
+            c = shapes.ngon(np=np, length=length, rotate=rotate, thickness=0,
+                      roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
+            return convert(pos=pos, up=up, points=c)
+
+    def star(self, pos=vec(0,0,0), radius=3, n=5, iradius=None, rotate=0.0, thickness=None,
+                      roundness=0.0, invert=False, scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in a star path")
+            c = shapes.star(n=n, radius=radius, iradius=iradius, rotate=rotate,
+                      roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
+            return convert(pos=pos, up=up, points=c)
+            
+    def pointlist(self, pos=[], rotate=0.0, thickness=None,
+                      roundness=0.0, invert=False, scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
+            if thickness is not None:
+                raise AttributeError("Thickness is not allowed in a pointlist path")
+            # pos may be either a list of points or a Polygon object
+            try:
+                points = pos.contour(0)
+                if len(pos) > 1:
+                    raise AttributeError("pointlist can deal with only a single contour.")
+            except:
+                points = pos[:]
+            closed = (points[-1] == points[0])
+            if not closed:
+                points.append(points[0])
+            c = shapes.pointlist(pos=points, rotate=rotate, roundness=roundness, invert=invert,
+                             scale=scale, xscale=xscale, yscale=yscale, path=True)
+            return convert(pos=(0,0,0), up=up, points=c, closed=closed)
+            
 shapes = shape_object()
+paths = path_object()
