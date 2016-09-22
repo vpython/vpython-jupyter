@@ -294,8 +294,8 @@ function handler(msg) {
                 if (cmd.idx !== undefined) {
                     if (cmd.attr !== undefined) {      
 //  vector attrs in attach_arrow have arbitrary names, so check for length 3 array instead
-                        if (cmd.val instanceof Array && cmd.val.length === 3) {                        
-                            if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {                       
+                        if (cmd.val instanceof Array && cmd.val.length === 3) {
+                            if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {
                                 var ptlist = []
                                 for (var kk = 0; kk < cmd.val.length; kk++) {
                                     ptlist.push( o2vec3(cmd.val[kk]) )
@@ -399,7 +399,7 @@ function handler(msg) {
                 if (cmd.attrs !== undefined) {
                      vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
                              'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'textcolor',
-                             'origin', 'normal', 'bumpaxis','texpos']
+                             'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color']
                     if ((cmd.cmd != 'gcurve') && ( cmd.cmd != 'gdots' ) ) {
                         vlst.push( 'size' )
                     }

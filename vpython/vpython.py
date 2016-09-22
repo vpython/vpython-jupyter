@@ -661,9 +661,10 @@ class standardAttributes(baseObj):
                         [],
                         ['radius', 'pps', 'retain', 'type', '_obj'],
                         [] ],
-                 'extrusion':[ ['origin', 'up', 'color' ],
+                 'extrusion':[ ['origin', 'up', 'color', 'start_face_color', 'end_face_color' ],
                         [ 'axis', 'size' ],
                         ['pos', 'shape', 'visible', 'opacity','shininess', 'emissive',  
+                         'show_start_face', 'show_end_face',
                          'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable' ],
                         ['red', 'green', 'blue','length', 'width', 'height'] ]
@@ -3371,6 +3372,9 @@ class extrusion(standardAttributes):
         args['pos'] = npozz[:]
         self._show_start_face = True
         self._show_end_face = True
+        if 'color' in args:
+            self._start_face_color = args['color']
+            self._end_face_color = args['color']
 
         super(extrusion, self).setup(args)
         
@@ -3425,23 +3429,26 @@ class extrusion(standardAttributes):
     @show_end_face.setter
     def show_end_face(self,value):
         raise AttributeError('show_end_face cannot be changed after extrusion is created')
-
+            
+    @property
+    def start_face_color(self):
+        if self._constructing:
+            return self._start_face_color
+        else:
+            return None
+    @start_face_color.setter
+    def start_face_color(self,value):
+        raise AttributeError('start_face_color cannot be changed after extrusion is created')
         
-        
-        
-
-class extrusion1(baseObj):
-    def __init__(self, **args):
-        #raise AttributeError('The extrusion object is not yet available in Jupyter VPython')
-        super(extrusion, self).__init__() 
-        cmd = {"cmd": 'extrusion', "idx": self.idx, "attrs":[]}
-        cmd["attrs"].append({"attr": 'pos', "value": [ [0,0,0], [0,0,-1] ]})
-        d = 0.3
-        cmd["attrs"].append({"attr": 'shape', "value": [ [[-1,-1], [1,-1], [0,1], [-1,-1]],
-               [[-d,-d], [d,-d], [0,d], [-d,-d]] ]})
-        #cmd["attrs"].append({"attr": 'show_start_face', "value": 0})
-        #cmd["attrs"].append({"attr": 'show_end_face', "value": 0})
-        self.appendcmd(cmd)
+    @property
+    def end_face_color(self):
+        if self._constructing:
+            return self._end_face_color
+        else:
+            return None
+    @end_face_color.setter
+    def end_face_color(self,value):
+        raise AttributeError('end_face_color cannot be changed after extrusion is created')
         
 class text(baseObj):
     def __init__(self, **args):
