@@ -676,7 +676,6 @@ class standardAttributes(baseObj):
     attrLists['ellipsoid'] = attrLists['sphere']
 
     
-
     def setup(self, args):
         super(standardAttributes, self).__init__() 
         self._constructing = True  ## calls to setters are from constructor
@@ -2793,7 +2792,7 @@ class canvas(baseObj):
         if not (val == 'left' or val == 'right' or val == 'none'):
             raise NameError("align must be 'left', 'right', or 'none' (the default).")
         self._align = val
-        self.addattr('align')
+        self.appendcmd({"val":val,"attr":"align","idx":self.idx})
 
     @property
     def center(self):
@@ -2803,7 +2802,7 @@ class canvas(baseObj):
         if isinstance(value, vector):
             self._center = value
             if not self._constructing:
-                self.addattr('center')
+                self.appendcmd({"val":value.value,"attr":"center","idx":self.idx})
         else:
             raise TypeError('center must be a vector')
 
@@ -2813,8 +2812,8 @@ class canvas(baseObj):
     @forward.setter
     def forward(self,value):
         self._forward = self._set_forward = value
-        if not self._constructing:    
-            self.addattr('forward')
+        if not self._constructing:
+            self.appendcmd({"val":value.value,"attr":"forward","idx":self.idx})
 
     @property
     def range(self):
@@ -2823,7 +2822,7 @@ class canvas(baseObj):
     def range(self,value):
         self._range = self._set_range = value
         if not self._constructing:
-            self.addattr('range')
+            self.appendcmd({"val":value,"attr":"range","idx":self.idx})
 
     @property
     def up(self):
@@ -2831,8 +2830,8 @@ class canvas(baseObj):
     @up.setter
     def up(self,value):
         self._up = self._set_up = value
-        if not self._constructing:    
-            self.addattr('up')
+        if not self._constructing: 
+            self.appendcmd({"val":value.value,"attr":"up","idx":self.idx})
 
     @property
     def autoscale(self):
@@ -2840,8 +2839,8 @@ class canvas(baseObj):
     @autoscale.setter
     def autoscale(self,value):
         self._autoscale = self._set_autoscale = value
-        if not self._constructing:    
-            self.addattr('autoscale')
+        if not self._constructing:
+            self.appendcmd({"val":value,"attr":"autoscale","idx":self.idx})
 
     @property
     def fov(self):
@@ -2849,8 +2848,8 @@ class canvas(baseObj):
     @fov.setter
     def fov(self,value):
         self._fov = value
-        if not self._constructing:    
-            self.addattr('fov')
+        if not self._constructing:
+            self.appendcmd({"val":value,"attr":"fov","idx":self.idx})
 
     @property
     def userzoom(self):
@@ -2858,8 +2857,8 @@ class canvas(baseObj):
     @userzoom.setter
     def userzoom(self,value):
         self._userzoom = value
-        if not self._constructing:    
-            self.addattr('userzoom')
+        if not self._constructing:
+            self.appendcmd({"val":value,"attr":"userzoom","idx":self.idx})
 
     @property
     def userspin(self):
@@ -2867,8 +2866,8 @@ class canvas(baseObj):
     @userspin.setter
     def userspin(self,value):
         self._userspin = value
-        if not self._constructing:    
-            self.addattr('userspin')
+        if not self._constructing:
+            self.appendcmd({"val":value,"attr":"userspin","idx":self.idx})
             
     @property
     def lights(self):
