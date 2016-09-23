@@ -149,7 +149,6 @@ def encode_attr(L): # L is a list of dictionaries
 
 def send_json(comm, req):
     # req is a list of dictionaries, each of the form {'attr': 'opacity', 'val': 0.5, 'idx': 3}
-    # json_str is a character string such as '[{'attr': 'opacity', 'val': 0.5, 'idx': 3}]'
     send = encode_attr(req)
     comm.send(send)
 
@@ -178,6 +177,13 @@ class RateKeeper2(RateKeeper):
         # it detects that considerable time has passed since the last time the rate() function
         # was called, it concludes that the user program has exited from a rate-based loop
         # and can set rate.active to False.
+        
+        # global _sent
+        # if not self.active: # the first time we've encountered a rate statement
+            # _sent = False
+            # while not _sent: # wait for commsend to transmit pending data
+                # pass
+                
         self.active = True
         if baseObj.glow is not None:
             if (len(glowqueue) > 0) or (len(baseObj.cmds) > 0) or self.send:
@@ -185,19 +191,18 @@ class RateKeeper2(RateKeeper):
                     if len(baseObj.cmds) > 0:
                         a = copy.copy(baseObj.cmds)
                         L = len(a)
-#                        baseObj.glow.comm.send(list(a))
-                        baseObj.glow.comm.send(encode_attr(list(a)))
+                        baseObj.glow.comm.send(list(a))
                         a.clear()
                         while L > 0:
                             if len(baseObj.cmds) > 0:
                                 del baseObj.cmds[0]
                             L -= 1
-                            
+                         
                     while len(glowqueue) > 0:
                         req = glowqueue.popleft()
-                        if len(req) > 0 :
-#                            baseObj.glow.comm.send(req)
-                            baseObj.glow.comm.send(encode_attr(req))
+                        baseObj.glow.comm.send(req)
+                        #if len(req) > 0 :
+                        #    baseObj.glow.comm.send(encode_attr(req))
 
                 finally:
                     self.send = False
@@ -311,7 +316,7 @@ updtobjs2 = collections.deque()
 next_call = time.time()
 prev_sz = 0
 glowqueue = collections.deque(maxlen=30)
-_sent = False  ## set to True when commsend completes; needed for canvas.waitfor
+_sent = False  ## set to True when commsend completes; needed for canvas.waitfor(...)
 
 def commsend():
     # Jupyter does not immediately transmit data to the browser from a thread such as commsend().
@@ -344,10 +349,13 @@ def commsend():
                 if (rate.sendcnt > thresh ):
                     rate.active = False       # rate function apparently no longer being called
             elif (len(glowqueue) > 0) and (not rate.active):
-                for i in range(len(glowqueue)):
+                while len(glowqueue) > 0:
                     req = glowqueue.popleft()
-                    if len(req) > 0 :
-                        baseObj.glow.comm.send(req)
+                    baseObj.glow.comm.send(req)
+                # for i in range(len(glowqueue)):
+                    # req = glowqueue.popleft()
+                    # if len(req) > 0 :
+                        # baseObj.glow.comm.send(req)
                 rate.sendcnt = 0
             else:
                 rate.sendcnt = 0
@@ -1464,7 +1472,7 @@ class compound(standardAttributes):
         
         compound_idx += 1
         args['_objName'] = 'compound'+str(compound_idx)
-        sleep(0.1) # make sure all the object attributes are fully updated before forming the compound
+        sleep(0.5) # make sure all the object attributes are fully updated before forming the compound
         super(compound, self).setup(args)
         
         for obj in objList:
