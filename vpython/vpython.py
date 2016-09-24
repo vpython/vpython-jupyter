@@ -1,6 +1,4 @@
 from __future__ import print_function, division, absolute_import
-# New compression method: change to texture setter and to curve append method
-# scene.mouse.pick has 'pass' attribute to avoid decoding
 
 # Cythonize the encode machinery?
 import colorsys
@@ -32,6 +30,7 @@ import threading
 import collections
 import copy
 import sys
+#from inspect import getargspec # needed to allow zero arguments in a bound function
 
 from . import __version__, __gs_version__
 
@@ -174,41 +173,19 @@ class RateKeeper2(RateKeeper):
         # the browser immediately. sendtofrontend() sets rate.active to True and commsend()
         # avoids sending baseObj.cmds data and glowqueue data when rate.active is True.
         # commsend() runs about 30 times per second off a timer, threading.Timer(), and if
-        # it detects that considerable time has passed since the last time the rate() function
+        # it detects that considerable time has _passed since the last time the rate() function
         # was called, it concludes that the user program has exited from a rate-based loop
         # and can set rate.active to False.
-        
-        # global _sent
-        # if not self.active: # the first time we've encountered a rate statement
-            # _sent = False
-            # while not _sent: # wait for commsend to transmit pending data
-                # pass
                 
         self.active = True
-        if baseObj.glow is not None:
-            if (len(glowqueue) > 0) or (len(baseObj.cmds) > 0) or self.send:
-                try:
-                    if len(baseObj.cmds) > 0:
-                        a = copy.copy(baseObj.cmds)
-                        L = len(a)
-                        baseObj.glow.comm.send(list(a))
-                        a.clear()
-                        while L > 0:
-                            if len(baseObj.cmds) > 0:
-                                del baseObj.cmds[0]
-                            L -= 1
-                         
-                    while len(glowqueue) > 0:
-                        req = glowqueue.popleft()
-                        baseObj.glow.comm.send(req)
-                        #if len(req) > 0 :
-                        #    baseObj.glow.comm.send(encode_attr(req))
-
-                finally:
-                    self.send = False
-                    self.sendcnt = 0
-                    self.sz = 0
-
+        if baseObj.glow is not None: # baseObj.glow is None while waiting at the end of this file
+            try:                    
+                commsend()
+            finally:
+                self.send = False
+                self.sendcnt = 0
+                self.sz = 0 
+        
         # Check if events to process from front end
         if IPython.__version__ >= '3.0.0' :
             kernel = get_ipython().kernel
@@ -273,20 +250,12 @@ class baseObj(object):
         #baseObj.cmds.append(cmd)
 
     def appendcmd(self,cmd):
-        cmd['pass'] = 1 # indicate that this should be ignored by glowcomm/decode()
-        if (baseObj.glow != None):
-            # The following code makes sure that those commands appended
-            # while baseObj.glow was None are sent to the front end first.
-            if len(baseObj.cmds) > 0:
-                for c in baseObj.cmds:
-                    baseObj.glow.comm.send([c])
-                baseObj.cmds.clear()
-            baseObj.glow.comm.send([cmd])
-        else:
-            baseObj.cmds.append(cmd)
+        # The following code makes sure that constructors are sent to the front end first.
+        cmd['_pass'] = 1 # indicate that this should be ignored by glowcomm/decode()
+        baseObj.glow.comm.send([cmd])
     
-    def addattr(self, name):
-        self.attrsupdt.append(name)
+    def addattr(self, attr):
+        self.attrsupdt.append(attr)
         baseObj.updtobjs.append(self.idx)
         
     def addmethod(self, name, data):
@@ -310,12 +279,8 @@ class baseObj(object):
 
 commcmds = []
 
-for i in range(baseObj.qSize):
+for i in range(10000): #baseObj.qSize):
     commcmds.append({"idx": -1, "attr": 'dummy', "val": 0})
-updtobjs2 = collections.deque()
-next_call = time.time()
-prev_sz = 0
-glowqueue = collections.deque(maxlen=30)
 _sent = False  ## set to True when commsend completes; needed for canvas.waitfor(...)
 
 def commsend():
@@ -324,163 +289,121 @@ def commsend():
     # Animations are nevertheless possible because the rate() function executes the
     # function sendtofrontend(), which is not in a thread and can use comm.send to update
     # the browser immediately. sendtofrontend() sets rate.active to True and commsend()
-    # avoids sending baseObj.cmds data and glowqueue data when rate.active is True.
+    # avoids sending glowqueue data when rate.active is True. Note that constructors are
+    # handled separately, in appendcmd(), which sends to the browser immediately.
     # commsend() runs about 30 times per second off a timer, threading.Timer(), and if
-    # it detects that considerable time has passed since the last time the rate() function
+    # it detects that considerable time has _passed since the last time the rate() function
     # was called, it concludes that the user program has exited from a rate-based loop
     # and can set rate.active to False.
     # The initial call to commsend() is at the end of this file.
-    global next_call, commcmds, updtobjs2, rate, _sent, prev_sz, glowqueue
+    global commcmds, _sent
     _sent = False
     try:
-        if baseObj.glow is not None:
-            if (len(baseObj.cmds) > 0) and (not rate.active):
-                a = copy.copy(baseObj.cmds)
-                L = len(a)
-                baseObj.glow.comm.send(list(a))  # Send constructors to glowcomm
-                a.clear()
-                while L > 0:
-                    del baseObj.cmds[0]
-                    L -= 1 
 
-            if (len(glowqueue) > 0) and (rate.active):
-                rate.sendcnt += 1
-                thresh = math.ceil(30.0/rate.rval) * 2 + 1
-                if (rate.sendcnt > thresh ):
-                    rate.active = False       # rate function apparently no longer being called
-            elif (len(glowqueue) > 0) and (not rate.active):
-                while len(glowqueue) > 0:
-                    req = glowqueue.popleft()
-                    baseObj.glow.comm.send(req)
-                # for i in range(len(glowqueue)):
-                    # req = glowqueue.popleft()
-                    # if len(req) > 0 :
-                        # baseObj.glow.comm.send(req)
-                rate.sendcnt = 0
+        ## update every attach_arrow if relevant vector has changed    
+        for aa in attach_arrows:
+            ob = object_registry[aa._obj]
+            vval = getattr(ob, aa._attr)
+            if not isinstance(vval, vector):
+                continue
+            if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
+                continue
+            ob.addattr(aa._attr)
+            aa._last_val = vval
+            
+        ## update every attach_trail that depends on a function
+        for aa in attach_trails:
+            if aa._obj == '_funcvalue':
+                fval = aa._func()
+                aa._funcvalue = fval
             else:
-                rate.sendcnt = 0
-                
-            ## update every attach_arrow if relevant vector has changed    
-            for aa in attach_arrows:
-                ob = object_registry[aa._obj]
-                vval = getattr(ob, aa._attr)
-                if not isinstance(vval, vector):
-                    continue
-                if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
-                    continue
-                ob.addattr(aa._attr)
-                aa._last_val = vval
-                
-            ## update every attach_trail that depends on a function
-            for aa in attach_trails:
-                if aa._obj == '_funcvalue':
-                    fval = aa._func()
-                    aa._funcvalue = fval
-                else:
-                    fval = getattr(aa, aa._obj)
-                if not isinstance(fval, vector):
-                    continue
-                if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
-                    continue                
-                aa.addattr(aa._obj)
-                aa._last_val = fval
-                        
-            L = prev_sz
-            if len(updtobjs2) == 0:
-                dl = len(baseObj.updtobjs)
-                for di in range(dl):
-                    updtobjs2.append(baseObj.updtobjs.popleft())
-                                        
-            if L < baseObj.qSize:
-                attr_set = set()
-                while updtobjs2:
-                    idx = updtobjs2.popleft()
-                    ob = object_registry[idx]
-                    if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
-                        attr_set.clear()
-                        dl = len(ob.attrsupdt)
-                        for di in range(dl):
-                            attr = ob.attrsupdt.popleft()
-                            if attr is not None:
-                                attr_set.add(attr)
-                        while attr_set:
-                            if 'method' in commcmds[L]: del commcmds[L]['method']
-                            attr = attr_set.pop()
-                            if attr is not None:
-                                attrval = getattr(ob,attr)
-                                if attrval is not None:
-                                    if attr == 'pos' and isinstance(attrval, list):  ## curve or points
-                                        poslist = []
-                                        for aa in attrval:
-                                            poslist.append(aa.value)
-                                        commcmds[L]['idx'] = ob.idx
-                                        commcmds[L]['attr'] = attr
-                                        commcmds[L]['val'] = poslist                                                
-                                    elif isinstance(getattr(ob,attr), vector):  ## include attach_arrow attribute
-                                        attrvalues = attrval.value
-                                        if attrvalues is not None:
-                                            commcmds[L]['idx'] = ob.idx
-                                            commcmds[L]['attr'] = attr
-                                            commcmds[L]['val'] = attrvalues
-                                    elif attr in ['v0', 'v1', 'v2', 'v3']:
-                                        commcmds[L]['idx'] = ob.idx
-                                        commcmds[L]['attr'] = attr
-                                        commcmds[L]['val'] = attrval.idx
-                                    else:
-                                        commcmds[L]['idx'] = ob.idx
-                                        commcmds[L]['attr'] = attr
-                                        commcmds[L]['val'] = attrval
-                                    L += 1
-                                    if L >= baseObj.qSize:
-                                        if (len(attr_set) > 0):
-                                            sl = len(attr_set)
-                                            for si in range(sl):
-                                                ob.attrsupdt.append(attr_set.pop())
-                                            updtobjs2.append(ob.idx)
-                                        break
-                    if (ob is not None) and (hasattr(ob,'methodsupdt')) and (len(ob.methodsupdt) > 0 ):
-                        for m in ob.methodsupdt:
-                            if 'attr' in commcmds[L]: del commcmds[L]['attr']
-                            method = m[0]
-                            data = m[1]
-                            commcmds[L]['idx'] = ob.idx
-                            commcmds[L]['method'] = method
-                            if method == 'add_to_trail': data = data.value
-                            commcmds[L]['val'] = data
-                            L += 1
-                            if L >= baseObj.qSize:   # queue is full
-                                break
-                        if L < baseObj.qSize:      # if queue not full
-                            while len(ob.methodsupdt) > 0:
-                                del ob.methodsupdt[-1]
-                    if L >= baseObj.qSize:
-                        break
-                prev_sz = L
+                fval = getattr(aa, aa._obj)
+            if not isinstance(fval, vector):
+                continue
+            if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
+                continue                
+            aa.addattr(aa._obj)
+            aa._last_val = fval
                     
-            if L > 0:
-                if not rate.active:
-                    L = L if (L <= baseObj.qSize) else baseObj.qSize
-                    send_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
-                    prev_sz = 0
-
-                else:        
-                    rate.sz = L if (L <= baseObj.qSize) else baseObj.qSize
-                    send = convert_json(commcmds[:L])
-                    glowqueue.append(send)
-                    prev_sz = 0
+        L = 0
+        attr_set = set()
+        while baseObj.updtobjs: # a collection.deque
+            idx = baseObj.updtobjs.popleft()
+            ob = object_registry[idx]
+            if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
+                attr_set.clear()
+                dl = len(ob.attrsupdt)
+                for di in range(dl):
+                    attr = ob.attrsupdt.popleft()
+                    if attr is not None:
+                        attr_set.add(attr)
+                while attr_set:
+                    if 'method' in commcmds[L]: del commcmds[L]['method'] # if left over from previous use of slot
+                    attr = attr_set.pop()
+                    if attr is not None:
+                        attrval = getattr(ob,attr)
+                        if attrval is not None:
+                            if attr == 'pos' and isinstance(attrval, list):  ## curve or points
+                                poslist = []
+                                for aa in attrval:
+                                    poslist.append(aa.value)
+                                commcmds[L]['idx'] = ob.idx
+                                commcmds[L]['attr'] = attr
+                                commcmds[L]['val'] = poslist                                                
+                            elif isinstance(getattr(ob,attr), vector):  ## include attach_arrow attribute
+                                attrvalues = attrval.value
+                                if attrvalues is not None:
+                                    commcmds[L]['idx'] = ob.idx
+                                    commcmds[L]['attr'] = attr
+                                    commcmds[L]['val'] = attrvalues
+                            elif attr in ['v0', 'v1', 'v2', 'v3']:
+                                commcmds[L]['idx'] = ob.idx
+                                commcmds[L]['attr'] = attr
+                                commcmds[L]['val'] = attrval.idx
+                            else:
+                                commcmds[L]['idx'] = ob.idx
+                                commcmds[L]['attr'] = attr
+                                commcmds[L]['val'] = attrval
+                            L += 1
+                            
+            if (ob is not None) and (hasattr(ob,'methodsupdt')) and (len(ob.methodsupdt) > 0 ):
+                for m in ob.methodsupdt: # a list
+                    if 'attr' in commcmds[L]: del commcmds[L]['attr'] # if left over from previous use of slot
+                    method = m[0]
+                    data = m[1]
+                    commcmds[L]['idx'] = ob.idx
+                    commcmds[L]['method'] = method
+                    if method == 'add_to_trail': data = data.value
+                    commcmds[L]['val'] = data
+                    L += 1
+                ob.methodsupdt = []
+                
+        if L > 0:
+            send_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
 
     finally:
-        pass
+        _sent = True
+
+next_call = None
+        
+def timer():
+    global next_call
+    if next_call is None: next_call = time.time()
+    
+    if rate.active:
+        rate.sendcnt += 1
+        thresh = math.ceil(30.0/rate.rval) * 2 + 1
+        if rate.sendcnt > thresh:
+            rate.active = False   # rate function apparently no longer being called
+    
+    if not rate.active: commsend() # else commsend is called from rate function
     next_call = next_call+rate.interactionPeriod
     tmr = next_call - time.time()
     if tmr < 0.0:
         tmr = rate.interactionPeriod
         next_call = time.time()+tmr
-    t = threading.Timer(tmr, commsend)
+    t = threading.Timer(tmr, timer)
     t.start()
-    _sent = True
-
-glowcomm_initialized = False
 
 class GlowWidget(object):    
     def __init__(self, comm, msg):
@@ -492,12 +415,10 @@ class GlowWidget(object):
 ##object_registry = {}    ## idx -> instance        
     def handle_msg(self, msg):
         evt = msg['content']['data']['arguments'][0]
-        if 'initialized' in evt:
-            glowcomm_initialized = True
-        elif 'widget' in evt:
+        if 'widget' in evt:
             obj = object_registry[evt['idx']]
             if evt['widget'] == 'button':
-                pass
+                _pass
             elif evt['widget'] == 'slider':
                 obj._value = evt['value']
             elif evt['widget'] == 'menu':
@@ -729,7 +650,7 @@ class standardAttributes(baseObj):
             if a in args:
                 argsToSend.append(a)
                 val = args[a]
-                if isinstance(val, vector): setattr(self, '_'+a, vector(val))  ## bypassing setters; copy of val
+                if isinstance(val, vector): setattr(self, '_'+a, vector(val))  ## by_passing setters; copy of val
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
                 
@@ -764,7 +685,7 @@ class standardAttributes(baseObj):
         for a in attrs:
             if a in args:
                 argsToSend.append(a)
-                setattr(self, '_'+a, args[a])  ## bypass setters
+                setattr(self, '_'+a, args[a])  ## by_pass setters
                 del args[a] 
 
         scalarInteractions={'red':'color', 'green':'color', 'blue':'color', 'radius':'size', 'thickness':'size',
@@ -856,11 +777,15 @@ class standardAttributes(baseObj):
         return self._size   
     @size.setter
     def size(self,other):
-        self._axis.value = self._axis.norm() * other.x
         self._size.value = other
         if not self._constructing:
-            self.addattr('axis')
             self.addattr('size')
+        a = self._axis.norm() * other.x
+        v = self._axis
+        if not v.equals(a):
+            self._axis.value = a
+            if not self._constructing:
+                self.addattr('axis')
 
     @property
     def axis(self):
@@ -868,10 +793,13 @@ class standardAttributes(baseObj):
     @axis.setter
     def axis(self,other):
         self._axis.value = other
-        self._size._x = other.mag
         if not self._constructing:
             self.addattr('axis')
-            self.addattr('size')
+        m = other.mag
+        if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
+            self._size._x = m
+            if not self._constructing:
+                self.addattr('size')
             
     @property
     def length(self): 
@@ -1122,7 +1050,7 @@ class standardAttributes(baseObj):
         self.addmethod('clear_trail', 'None')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) object
-        pass
+        _pass
         
     def clone(self, **args):
         if isinstance(self, triangle) or isinstance(self, quad):
@@ -1897,7 +1825,7 @@ class curveMethods(standardAttributes):
         raise AttributeError('use object methods to change its shape')
      
     # def __del__(self):
-        # pass
+        # _pass
         
         
 class curve(curveMethods):
@@ -2084,7 +2012,7 @@ class gobj(baseObj):
         self.addattr('data')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) graph object
-        pass
+        _pass
         
 class gcurve(gobj):
     def __init__(self, **args):
@@ -2298,7 +2226,7 @@ class graph(baseObj):
         self.addattr('ymax')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) graph
-        pass
+        _pass
     
 #    def __del__(self):
 #        cmd = {"cmd": "delete", "idx": self.idx}
@@ -2517,7 +2445,7 @@ class Mouse(baseObj):
        
     @property
     def pick(self):
-        self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1, 'pass':1 })
+        self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1, '_pass':1 })
         self._pick_ready = False
         while self._pick_ready == False:
             rate(120)  ## wait for render to finish and call setpick
@@ -2764,7 +2692,7 @@ class canvas(baseObj):
     def background(self,value):
         self._background = value
         if not self._constructing:
-            self.addattr('background')
+            self.appendcmd({"val":value.value,"attr":"background","idx":self.idx})
 
     @property
     def ambient(self):
@@ -3008,7 +2936,7 @@ class canvas(baseObj):
         self.addattr('center')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) canvas
-        pass
+        _pass
         
 class event_return(object):
     def __init__(self, args):
@@ -3503,9 +3431,11 @@ def sleep(dt): # don't use time.sleep because it delays output queued up before 
 radians = math.radians
 degrees = math.degrees
 
-# Tried waiting for baseObj.glow to not be None and/or waiting for _sent to be True,
-# but these attempts to make sure everything was properly initialized, with scene existing,
-# failed, for unknown reasons.
+while True:   ## try to make sure setup is complete
+    rate(30)
+    if baseObj.glow is not None: break
+rate.active = False
+
 scene = canvas()
 
 # This must come after creating a canvas
@@ -3532,9 +3462,4 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
     s = s[:-1]
     return(s)
 
-while True:   ## try to make sure setup is complete
-    rate(30)
-    if baseObj.glow is not None: break
-rate.active = False
-
-commsend()
+timer()

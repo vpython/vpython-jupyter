@@ -5,12 +5,10 @@ define(["nbextensions/vpython_libraries/jquery-ui.custom.min",
 console.log("start of glowcomm");
 window.Jupyter_VPython = "/nbextensions/vpython_data/" // GlowScript library uses this to find texture jpegs
 
-/*
 function msclock() {
     if (performance.now) return performance.now()
     else return new Date().getTime()
 }
-*/
 
 function fontloading() {
     var fsans = '/nbextensions/vpython_data/Roboto-Medium.ttf'
@@ -102,17 +100,14 @@ var lastforward = vec(0,0,0)
 var lastup = vec(0,0,0)
 var lastrange = 1
 var lastautoscale = true
+var interval = 200 // milliseconds
 
 function update_canvas() { // mouse location and other stuff
     "use strict";
-    // Typically called at the end of handler function, but
-    // if not, it will call itself every "interval" number of milliseconds
-    if (timer !== null) clearTimeout(timer)
     for (var ss in sliders){
         comm.send( { arguments: [ sliders[ss] ] } )
     }
     sliders = {}
-    var interval = 100 // milliseconds
     var dosend = false
     var evt = {event:'update_canvas'}
     if (canvas.hasmouse === null || canvas.hasmouse === undefined) {
@@ -151,7 +146,6 @@ function update_canvas() { // mouse location and other stuff
     if (dosend) comm.send( {arguments: [evt]} )
     timer = setTimeout(update_canvas, interval)
 }
-update_canvas()
 
 function send_pick(cvs, p, seg) {
     "use strict";
@@ -217,7 +211,8 @@ function decode(data) { // [ [{'a': '3c0.0,1.0,1.0'}], .....] or can be a method
         var d = data[i]
         //console.log('---- in ------')
         // constructor or appendcmd not currently compressed; complex methods or attributes:
-        if (d['pass'] !== undefined) { 
+        if (d['_pass'] !== undefined) { 
+            delete d['_pass']
             output.push(d)
             continue
         } else if (d['a'] !== undefined) { // attribute setter (attrs)
@@ -608,7 +603,7 @@ function handler(msg) {
             }
         }
     }
-    update_canvas()
+    if (timer === null) update_canvas()
 };
 console.log("end of glowcomm");
 
