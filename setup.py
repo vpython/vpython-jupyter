@@ -43,5 +43,5 @@ setup(
     ],
     ext_modules=extensions,
     install_requires=['jupyter', 'vpnotebook'],
-    package_data={'vpython': ['data/*']},
+    package_data={'vpython': ['vpython_data/*', 'vpython_libraries/*']},
 )
