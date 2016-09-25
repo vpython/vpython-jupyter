@@ -166,21 +166,18 @@ class RateKeeper2(RateKeeper):
         super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
 
     def sendtofrontend(self):
-        # Jupyter does not immediately transmit data to the browser from a thread such as commsend().
+        # Jupyter does not immediately transmit data to the browser from a thread.
         # Instead, such accumulated data is sent only at the end of a notebook cell.
         # Animations are nevertheless possible because the rate() function executes the
-        # function sendtofrontend(), which is not in a thread and can use comm.send to update
-        # the browser immediately. sendtofrontend() sets rate.active to True and commsend()
-        # avoids sending baseObj.cmds data and glowqueue data when rate.active is True.
-        # commsend() runs about 30 times per second off a timer, threading.Timer(), and if
-        # it detects that considerable time has _passed since the last time the rate() function
-        # was called, it concludes that the user program has exited from a rate-based loop
-        # and can set rate.active to False.
+        # function sendtofrontend(), which is not in a thread and can update
+        # the browser immediately.
                 
         self.active = True
         if baseObj.glow is not None: # baseObj.glow is None while waiting at the end of this file
-            try:                    
-                commsend()
+            try:
+                while True:
+                    L = commsend()
+                    if L == 0: break
             finally:
                 self.send = False
                 self.sendcnt = 0
@@ -222,8 +219,7 @@ attach_trails = []  ## needed only for functions
 class baseObj(object):
     txtime = 0.0
     idx = 1
-    qSize = 1024
-    qTime = 0.034
+    qSize = 500
     glow = None
     cmds = collections.deque()
     updtobjs = collections.deque()
@@ -279,9 +275,9 @@ class baseObj(object):
 
 commcmds = []
 
-for i in range(10000): #baseObj.qSize):
+for i in range(2*baseObj.qSize):
     commcmds.append({"idx": -1, "attr": 'dummy', "val": 0})
-_sent = False  ## set to True when commsend completes; needed for canvas.waitfor(...)
+_sent = True  ## set to True when commsend completes; needed for canvas.waitfor(...)
 
 def commsend():
     # Jupyter does not immediately transmit data to the browser from a thread such as commsend().
@@ -328,13 +324,18 @@ def commsend():
         L = 0
         attr_set = set()
         while baseObj.updtobjs: # a collection.deque
-            idx = baseObj.updtobjs.popleft()
+            try:
+                idx = baseObj.updtobjs.popleft() # strangely, this sometimes gives an error
+            except:
+                break
             ob = object_registry[idx]
             if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
                 attr_set.clear()
-                dl = len(ob.attrsupdt)
-                for di in range(dl):
-                    attr = ob.attrsupdt.popleft()
+                while ob.attrsupdt:
+                    try:
+                        attr = ob.attrsupdt.popleft() # strangely, this sometimes gives an error
+                    except:
+                        break
                     if attr is not None:
                         attr_set.add(attr)
                 while attr_set:
@@ -378,17 +379,22 @@ def commsend():
                     L += 1
                 ob.methodsupdt = []
                 
+            if L > baseObj.qSize:
+                send_json(baseObj.glow.comm, commcmds[:L])
+                L = -1
+                
         if L > 0:
             send_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
 
     finally:
         _sent = True
+        return L # 0 if all data transmitted, -1 otherwise
 
 next_call = None
         
 def timer():
-    global next_call
-    if next_call is None: next_call = time.time()
+    #global next_call
+    #if next_call is None: next_call = time.time()
     
     if rate.active:
         rate.sendcnt += 1
@@ -396,12 +402,14 @@ def timer():
         if rate.sendcnt > thresh:
             rate.active = False   # rate function apparently no longer being called
     
-    if not rate.active: commsend() # else commsend is called from rate function
-    next_call = next_call+rate.interactionPeriod
-    tmr = next_call - time.time()
-    if tmr < 0.0:
-        tmr = rate.interactionPeriod
-        next_call = time.time()+tmr
+    if _sent and (not rate.active):
+        commsend() # don't interrupt commsend; don't call if rate is handling updates
+    # next_call = next_call+rate.interactionPeriod
+    # tmr = next_call - time.time()
+    # if tmr < 0.0:
+        # tmr = rate.interactionPeriod
+        # next_call = time.time()+tmr
+    tmr = 0.2
     t = threading.Timer(tmr, timer)
     t.start()
 
