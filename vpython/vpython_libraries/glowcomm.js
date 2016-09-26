@@ -2,8 +2,9 @@
 define(["nbextensions/vpython_libraries/jquery-ui.custom.min",
         "nbextensions/vpython_libraries/glow.2.1.min"], function() {
 
-console.log("start of glowcomm");
-window.Jupyter_VPython = "/nbextensions/vpython_data/" // GlowScript library uses this to find texture jpegs
+// The following is necessary to be able to re-run programs.
+// Otherwise the repeated execution of update_canvas() causes problems after klling Python.
+if (timer !== undefined && timer !== null) clearTimeout(timer)
 
 function msclock() {
     if (performance.now) return performance.now()
@@ -111,7 +112,7 @@ function update_canvas() { // mouse location and other stuff
     var dosend = false
     var evt = {event:'update_canvas'}
     if (canvas.hasmouse === null || canvas.hasmouse === undefined) {
-        setTimeout(update_canvas, interval)
+        comm.send( {arguments: [{event:'update_canvas', 'trigger':1}]} )
         return
     } 
     var cvs = canvas.hasmouse  // only way to change these values is with mouse
@@ -144,7 +145,7 @@ function update_canvas() { // mouse location and other stuff
         lastautoscale = autoscale
     }
     if (dosend) comm.send( {arguments: [evt]} )
-    timer = setTimeout(update_canvas, interval)
+    else comm.send( {arguments: [{event:'update_canvas', 'trigger':1}]} )
 }
 
 function send_pick(cvs, p, seg) {
@@ -275,6 +276,11 @@ function handler(msg) {
     //console.log(data)
     data = decode(data)
     //console.log('JSON ' + JSON.stringify(data))
+    if (data[0]['trigger'] !== undefined) {
+        if (timer !== null) clearTimeout(timer)
+        timer = setTimeout(update_canvas, interval)
+        return
+    }
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst

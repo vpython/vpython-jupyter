@@ -31,6 +31,7 @@ import collections
 import copy
 import sys
 #from inspect import getargspec # needed to allow zero arguments in a bound function
+import atexit
 
 from . import __version__, __gs_version__
 
@@ -146,42 +147,24 @@ def encode_attr(L): # L is a list of dictionaries
         output.append({sendtype:s})
     return(output)
 
-def send_json(comm, req):
-    # req is a list of dictionaries, each of the form {'attr': 'opacity', 'val': 0.5, 'idx': 3}
-    send = encode_attr(req)
-    comm.send(send)
-
-def convert_json(req):
-    send = encode_attr(req)
-    return send
-
 class RateKeeper2(RateKeeper):
     
     def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
         self.active = False
-        self.send = False
-        self.sz = 0
-        self.sendcnt = 0
         self.rval = 1
+        self.lasttime = 0
         super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
 
     def sendtofrontend(self):
-        # Jupyter does not immediately transmit data to the browser from a thread.
-        # Instead, such accumulated data is sent only at the end of a notebook cell.
-        # Animations are nevertheless possible because the rate() function executes the
-        # function sendtofrontend(), which is not in a thread and can update
-        # the browser immediately.
-                
+        # This is called by the rate() function.
+        # See the function commsend() for details of how the browser is updated.
         self.active = True
         if baseObj.glow is not None: # baseObj.glow is None while waiting at the end of this file
             try:
-                while True:
-                    L = commsend()
-                    if L == 0: break
+                commsend()
             finally:
-                self.send = False
-                self.sendcnt = 0
-                self.sz = 0 
+                pass
+        self.lasttime = clock() # trigger needs to know when rate was last called 
         
         # Check if events to process from front end
         if IPython.__version__ >= '3.0.0' :
@@ -191,9 +174,9 @@ class RateKeeper2(RateKeeper):
             kernel.do_one_iteration()
             kernel.set_parent(ident, parent)
             
-    def __call__(self, maxRate = 100): # rate(N) calls this function
-        if (self.rval != maxRate) and (maxRate >= 1.0):
-            self.rval = maxRate 
+    def __call__(self, maxRate = 30): # rate(N) calls this function
+        if maxRate < 1: maxRate = 1
+        self.rval = maxRate 
         super(RateKeeper2, self).__call__(maxRate)
 
 if sys.version > '3':
@@ -254,8 +237,8 @@ class baseObj(object):
         self.attrsupdt.append(attr)
         baseObj.updtobjs.append(self.idx)
         
-    def addmethod(self, name, data):
-        self.methodsupdt.append( [name, data] )
+    def addmethod(self, method, data):
+        self.methodsupdt.append( [method, data] )
         baseObj.updtobjs.append(self.idx)
             
     @classmethod
@@ -280,18 +263,30 @@ for i in range(2*baseObj.qSize):
 _sent = True  ## set to True when commsend completes; needed for canvas.waitfor(...)
 
 def commsend():
-    # Jupyter does not immediately transmit data to the browser from a thread such as commsend().
-    # Instead, such accumulated data is sent only at the end of a notebook cell.
-    # Animations are nevertheless possible because the rate() function executes the
-    # function sendtofrontend(), which is not in a thread and can use comm.send to update
-    # the browser immediately. sendtofrontend() sets rate.active to True and commsend()
-    # avoids sending glowqueue data when rate.active is True. Note that constructors are
-    # handled separately, in appendcmd(), which sends to the browser immediately.
-    # commsend() runs about 30 times per second off a timer, threading.Timer(), and if
-    # it detects that considerable time has _passed since the last time the rate() function
-    # was called, it concludes that the user program has exited from a rate-based loop
-    # and can set rate.active to False.
-    # The initial call to commsend() is at the end of this file.
+    # Jupyter does not immediately transmit data to the browser from a thread,
+    # which made for an awkward thread in early versions of Jupyter VPython, and
+    # even caused display mistakes due to losing portions of data sent to the browser
+    # from within a thread.
+    
+    # Now there is no threading. The function commsend(), which sends data to the
+    # browser, is called either from the trigger() function or from the rate-associated
+    # function sendtofrontend(). When in a loop containing a rate() statement, it is
+    # sendtofrontend() that is called every time the rate statement is executed.
+    # If commsend() is not called by a rate statement (in which case rate.active is True),
+    # it is called from trigger(), which is called by a canvas_update event sent to
+    # Python from the browser (glowcomm.js), currently every 200 milliseconds. When
+    # trigger() is called, it immediately signals the browser to set a timeout of 200 ms
+    # to send another signal to Python. If trigger() finds rate.active to be False, it
+    # calls commsend(), otherwise it checks to see whether there it has been several rate
+    # periods since the last execution of a rate statement, which indicates that the loop
+    # that contained the rate statement has exited, in which case trigger() calls commsend().
+    # Note that a typical VPython program starts out by creating objects (constructors) and
+    # specifying their attributes. The 200 ms signal from the browser is adequate to ensure
+    # prompt data transmissions to the browser. Following this setup phase of the user
+    # program, a rate statement is encountered, wich calls sendtofrontend() which sets
+    # rate.active to True, thereby blocking trigger() from interfering with sendtofrontend's
+    # own calls to commsend().
+    
     global commcmds, _sent
     _sent = False
     try:
@@ -380,38 +375,23 @@ def commsend():
                 ob.methodsupdt = []
                 
             if L > baseObj.qSize:
-                send_json(baseObj.glow.comm, commcmds[:L])
-                L = -1
+                baseObj.glow.comm.send(encode_attr(commcmds[:L]))  # Send attributes and methods to glowcomm
+                L = 0
                 
         if L > 0:
-            send_json(baseObj.glow.comm, commcmds[:L])  # Send attributes and methods to glowcomm
+            baseObj.glow.comm.send(encode_attr(commcmds[:L]))  # Send attributes and methods to glowcomm
 
     finally:
         _sent = True
-        return L # 0 if all data transmitted, -1 otherwise
 
-next_call = None
-        
-def timer():
-    #global next_call
-    #if next_call is None: next_call = time.time()
-    
+def trigger(): # called by a canvas update event from browser
     if rate.active:
-        rate.sendcnt += 1
-        thresh = math.ceil(30.0/rate.rval) * 2 + 1
-        if rate.sendcnt > thresh:
-            rate.active = False   # rate function apparently no longer being called
-    
-    if _sent and (not rate.active):
-        commsend() # don't interrupt commsend; don't call if rate is handling updates
-    # next_call = next_call+rate.interactionPeriod
-    # tmr = next_call - time.time()
-    # if tmr < 0.0:
-        # tmr = rate.interactionPeriod
-        # next_call = time.time()+tmr
-    tmr = 0.2
-    t = threading.Timer(tmr, timer)
-    t.start()
+        dt = clock() - rate.lasttime # time elapsed since last time sendtofrontend was executed
+        if dt > 5/rate.rval:
+            rate.active = False    
+    if _sent and (not rate.active): # don't interrupt commsend; don't call if rate is handling updates
+        commsend()
+    baseObj.glow.comm.send([{'trigger':1, '_pass':1}])
 
 class GlowWidget(object):    
     def __init__(self, comm, msg):
@@ -426,7 +406,7 @@ class GlowWidget(object):
         if 'widget' in evt:
             obj = object_registry[evt['idx']]
             if evt['widget'] == 'button':
-                _pass
+                pass
             elif evt['widget'] == 'slider':
                 obj._value = evt['value']
             elif evt['widget'] == 'menu':
@@ -437,8 +417,10 @@ class GlowWidget(object):
                 obj._checked = evt['value']            
             obj._bind( obj )
         else:   ## a canvas event
-            cvs = object_registry[evt['canvas']]
-            cvs.handle_event(evt)
+            if 'trigger' not in evt:
+                cvs = object_registry[evt['canvas']]
+                cvs.handle_event(evt)
+            trigger()
 
     def handle_close(self, data):
         print ("comm closed")
@@ -1058,7 +1040,7 @@ class standardAttributes(baseObj):
         self.addmethod('clear_trail', 'None')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) object
-        _pass
+        pass
         
     def clone(self, **args):
         if isinstance(self, triangle) or isinstance(self, quad):
@@ -1833,7 +1815,7 @@ class curveMethods(standardAttributes):
         raise AttributeError('use object methods to change its shape')
      
     # def __del__(self):
-        # _pass
+        # pass
         
         
 class curve(curveMethods):
@@ -2020,7 +2002,7 @@ class gobj(baseObj):
         self.addattr('data')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) graph object
-        _pass
+        pass
         
 class gcurve(gobj):
     def __init__(self, **args):
@@ -2234,7 +2216,7 @@ class graph(baseObj):
         self.addattr('ymax')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) graph
-        _pass
+        pass
     
 #    def __del__(self):
 #        cmd = {"cmd": "delete", "idx": self.idx}
@@ -2944,7 +2926,7 @@ class canvas(baseObj):
         self.addattr('center')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) canvas
-        _pass
+        pass
         
 class event_return(object):
     def __init__(self, args):
@@ -3444,6 +3426,13 @@ while True:   ## try to make sure setup is complete
     if baseObj.glow is not None: break
 rate.active = False
 
+def close_down():
+    print('close_down')
+    sys.stdout.flush()
+    #baseObj.glow.comm.send([{'shutdown':1, '_pass':1}])
+
+atexit.register(close_down)
+
 scene = canvas()
 
 # This must come after creating a canvas
@@ -3469,5 +3458,3 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
         s += str(a)+' '
     s = s[:-1]
     return(s)
-
-timer()
