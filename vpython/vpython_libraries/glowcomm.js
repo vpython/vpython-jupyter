@@ -101,7 +101,7 @@ var lastforward = vec(0,0,0)
 var lastup = vec(0,0,0)
 var lastrange = 1
 var lastautoscale = true
-var interval = 200 // milliseconds
+var interval = 30 // milliseconds
 
 function update_canvas() { // mouse location and other stuff
     "use strict";

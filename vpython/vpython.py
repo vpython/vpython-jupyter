@@ -26,12 +26,9 @@ import math
 import inspect
 from time import clock
 import os
-import threading
 import collections
 import copy
 import sys
-#from inspect import getargspec # needed to allow zero arguments in a bound function
-import atexit
 
 from . import __version__, __gs_version__
 
@@ -43,6 +40,11 @@ import json
 #    sys.stdout.flush()
 
 import platform
+ispython3 = platform.python_version()[0] == '3'
+if ispython3:
+    from inspect import signature # Python 3; needed to allow zero arguments in a bound function
+else:
+    from inspect import getargspec # Python 2; needed to allow zero arguments in a bound function
 
 version = [__version__, 'jupyter']
 GSversion = [__gs_version__, 'glowscript']
@@ -153,10 +155,11 @@ class RateKeeper2(RateKeeper):
         self.active = False
         self.rval = 1
         self.lasttime = 0
+        self.tocall = None
         super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
 
     def sendtofrontend(self):
-        # This is called by the rate() function.
+        # This is called by the rate() function, through rate_control RateKeeper callInteract().
         # See the function commsend() for details of how the browser is updated.
         self.active = True
         if baseObj.glow is not None: # baseObj.glow is None while waiting at the end of this file
@@ -174,10 +177,10 @@ class RateKeeper2(RateKeeper):
             kernel.do_one_iteration()
             kernel.set_parent(ident, parent)
             
-    def __call__(self, maxRate = 30): # rate(N) calls this function
-        if maxRate < 1: maxRate = 1
-        self.rval = maxRate 
-        super(RateKeeper2, self).__call__(maxRate)
+    def __call__(self, N): # rate(N) calls this function
+        self.rval = N          
+        if self.rval < 1: raise ValueError("rate value must be greater than or equal to 1")
+        super(RateKeeper2, self).__call__(self.rval) ## calls __call__ in rate_control.py
 
 if sys.version > '3':
     long = int
@@ -272,16 +275,16 @@ def commsend():
     # browser, is called either from the trigger() function or from the rate-associated
     # function sendtofrontend(). When in a loop containing a rate() statement, it is
     # sendtofrontend() that is called every time the rate statement is executed.
-    # If commsend() is not called by a rate statement (in which case rate.active is True),
+    # If commsend() is not called by a rate statement (which requires rate.active to be True),
     # it is called from trigger(), which is called by a canvas_update event sent to
-    # Python from the browser (glowcomm.js), currently every 200 milliseconds. When
-    # trigger() is called, it immediately signals the browser to set a timeout of 200 ms
+    # Python from the browser (glowcomm.js), currently every 30 milliseconds. When
+    # trigger() is called, it immediately signals the browser to set a timeout of 30 ms
     # to send another signal to Python. If trigger() finds rate.active to be False, it
     # calls commsend(), otherwise it checks to see whether there it has been several rate
     # periods since the last execution of a rate statement, which indicates that the loop
     # that contained the rate statement has exited, in which case trigger() calls commsend().
     # Note that a typical VPython program starts out by creating objects (constructors) and
-    # specifying their attributes. The 200 ms signal from the browser is adequate to ensure
+    # specifying their attributes. The 30 ms signal from the browser is adequate to ensure
     # prompt data transmissions to the browser. Following this setup phase of the user
     # program, a rate statement is encountered, wich calls sendtofrontend() which sets
     # rate.active to True, thereby blocking trigger() from interfering with sendtofrontend's
@@ -414,8 +417,16 @@ class GlowWidget(object):
             elif evt['widget'] == 'checkbox':
                 obj._checked = evt['value']
             elif evt['widget'] == 'radio':
-                obj._checked = evt['value']            
-            obj._bind( obj )
+                obj._checked = evt['value']
+            # inspect the bound function and see what it's expecting
+            if ispython3: # Python 3
+                a = signature(obj._bind)
+                if str(a) != '()': obj._bind( obj )
+                else: obj._bind()
+            else: # Python 2
+                a = getargspec(obj._bind)
+                if len(a.args) > 0: obj._bind( obj ) 
+                else: obj._bind()
         else:   ## a canvas event
             if 'trigger' not in evt:
                 cvs = object_registry[evt['canvas']]
@@ -2854,7 +2865,16 @@ class canvas(baseObj):
                 self.mouse._shift = evt['shift']
                 self.mouse._ctrl = evt['ctrl']
                 evt1 = event_return(evt)  ## turn it into an object
-                for fct in self._binds[ev]: fct( evt1 ) 
+                for fct in self._binds[ev]:
+                    # inspect the bound function and see what it's expecting
+                    if ispython3: # Python 3
+                        a = signature(fct)
+                        if str(a) != '()': fct( evt1 )
+                        else: fct()
+                    else: # Python 2
+                        a = getargspec(fct)
+                        if len(a.args) > 0: fct( evt1 ) 
+                        else: fct()
             else:  ## user can change forward with spin, range/autoscale with zoom, up with touch gesture
                 if 'forward' in evt and self.userspin and not self._set_forward:
                     fwd = evt['forward']
@@ -3425,13 +3445,6 @@ while True:   ## try to make sure setup is complete
     rate(30)
     if baseObj.glow is not None: break
 rate.active = False
-
-def close_down():
-    print('close_down')
-    sys.stdout.flush()
-    #baseObj.glow.comm.send([{'shutdown':1, '_pass':1}])
-
-atexit.register(close_down)
 
 scene = canvas()
 
