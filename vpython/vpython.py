@@ -591,13 +591,22 @@ class standardAttributes(baseObj):
                         [],
                         ['radius', 'pps', 'retain', 'type', '_obj'],
                         [] ],
-                 'extrusion':[ ['origin', 'up', 'color', 'start_face_color', 'end_face_color' ],
+                 'extrusion':[ ['origin', 'up', 'color', 'start_face_color', 'end_face_color'],
                         [ 'axis', 'size' ],
                         ['pos', 'shape', 'visible', 'opacity','shininess', 'emissive',  
                          'show_start_face', 'show_end_face',
                          'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable' ],
-                        ['red', 'green', 'blue','length', 'width', 'height'] ]
+                        ['red', 'green', 'blue','length', 'width', 'height'] ],
+                 'text': [ ['pos', 'up', 'color', 'start_face_color', 'end_face_color', 
+                                'upper_left', 'upper_right', 'lower_left', 'lower_right'],
+                          ['axis', 'size'],
+                          ['visible', 'opacity','shininess', 'emissive',  
+                         'make_trail', 'trail_type', 'interval', 
+                         'retain', 'trail_color', 'trail_radius', 'obj_idxs', 'pickable',
+                         'align', 'text', 'font', 'billboard', 'show_start_face', 'show_end_face', 'descender',
+                         'vertical_spacing', 'depth'],
+                          ['red', 'green', 'blue', 'length', 'width', 'height'] ]
                         }
  
     attrLists['pyramid'] = attrLists['box']
@@ -3395,29 +3404,196 @@ class extrusion(standardAttributes):
     def end_face_color(self,value):
         raise AttributeError('end_face_color cannot be changed after extrusion is created')
         
-class text(baseObj):
-    def __init__(self, **args):
-        # Need to load font files
-        #raise AttributeError('The 3D text object is not yet available in Jupyter VPython')
-        super(text, self).__init__() 
-        cmd = {"cmd": 'text', "idx": self.idx, "attrs":[]}
-        cmd["attrs"].append({"attr": 'text', "value": 'ABC'})
-        self.appendcmd(cmd)
-                        
-# factorial and combin functions needed in statistical computations   
-# factorial now exists in python math library (but not combin)         
-# def factorial(x):
-    # if x <= 0:
-        # if x == 0: return 1
-        # else: raise ValueError('Cannot take factorial of negative number %d' % x)
-    # fact = 1.0
-    # nn = 2
-    # while nn <= x:
-        # fact = fact*nn
-        # nn += 1
-    # if nn != x+1: raise ValueError('Argument of factorial must be an integer, not %0.1f' % x)
-    # return fact
+class text(standardAttributes):
 
+    def __init__(self, **args):
+        args['_default_size'] = vector(1,1,1)
+        args['_objName'] = "text"
+        self._text_height = 1  ## not derived from size
+        self._text_length = 1  ## calculated from actual object and returned to vpython
+        self._text_depth = 0.2 ## default is 0.2*height
+        self._align = "left"
+        self._text = ""
+        self._font = "sans"
+        self._billboard = False
+        self._start_face_color = vector(1,1,1)
+        self._end_face_color = vector(1,1,1)
+        self._show_start_face = True
+        self._show_end_face = True
+        self._descender = 0.3
+        self._vertical_spacing = 1.3
+        self._upper_left = vector(0,0,0)
+        self._upper_right = vector(0,0,0)
+        self._lower_left = vector(0,0,0)
+        self._lower_right = vector(0,0,0)
+        self._start = vector(0,0,0)
+        self._end = vector(0,0,0)
+        self._lines = args['text'].count("/n") + 1
+        if 'color' in args:
+            self._start_face_color = args['color']
+            self._end_face_color = args['color']
+
+        super(text, self).setup(args)
+        
+    @property
+    def text_height(self):
+        return self._text_height*self.size.y
+    @text_height.setter
+    def text_height(self, val):
+        raise AttributeError("text_height can't be modified; change size instead")
+        
+    @property
+    def text_length(self):
+        return self._text_length*self.size.x
+    @text_length.setter
+    def text_length(self, val):
+        raise AttributeError("text_length can't be set")
+        
+    @property
+    def text_depth(self):
+        return self._text_depth*self.size.y
+    @text_depth.setter
+    def text_depth(self, val):
+        raise AttributeError("text depth can't be modified; change size instead")
+        
+    @property
+    def align(self):
+        return self._align
+    @align.setter
+    def align(self,val):
+        self._align = val
+        if not self._constructing:
+            self.addattr('align')
+            
+    @property
+    def font(self):
+        return self._font
+    @font.setter
+    def font(self, val):
+        if not (val=='sans' or val=='serif'):
+            raise AttributeError("text font must be either 'sans' or 'serif' ")
+        self._font = val
+        if not self._constructing:
+            self.addattr('font')
+            
+    @property
+    def text(self):
+        return self._text
+    @text.setter
+    def text(self, val):
+        self._text = val
+        if not self._constructing:
+            self.addattr('text')
+            
+    @property
+    def billboard(self):
+        return self._billboard
+    @billboard.setter
+    def billboard(self, val):
+        raise AttributeError("billboard cannot be modified")
+    
+    @property
+    def start_face_color(self):
+        return self._start_face_color
+    @start_face_color.setter
+    def start_face_color(self, val):
+        raise AttributeError("start_face_color cannot be modified")
+        
+    @property
+    def end_face_color(self):
+        return self._end_face_color
+    @end_face_color.setter
+    def end_face_color(self, val):
+        raise AttributeError("end_face_color cannot be modified")
+        
+    @property 
+    def show_start_face(self):
+        return self._show_start_face
+    @show_start_face.setter
+    def show_start_face(self,val):
+        raise AttributeError("show_start_face cannot be modified")
+        
+    @property 
+    def show_end_face(self):
+        return self._show_end_face
+    @show_end_face.setter
+    def show_end_face(self,val):
+        raise AttributeError("show_end_face cannot be modified")
+        
+    @property
+    def descender(self):
+        return self._descender
+    @descender.setter
+    def descender(self, val):
+        raise AttributeError("descender cannot be modified")
+        
+    @property
+    def upper_left(self):
+        if self.align == "right":
+            dx = -self.length
+        elif self.align == "center":
+            dx = -self.length/2
+        else:
+            dx = 0
+        ul = self.pos + (self.height * norm(self.up)) + dx*norm(self.axis)
+        return ul
+    @upper_left.setter
+    def upper_left(self, val):
+        raise AttributeError("upper_left cannot be modified")
+        
+    @property
+    def upper_right(self):
+        return self.upper_left + norm(self.axis)*self.length
+    @upper_right.setter
+    def upper_right(self, val):
+        raise AttributeError("upper_right cannot be modified")
+        
+    @property
+    def lower_left(self):
+        return self.upper_left + norm(self.up)*(-self.text_height -self.descender - 1.5*self.text_height*(self._lines-1) )
+    @lower_left.setter
+    def lower_left(self, val):
+        raise AttributeError("lower_left cannot be modified")
+    @property
+    def lower_right(self):
+        return self.lower_left + norm(self.axis)*self.length
+    @lower_right.setter
+    def lower_right(self, val):
+        raise AttributeError("lower_right cannot be modified")
+        
+    @property
+    def start(self):
+        return self.upper_left - norm(self.up)*self.height
+    @start.setter
+    def start(self, val):
+        raise AttributeError("start cannot be modified")
+        
+    @property
+    def end(self):
+        return self.upper_right - norm(self.up)*self.height
+    @end.setter
+    def end(self, val):
+        raise AttributeError("end cannot be modified")
+        
+    @property
+    def vertical_spacing(self):
+        return self._vertical_spacing
+    @vertical_spacing.setter
+    def vertical_spacing(self, val):
+        raise AttributeError("vertical_spacing cannot be modified")
+                    
+# primary attrs are height, length, depth, descender
+
+## pos, align, text, font, billboard, height, length, depth, color, start_face_color, 
+## end_face_color, show_start_face, show_end_face, descender, upper_left, upper_right,
+## lower_left, lower_right, start, end, vertical_spacing, size, axis, up, 
+## opacity, shininess, emissive
+    # def __init__(self, **args):
+        # super(text, self).__init__() 
+        # cmd = {"cmd": 'text', "idx": self.idx, "attrs":[]}
+        # cmd["attrs"].append({"attr": 'text', "value": 'ABC'})
+        # self.appendcmd(cmd)
+                        
 def combin(x, y):
     # combin(x,y) = factorial(x)/[factorial(y)*factorial(x-y)]
     z = x-y
