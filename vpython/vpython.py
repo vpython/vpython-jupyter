@@ -153,7 +153,7 @@ class RateKeeper2(RateKeeper):
     
     def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
         self.active = False
-        self.rval = 1
+        self.rval = 30
         self.lasttime = 0
         self.tocall = None
         super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
@@ -161,8 +161,6 @@ class RateKeeper2(RateKeeper):
     def sendtofrontend(self):
         # This is called by the rate() function, through rate_control RateKeeper callInteract().
         # See the function commsend() for details of how the browser is updated.
-        if not self.active:
-            self.count = 0 # we've just encountered this rate statement for the first time
         self.active = True
         if baseObj.glow is not None: # baseObj.glow is None while waiting at the end of this file
             try:
@@ -180,6 +178,8 @@ class RateKeeper2(RateKeeper):
             kernel.set_parent(ident, parent)
             
     def __call__(self, N): # rate(N) calls this function
+        if (not self.active) or (N != self.rval):
+            self.count = 0 # new rate statement or change in rate value
         self.rval = N          
         if self.rval < 1: raise ValueError("rate value must be greater than or equal to 1")
         super(RateKeeper2, self).__call__(self.rval) ## calls __call__ in rate_control.py
@@ -793,6 +793,8 @@ class standardAttributes(baseObj):
         if not self._constructing:
             self.addattr('size')
         a = self._axis.norm() * other.x
+        if mag(self._axis) == 0:
+            a = vector(other.x,0,0)
         v = self._axis
         if not v.equals(a):
             self._axis.value = a
@@ -3317,6 +3319,7 @@ class slider(controls):
         
 class extrusion(standardAttributes):
     def __init__(self, **args):
+        raise NameError("The extrusion object is not yet available in Jupyter VPython.")
         args['_default_size'] = vector(1,1,1)
         args['_objName'] = "extrusion"
         self._shape = [ ]
@@ -3409,6 +3412,7 @@ class extrusion(standardAttributes):
 class text(standardAttributes):
 
     def __init__(self, **args):
+        raise NameError("The 3D text object is not yet available in Jupyter VPython.")
         args['_default_size'] = vector(1,1,1)
         args['_objName'] = "text"
         self._text_height = 1  ## not derived from size
