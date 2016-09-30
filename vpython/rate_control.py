@@ -98,6 +98,7 @@ class RateKeeper(object):
         self.interactFunc()
         dt = _clock() - t
         if self.count == 1: self.renderTime = 0.005 # first value is abnormal; make small nonzero
+        elif self.count == 2: self.renderTime = dt # we now have a measure of actual loop render time
         elif dt < 0.2: # don't count long delays due to menu or similar operations
             self.renderTime = 0.95*self.renderTime + 0.05*dt # time spent in render code
 

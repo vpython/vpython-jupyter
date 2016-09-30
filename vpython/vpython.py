@@ -161,6 +161,8 @@ class RateKeeper2(RateKeeper):
     def sendtofrontend(self):
         # This is called by the rate() function, through rate_control RateKeeper callInteract().
         # See the function commsend() for details of how the browser is updated.
+        if not self.active:
+            self.count = 0 # we've just encountered this rate statement for the first time
         self.active = True
         if baseObj.glow is not None: # baseObj.glow is None while waiting at the end of this file
             try:
