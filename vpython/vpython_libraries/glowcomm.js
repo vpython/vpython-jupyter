@@ -11,6 +11,8 @@ function msclock() {
     else return new Date().getTime()
 }
 
+window.Jupyter_VPython = '/nbextensions/vpython_data/'
+
 function fontloading() {
     var fsans = '/nbextensions/vpython_data/Roboto-Medium.ttf'
     opentype_load(fsans, function(err, fontrefsans) {
