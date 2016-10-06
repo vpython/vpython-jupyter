@@ -10,6 +10,7 @@ function msclock() {
     if (performance.now) return performance.now()
     else return new Date().getTime()
 }
+var tstart = msclock()
 
 window.Jupyter_VPython = '/nbextensions/vpython_data/'
 
@@ -107,6 +108,9 @@ var interval = 30 // milliseconds
 
 function update_canvas() { // mouse location and other stuff
     "use strict";
+    //var t = msclock()
+    //console.log(t-tstart)
+    //tstart = t
     for (var ss in sliders){
         comm.send( { arguments: [ sliders[ss] ] } )
     }
@@ -214,7 +218,7 @@ function decode(data) { // [ [{'a': '3c0.0,1.0,1.0'}], .....] or can be a method
         var d = data[i]
         //console.log('---- in ------')
         // constructor or appendcmd not currently compressed; complex methods or attributes:
-        if (d['_pass'] !== undefined) { 
+        if (d['_pass'] !== undefined) {
             delete d['_pass']
             output.push(d)
             continue
@@ -319,6 +323,9 @@ function handler(msg) {
                                     glowObjs[cmd.idx][cmd.attr] = v
                                 }
                             }
+                        } else if (cmd.attr == 'lights') {
+                            if (cmd.val == 'empty_list') cmd.val = []
+                            glowObjs[cmd.idx][cmd.attr] = cmd.val
                         } else {
                             if (triangle_quad.indexOf(cmd.attr) !== -1) {
                                 glowObjs[cmd.idx][cmd.attr] = glowObjs[cmd.val]
@@ -442,6 +449,9 @@ function handler(msg) {
                                     objects[k] = glowObjs[attr.value[k]]
                                 }
                             }
+                        } else if (attr.attr == "lights") {
+                            if (attr.value == 'empty_list') attr.value = []
+                            cfg[attr.attr] = attr.value
                         } else {
                             cfg[attr.attr] = attr.value
                             // console.log(attr.attr, attr.value)
@@ -504,8 +514,6 @@ function handler(msg) {
                             glowObjs[cmd.idx] = extrusion(cfg)
                         } else if (cmd.cmd === 'text') {
                             glowObjs[cmd.idx] = text(cfg)
-                        } else if (cmd.cmd === 'lights') {
-                            glowObjs[cmd.idx] = lights(cfg)
                         } else if (cmd.cmd === 'rotate') {
                             glowObjs[cmd.idx].rotate(cfg)
                         } else if (cmd.cmd === 'local_light') {

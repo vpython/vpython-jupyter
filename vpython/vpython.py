@@ -49,6 +49,9 @@ else:
 version = [__version__, 'jupyter']
 GSversion = [__gs_version__, 'glowscript']
 
+def eprint(*args, **kwargs): # this may output when ordinary print won't
+    print(*args, file=sys.stderr, **kwargs)
+
 # scalar attribute:  { <'a' or 'b'>: string }
 # string is str(idx)+attrs[<attributename>]+str(attributevalue) 
 # for example:  {'a':'23K1.72'}  thickness of object 23 is 1.72
@@ -209,7 +212,7 @@ class baseObj(object):
     idx = 1
     qSize = 500
     glow = None
-    cmds = collections.deque()
+    cmds = []
     updtobjs = collections.deque()
     objCnt = 0
     
@@ -236,7 +239,10 @@ class baseObj(object):
     def appendcmd(self,cmd):
         # The following code makes sure that constructors are sent to the front end first.
         cmd['_pass'] = 1 # indicate that this should be ignored by glowcomm/decode()
-        baseObj.glow.comm.send([cmd])
+        #baseObj.glow.comm.send([cmd])
+        if len(baseObj.cmds) == 0:
+            commsend() # send any pending output
+        baseObj.cmds.append(cmd)
     
     def addattr(self, attr):
         self.attrsupdt.append(attr)
@@ -295,6 +301,9 @@ def commsend():
     global commcmds, _sent
     _sent = False
     try:
+        if len(baseObj.cmds) > 0:
+            baseObj.glow.comm.send(baseObj.cmds)
+            baseObj.cmds = []
 
         ## update every attach_arrow if relevant vector has changed    
         for aa in attach_arrows:
@@ -393,10 +402,11 @@ def trigger(): # called by a canvas update event from browser
     if rate.active:
         dt = clock() - rate.lasttime # time elapsed since last time sendtofrontend was executed
         if dt > 5/rate.rval:
-            rate.active = False    
+            rate.active = False
+    length = len(baseObj.cmds)
     if _sent and (not rate.active): # don't interrupt commsend; don't call if rate is handling updates
         commsend()
-    baseObj.glow.comm.send([{'trigger':1, '_pass':1}])
+    baseObj.glow.comm.send([{'trigger':1, '_pass':1, 'len1':length, 'len2':len(baseObj.cmds)}])
 
 class GlowWidget(object):    
     def __init__(self, comm, msg):
@@ -408,6 +418,8 @@ class GlowWidget(object):
 ##object_registry = {}    ## idx -> instance        
     def handle_msg(self, msg):
         evt = msg['content']['data']['arguments'][0]
+        print(evt)
+        sys.stdout.flush()
         if 'widget' in evt:
             obj = object_registry[evt['idx']]
             if evt['widget'] == 'button':
@@ -1418,7 +1430,8 @@ class compound(standardAttributes):
         super(compound, self).setup(args)
         
         for obj in objList:
-            obj.visible = False         ## ideally these should be deleted
+            # GlowScript will make the objects invisible, so need not set obj.visible
+            obj._visible = False  ## ideally these should be deleted
 
     @property
     def obj_idxs(self):
@@ -2826,7 +2839,10 @@ class canvas(baseObj):
     def lights(self, value):
         self._lights = value[:]
         if not self._constructing:
-            self.appendcmd({"val":self._lights,"attr":"lights","idx":self.idx}) # don't encode this unusual statement
+            s = self._lights
+            if len(s) == 0:
+                s = 'empty_list' # JSON doesn't like an empty list
+            self.appendcmd({"val":s,"attr":"lights","idx":self.idx}) # don't encode this unusual statement
             
     @property
     def pixel_to_world(self):
@@ -3653,3 +3669,5 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
         s += str(a)+' '
     s = s[:-1]
     return(s)
+    
+trigger() # start the trigger ping-pong process
