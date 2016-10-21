@@ -619,8 +619,8 @@ class standardAttributes(baseObj):
                          'make_trail', 'trail_type', 'interval', 
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs', 'pickable',
                          'align', 'text', 'font', 'billboard', 'show_start_face', 'show_end_face', 'descender',
-                         'vertical_spacing', 'depth'],
-                          ['red', 'green', 'blue', 'length', 'width', 'height'] ]
+                         'vertical_spacing', 'depth', 'length', 'width', 'height'],
+                          ['red', 'green', 'blue'] ]
                         }
  
     attrLists['pyramid'] = attrLists['box']
@@ -3335,7 +3335,7 @@ class slider(controls):
         
 class extrusion(standardAttributes):
     def __init__(self, **args):
-        raise NameError("The extrusion object is not yet available in Jupyter VPython.")
+        #raise NameError("The extrusion object is not yet available in Jupyter VPython.")
         args['_default_size'] = vector(1,1,1)
         args['_objName'] = "extrusion"
         self._shape = [ ]
@@ -3431,9 +3431,9 @@ class text(standardAttributes):
         raise NameError("The 3D text object is not yet available in Jupyter VPython.")
         args['_default_size'] = vector(1,1,1)
         args['_objName'] = "text"
-        self._text_height = 1  ## not derived from size
-        self._text_length = 1  ## calculated from actual object and returned to vpython
-        self._text_depth = 0.2 ## default is 0.2*height
+        self._height = 1  ## not derived from size
+        self._length = 1  ## calculated from actual object and returned to vpython
+        self._depth = 0.2 ## default is 0.2*height
         self._align = "left"
         self._text = ""
         self._font = "sans"
@@ -3458,25 +3458,37 @@ class text(standardAttributes):
         super(text, self).setup(args)
         
     @property
-    def text_height(self):
-        return self._text_height*self.size.y
-    @text_height.setter
-    def text_height(self, val):
-        raise AttributeError("text_height can't be modified; change size instead")
+    def height(self):
+        return self._height*self.size.y
+    @height.setter
+    def height(self, val):
+        if self._constructing:
+            self._height = val
+        else:
+            self.size.y = val/self._height
+            self.addattr('size')
         
     @property
-    def text_length(self):
-        return self._text_length*self.size.x
-    @text_length.setter
-    def text_length(self, val):
-        raise AttributeError("text_length can't be set")
+    def length(self):
+        return self._length*self.size.x
+    @length.setter
+    def length(self, val):
+        if self._constructing:
+            raise AttributeError("text length can't be set when creating a text object")
+        else:
+            self.size.x = val/self._length
+            self.addattr('size')
         
     @property
-    def text_depth(self):
-        return self._text_depth*self.size.y
-    @text_depth.setter
-    def text_depth(self, val):
-        raise AttributeError("text depth can't be modified; change size instead")
+    def depth(self):
+        return self._depth*self.size.z
+    @depth.setter
+    def depth(self, val): # sign issue ??
+        if self._constructing:
+            self._depth = val
+        else:
+            self.size.z = val/self.depth
+            self.addattr('size')
         
     @property
     def align(self):
