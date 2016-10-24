@@ -29,6 +29,7 @@ import os
 import collections
 import copy
 import sys
+from jupyter_core.paths import jupyter_data_dir
 
 from . import __version__, __gs_version__
 
@@ -51,6 +52,14 @@ GSversion = [__gs_version__, 'glowscript']
 
 def eprint(*args, **kwargs): # this may output when ordinary print won't
     print(*args, file=sys.stderr, **kwargs)
+
+# Clean out of nbextensions old vpython files (now in nbextensions/vpython_libraries)
+nbdir = jupyter_data_dir()+'/nbextensions/'
+nb = os.listdir(nbdir)
+deletions = ['glow.2.1.min.js', 'glowcomm.js']
+for f in nb:
+    if f in deletions:
+        os.remove(nbdir+f)
 
 # scalar attribute:  { <'a' or 'b'>: string }
 # string is str(idx)+attrs[<attributename>]+str(attributevalue) 
