@@ -464,13 +464,13 @@ if IPython.__version__ >= '3.0.0' :
 else:
     get_ipython().comm_manager.register_target('glow', GlowWidget) 
 
-glowfile = '"nbextensions/vpython_libraries/glow.{}.min"'.format(GSversion[0])
-display(Javascript("""require.undef("nbextensions/vpython_libraries/jquery-ui.custom.min");"""))
-display(Javascript("""require.undef("""+glowfile+""");"""))
+display(Javascript("""require.undef("nbextensions/vpython_libraries/glow.min");"""))
 display(Javascript("""require.undef("nbextensions/vpython_libraries/glowcomm");"""))
-display(Javascript("""require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
-display(Javascript("""require(["""+glowfile+"""], function(){console.log("GLOW LOADED");})"""))
+display(Javascript("""require.undef("nbextensions/vpython_libraries/jquery-ui.custom.min");"""))
+
+display(Javascript("""require(["nbextensions/vpython_libraries/glow.min"], function(){console.log("GLOW LOADED");})"""))
 display(Javascript("""require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");})"""))
+display(Javascript("""require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
             
 get_ipython().kernel.do_one_iteration()
 

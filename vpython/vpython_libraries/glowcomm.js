@@ -1,6 +1,5 @@
-// MAKE SURE THE GLOW LIBRARY HAS THE CORRECT VERSION NUMBER:
 define(["nbextensions/vpython_libraries/jquery-ui.custom.min",
-        "nbextensions/vpython_libraries/glow.2.2.min"], function() {
+        "nbextensions/vpython_libraries/glow.min"], function() {
 
 // The following is necessary to be able to re-run programs.
 // Otherwise the repeated execution of update_canvas() causes problems after klling Python.
