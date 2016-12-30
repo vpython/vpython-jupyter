@@ -1,4 +1,6 @@
 import os
+import re
+
 
 def glowscript_version():
     """
@@ -6,16 +8,16 @@ def glowscript_version():
     """
 
     this_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(this_dir, 'vpython_libraries')
-    files = os.listdir(data_dir)
-    
-    gs_version = None
-    for f in files:
-        if f[:5] == 'glow.':
-            gs_version = f[5:8]
-            break
+    glowscript_lib = os.path.join(this_dir, 'vpython_libraries', 'glow.min.js')
 
-    if gs_version is None:
+    with open(glowscript_lib, 'r') as f:
+        glow_contents = f.read()
+
+    matches = re.search(r'glowscript={version:"(.*?)"}', glow_contents)
+
+    if matches:
+        gs_version = matches.group(1)
+    else:
         raise RuntimeError("Could not determine glowscript version.")
 
     return gs_version
