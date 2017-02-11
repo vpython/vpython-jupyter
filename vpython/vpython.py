@@ -636,7 +636,6 @@ class standardAttributes(baseObj):
     attrLists['cylinder'] = attrLists['sphere']
     attrLists['cone'] = attrLists['sphere']
     attrLists['ellipsoid'] = attrLists['sphere']
-
     
     def setup(self, args):
         super(standardAttributes, self).__init__() 
@@ -673,6 +672,8 @@ class standardAttributes(baseObj):
         self._size_units = 'pixels'
         self._texture = None
         self._pickable = True
+        self._oldaxis = None # used in linking axis and up
+        self._oldup = None # used in linking axis and up
 
         
         argsToSend = []  ## send to GlowScript only attributes specified in constructor
@@ -783,6 +784,44 @@ class standardAttributes(baseObj):
         if objName == 'vertex':
             self._bumpaxis.on_change = self._on_bumpaxis_change
             self._normal.on_change = self._on_normal_change
+    
+    def adjust_up(self, oldaxis, newaxis): # adjust up when axis is changed
+        if newaxis.mag2 == 0:
+            # If axis has changed to <0,0,0>, must save the old axis to restore later
+            if self._oldaxis is None: self._oldaxis = oldaxis
+            return
+        if self._oldaxis is not None:
+            # Restore saved oldaxis now that newaxis is nonzero
+            oldaxis = self._oldaxis
+            self._oldaxis = None
+        angle = oldaxis.diff_angle(newaxis)
+        if angle > 1e-6: # smaller angles lead to catastrophes
+            # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
+            if abs(angle-math.pi) < 1e-6:
+                newup = -self._up
+            else:
+                rotaxis = cross(oldaxis,newaxis)
+                newup = self._up.rotate(angle=angle, axis=rotaxis)
+            self._up = newup
+
+    def adjust_axis(self, oldup, newup): # adjust axis when up is changed
+        if newup.mag2 == 0:
+            # If up will be set to <0,0,0>, must save the old up to restore later
+            if self._oldup is None:
+                self._oldup = oldup
+        if self._oldup is not None:
+            # Restore saved oldup now that newup is nonzero
+            oldup = self._oldup
+            self._oldup = None
+        angle = oldup.diff_angle(newup)
+        if angle > 1e-6: # smaller angles lead to catastrophes
+            # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
+            if abs(angle-math.pi) < 1e-6:
+                newxis = -self._axis
+            else:
+                rotaxis = cross(oldup,newup)
+                newaxis = self._axis.rotate(angle=angle, axis=rotaxis)
+            self._axis = newaxis
 
     @property
     def pos(self):
@@ -801,9 +840,11 @@ class standardAttributes(baseObj):
         return self._up  
     @up.setter
     def up(self,other):
+        oldup = norm(self._up)
         self._up.value = other
         if not self._constructing:
             self.addattr('up')
+        self.adjust_axis(oldup, self.up)
             
     @property
     def size(self):
@@ -827,6 +868,7 @@ class standardAttributes(baseObj):
         return self._axis
     @axis.setter
     def axis(self,other):
+        oldaxis = norm(self._axis)
         self._axis.value = other
         if not self._constructing:
             self.addattr('axis')
@@ -835,6 +877,7 @@ class standardAttributes(baseObj):
             self._size._x = m
             if not self._constructing:
                 self.addattr('size')
+        self.adjust_up(oldaxis, self.axis)
             
     @property
     def length(self): 
@@ -1043,29 +1086,25 @@ class standardAttributes(baseObj):
     def frame(self,value):
         self._frame = value
    
-    def rotate(self, angle=math.pi/4, axis=None, origin=None):
+    def rotate(self, angle=None, axis=None, origin=None):
+        if angle == None:
+            raise TypeError('You must specify an angle through which to rotate')
         if axis == None:
             rotaxis = self.axis
         else:
-            if not isinstance(axis, vector): raise TypeError('axis must be a vector')
             rotaxis = axis
         if origin == None:
-            rorigin = self.pos
+            origin = self.pos
+        newpos = origin+(self.pos-origin).rotate(angle, rotaxis)
+        if isinstance(self, curve):
+            self.origin = newpos
         else:
-            if not isinstance(origin, vector): raise TypeError('origin must be a vector')
-            rorigin = origin
-            self.pos = rorigin+(self.pos-rorigin).rotate(angle, rotaxis)
-        axis = self.axis
-        X = norm(axis)
-        Y = self.up
-        Z = X.cross(Y)
-        if Z.dot(Z) < 1e-10:
-            Y = vector(1,0,0)
-            Z = X.cross(Y)
-            if Z.dot(Z) < 1e-10:
-                Y = vector(0,1,0)            
-        self.axis = axis.rotate(angle, rotaxis)
-        self.up = Y.rotate(angle, rotaxis)
+            self.pos = newpos
+        axis = self._axis
+        if diff_angle(axis,rotaxis) > 1e-6:
+            self.axis = axis.rotate(angle=angle, axis=rotaxis)
+        else:
+            self.up = self._up.rotate(angle=angle, axis=rotaxis)
 
     def _on_size_change(self):
         self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
@@ -2613,7 +2652,7 @@ class canvas(baseObj):
         self._caption = ''
         self._mouse = Mouse(self)
         self._binds = {'mousedown':[], 'mouseup':[], 'mousemove':[],'click':[],
-                        'mouseenter':[], 'mouseleave':[]}
+                        'mouseenter':[], 'mouseleave':[], 'keydown':[], 'keyup':[]}
             # no key events unless notebook command mode can be disabled
         self._camera = Camera(self)
         self.title_anchor = 1  ## used by buttons etc.
