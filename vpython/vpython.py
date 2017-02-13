@@ -216,6 +216,9 @@ object_registry = {}    ## idx -> instance
 attach_arrows = []
 attach_trails = []  ## needed only for functions
 
+def list_to_vec(L):
+    return vector(L[0], L[1], L[2])
+
 class baseObj(object):
     txtime = 0.0
     idx = 1
@@ -427,8 +430,6 @@ class GlowWidget(object):
 ##object_registry = {}    ## idx -> instance        
     def handle_msg(self, msg):
         evt = msg['content']['data']['arguments'][0]
-        print(evt)
-        sys.stdout.flush()
         if 'widget' in evt:
             obj = object_registry[evt['idx']]
             if evt['widget'] == 'button':
@@ -496,13 +497,13 @@ class color(object):
     def rgb_to_hsv(cls,v):
       T = [v.x, v.y, v.z]
       c = colorsys.rgb_to_hsv(*T)
-      return vector(c[0], c[1], c[2])
+      return list_to_vec(c)
 
     @classmethod
     def hsv_to_rgb(cls,v):
       T = [v.x, v.y, v.z]
       c = colorsys.hsv_to_rgb(*T)
-      return vector(c[0], c[1], c[2])
+      return list_to_vec(c)
 
     @classmethod
     def rgb_to_grayscale(cls,v):
@@ -614,9 +615,9 @@ class standardAttributes(baseObj):
                         [],
                         ['radius', 'pps', 'retain', 'type', '_obj'],
                         [] ],
-                 'extrusion':[ ['origin', 'up', 'color', 'start_face_color', 'end_face_color'],
+                 'extrusion':[ ['pos', 'up', 'color', 'start_face_color', 'end_face_color'],
                         [ 'axis', 'size' ],
-                        ['pos', 'shape', 'visible', 'opacity','shininess', 'emissive',  
+                        ['path', 'shape', 'visible', 'opacity','shininess', 'emissive',  
                          'show_start_face', 'show_end_face',
                          'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable' ],
@@ -646,7 +647,7 @@ class standardAttributes(baseObj):
         del args['_objName']
         
     # default values
-        self._pos = vector(0,0,0)  
+        self._pos = vector(0,0,0)
         self._axis = vector(1,0,0)
         self._up = vector(0,1,0)
         self._color = vector(1,1,1)
@@ -674,7 +675,6 @@ class standardAttributes(baseObj):
         self._pickable = True
         self._oldaxis = None # used in linking axis and up
         self._oldup = None # used in linking axis and up
-
         
         argsToSend = []  ## send to GlowScript only attributes specified in constructor
         
@@ -742,12 +742,14 @@ class standardAttributes(baseObj):
         cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
 
     # now put all args to send into cmd
+        nosize = ['compound', 'extrusion', 'text'] # size will be computed by the constuctor
         for a in argsToSend:
             aval = getattr(self,a)
             if isinstance(aval, vector):
                 aval = aval.value
             elif isinstance(aval, vertex):
                 aval = aval.idx
+            if objName in nosize and a == 'size': continue # do not send superfluous size
             cmd["attrs"].append({"attr":a, "value": aval})
             
     # set canvas  
@@ -755,11 +757,6 @@ class standardAttributes(baseObj):
             self.canvas = canvas.get_selected()
         cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
         self.canvas.objz(self,'add')
-        
-        if objName == 'compound':
-            while True:
-                self.canvas.waitfor('redraw') # objects must exist before compounding them
-                if len(baseObj.cmds) == 0: break
                    
         self._constructing = False  ## from now on any setter call will not be from constructor        
         self.appendcmd(cmd)
@@ -771,19 +768,22 @@ class standardAttributes(baseObj):
     # attribute vectors have these methods which call self.addattr()
         noSize = ['points', 'label', 'vertex', 'triangle', 'quad', 'attach_arrow', 'attach_trail']
         if objName not in noSize:
-#        if objName != 'points' and objName != 'label':
             self._axis.on_change = self._on_axis_change
             self._size.on_change = self._on_size_change
             self._up.on_change = self._on_up_change
-        noPos = ['curve', 'points', 'triangle', 'quad', 'attach_arrow', 'extrusion']
+        noPos = ['curve', 'points', 'triangle', 'quad', 'attach_arrow']
         if objName not in noPos:
         # if objName != 'curve' and objName != 'points':
             self._pos.on_change = self._on_pos_change
-        elif objName == 'curve' or objName == 'extrusion':
+        elif objName == 'curve':
             self._origin.on_change = self._on_origin_change
         if objName == 'vertex':
             self._bumpaxis.on_change = self._on_bumpaxis_change
             self._normal.on_change = self._on_normal_change
+        
+    # Ensure that if axis or up is <0,0,0> in constructor, we'll recover eventually:
+        if self._axis.mag2 == 0: self._oldaxis = vector(1,0,0)
+        if self._up.mag2 == 0: self._oldup = vector(0,1,0)
     
     def adjust_up(self, oldaxis, newaxis): # adjust up when axis is changed
         if newaxis.mag2 == 0:
@@ -1459,7 +1459,6 @@ compound_idx = 0 # same numbering scheme as in GlowScript
 class compound(standardAttributes):
     def __init__(self, objList, **args):
         global compound_idx
-        args['_default_size'] = vector(1,1,1)
         self._obj_idxs = None
         idxlist = []
         ineligible = [label, curve, helix, points]  ## type objects
@@ -1470,16 +1469,27 @@ class compound(standardAttributes):
             if type(obj) in ineligible:
                 raise TypeError('A ' + obj._objName + ' object cannot be used in a compound')
             idxlist.append(obj.idx)
+        args['_default_size'] = vector(1,1,1) # to keep standardAttributes happy
         args['obj_idxs'] = idxlist
+        savesize = None
+        if 'size' in args:
+            savesize = args['size']
+            del args['size']
         
         compound_idx += 1
         args['_objName'] = 'compound'+str(compound_idx)
-        sleep(0.5) # make sure all the object attributes are fully updated before forming the compound
         super(compound, self).setup(args)
         
         for obj in objList:
             # GlowScript will make the objects invisible, so need not set obj.visible
             obj._visible = False  ## ideally these should be deleted
+            
+        self.canvas._waitfor = False
+        self.canvas._compound = self # used by event handler to update pos and size
+        while self.canvas._waitfor is False:
+            rate(60)
+        if savesize is not None:
+            self.size = savesize
 
     @property
     def obj_idxs(self):
@@ -1490,7 +1500,7 @@ class compound(standardAttributes):
         axis = self._axis
         up = norm(self._up)
         if abs(axis.dot(up)) / math.sqrt(axis.mag2) > 0.98:
-            if math.abs(norm(axis).dot(vector(-1,0,0))) > 0.98:
+            if abs(norm(axis).dot(vector(-1,0,0))) > 0.98:
                 z_axis = axis.cross(vector(0,0,1)).norm()
             else:
                 z_axis = axis.cross(vector(-1,0,0)).norm()
@@ -1767,7 +1777,7 @@ class curveMethods(standardAttributes):
         for v in vars:
             if isinstance(v, vector) or isinstance(v, list) or isinstance(v, tuple):
                 if not isinstance(v, vector): # legal in GlowScript: pos=[(x,y,z), (x,y,z)] and pos=[[x,y,z], [x,y,z]]
-                    v = vec(v[0], v[1], v[2])
+                    v = list_to_vec(v)
                 if not self._constructing:
                     ret.append({'pos':v})
                 else:
@@ -2652,7 +2662,8 @@ class canvas(baseObj):
         self._caption = ''
         self._mouse = Mouse(self)
         self._binds = {'mousedown':[], 'mouseup':[], 'mousemove':[],'click':[],
-                        'mouseenter':[], 'mouseleave':[], 'keydown':[], 'keyup':[]}
+                        'mouseenter':[], 'mouseleave':[], 'keydown':[], 'keyup':[],
+                        '_compound':[]}
             # no key events unless notebook command mode can be disabled
         self._camera = Camera(self)
         self.title_anchor = 1  ## used by buttons etc.
@@ -2926,14 +2937,25 @@ class canvas(baseObj):
         ev = evt['event']
         if ev == 'pick':
             self.mouse.setpick( evt )
+        elif ev == '_compound':
+            obj = self._compound
+            p = evt['pos']
+            if obj._objName == 'text':
+                obj._size._x = p[0]
+                obj._descender = p[1]
+            else:
+                obj.pos = list_to_vec(p)
+                s = evt['size']
+                obj.size = list_to_vec(s)
+            self._waitfor = True
         else:
             if 'pos' in evt:
                 pos = evt['pos']
-                evt['pos'] = vector( pos[0], pos[1], pos[2] )
+                evt['pos'] = list_to_vec(pos)
                 self.mouse._pos = evt['pos']
             if 'ray' in evt:
                 ray = evt['ray']
-                evt['ray'] = vector( ray[0], ray[1], ray[2] )
+                evt['ray'] = list_to_vec(ray)
                 self.mouse._ray = evt['ray']
             canvas.hasmouse = self  
             if ev != 'update_canvas':   ## mouse events bound to functions
@@ -2955,11 +2977,11 @@ class canvas(baseObj):
             else:  ## user can change forward with spin, range/autoscale with zoom, up with touch gesture
                 if 'forward' in evt and self.userspin and not self._set_forward:
                     fwd = evt['forward']
-                    self._forward = vector(fwd[0], fwd[1], fwd[2])
+                    self._forward = list_to_vec(fwd)
                 self._set_forward = False
                 if 'up' in evt and self.userspin and not self._set_up:
                     cup = evt['up']
-                    self._up = vector( cup[0], cup[1], cup[2] )
+                    self._up = list_to_vec(cup)
                 self._set_up = False
                 if 'range' in evt and self.userzoom and not self._set_range:
                     self._range = evt['range']
@@ -3384,15 +3406,18 @@ class slider(controls):
 class extrusion(standardAttributes):
     def __init__(self, **args):
         #raise NameError("The extrusion object is not yet available in Jupyter VPython.")
-        args['_default_size'] = vector(1,1,1)
+        args['_default_size'] = vector(1,1,1) # to keep standardAttributes happy
         args['_objName'] = "extrusion"
+        savesize = None
+        if 'size' in args:
+            savesize = args['size']
+            del args['size']
         self._shape = [ ]
-        self._origin = vector(0,0,0)
-        pozz = args['pos']
+        pozz = args['path']
         npozz = []
         for pp in pozz:
             npozz.append(pp.value)  ## convert vectors to lists
-        args['pos'] = npozz[:]
+        args['path'] = npozz[:]
         self._show_start_face = True
         self._show_end_face = True
         if 'color' in args:
@@ -3401,18 +3426,22 @@ class extrusion(standardAttributes):
 
         super(extrusion, self).setup(args)
         
-    def _on_origin_change(self):
-        self.addattr('origin')
+        self.canvas._waitfor = False
+        self.canvas._compound = self # used by event handler to update pos and size
+        while self.canvas._waitfor is False:
+            rate(60)
+        if savesize is not None:
+            self.size = savesize
         
     @property
-    def pos(self):
+    def path(self):
         if self._constructing:
-            return self._pos
+            return self._path
         else:
             return None
-    @pos.setter
-    def pos(self,value):
-        raise AttributeError('pos cannot be changed after extrusion is created')
+    @path.setter
+    def path(self,value):
+        raise AttributeError('path cannot be changed after extrusion is created')
         
     @property
     def shape(self):
@@ -3423,15 +3452,6 @@ class extrusion(standardAttributes):
     @shape.setter
     def shape(self, value):
         raise AttributeError('shape cannot be changed after extrusion is created')
-    
-    @property
-    def origin(self):
-        return self._origin    
-    @origin.setter
-    def origin(self,value):
-        self._origin.value = value
-        if not self._constructing:
-            self.addattr('origin')
             
     @property
     def show_start_face(self):
@@ -3476,8 +3496,7 @@ class extrusion(standardAttributes):
 class text(standardAttributes):
 
     def __init__(self, **args):
-        raise NameError("The 3D text object is not yet available in Jupyter VPython.")
-        args['_default_size'] = vector(1,1,1)
+        args['_default_size'] = vector(1,1,1) # to keep standardAttributes happy
         args['_objName'] = "text"
         self._height = 1  ## not derived from size
         self._length = 1  ## calculated from actual object and returned to vpython
@@ -3498,44 +3517,65 @@ class text(standardAttributes):
         self._lower_right = vector(0,0,0)
         self._start = vector(0,0,0)
         self._end = vector(0,0,0)
-        self._lines = args['text'].count("/n") + 1
+        self._lines = len(args['text'].split('\n'))
         if 'color' in args:
             self._start_face_color = args['color']
             self._end_face_color = args['color']
+        savesize = None
+        if 'size' in args:
+            savesize = args['size']
+            del args['size']
 
         super(text, self).setup(args)
         
+        self.canvas._waitfor = False
+        self.canvas._compound = self # used by event handler to update pos and size
+        while self.canvas._waitfor is False:
+            rate(60)
+        if savesize is not None:
+            self.size = savesize
+        
     @property
     def height(self):
-        return self._height*self.size.y
+        return self._height
     @height.setter
     def height(self, val):
         if self._constructing:
             self._height = val
         else:
-            self.size.y = val/self._height
+            if val == self._height: return
+            m = val/self._height
+            self._size.y *= m
+            self._descender *= m
+            self._height = val
             self.addattr('size')
         
     @property
     def length(self):
-        return self._length*self.size.x
+        return self._size.x
     @length.setter
     def length(self, val):
         if self._constructing:
             raise AttributeError("text length can't be set when creating a text object")
         else:
-            self.size.x = val/self._length
+            self._size.x = val
             self.addattr('size')
         
     @property
     def depth(self):
-        return self._depth*self.size.z
+        return self._depth
     @depth.setter
     def depth(self, val): # sign issue ??
         if self._constructing:
             self._depth = val
         else:
-            self.size.z = val/self.depth
+            if abs(val) < 0.01*self._height:
+                if val < 0: val = -0.01*self._height
+                else: val = 0.01*self._height
+            self._size.z *= abs(value)
+            self._pos.z = val/2
+            self._depth = val
+            self.addattr('pos')
             self.addattr('size')
         
     @property
@@ -3632,10 +3672,11 @@ class text(standardAttributes):
         
     @property
     def lower_left(self):
-        return self.upper_left + norm(self.up)*(-self.text_height -self.descender - 1.5*self.text_height*(self._lines-1) )
+        return self.upper_left + norm(self.up)*(-self.height -self._descender - 1.5*self.height*(self._lines-1) )
     @lower_left.setter
     def lower_left(self, val):
         raise AttributeError("lower_left cannot be modified")
+        
     @property
     def lower_right(self):
         return self.lower_left + norm(self.axis)*self.length
@@ -3659,7 +3700,7 @@ class text(standardAttributes):
         
     @property
     def vertical_spacing(self):
-        return self._vertical_spacing
+        return 1.5*self.height
     @vertical_spacing.setter
     def vertical_spacing(self, val):
         raise AttributeError("vertical_spacing cannot be modified")

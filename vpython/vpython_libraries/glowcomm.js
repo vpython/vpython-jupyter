@@ -159,6 +159,12 @@ function send_pick(cvs, p, seg) {
     comm.send( {arguments: [evt]} ) 
 }
 
+function send_compound(cvs, pos, size) {
+    "use strict";
+    var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 'size': [size.x, size.y, size.z]}
+    comm.send( {arguments: [evt]} )
+}
+
 // attrs are X in {'a': '23X....'}
 var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: +-, 
          'e':'ambient', 'f':'axis', 'g':'size', 'h':'origin', 'i':'textcolor',
@@ -424,8 +430,8 @@ function handler(msg) {
                             } else {
                                cfg[attr.attr] = o2vec3(attr.value)
                             }                            
-                        } else if (attr.attr ==='pos' && (cmd.cmd === 'curve' || cmd.cmd === 'points' ||
-                                    cmd.cmd === 'extrusion')) {
+                        } else if ( (attr.attr == 'pos' && (cmd.cmd == 'curve' || cmd.cmd == 'points')) ||
+                                    (attr.attr == 'path' && cmd.cmd == 'extrusion') ) {
                             var ptlist = []
                             for (var kk = 0; kk < attr.value.length; kk++) {
                                 ptlist.push( o2vec3(attr.value[kk]) )
@@ -510,9 +516,12 @@ function handler(msg) {
                         } else if (cmd.cmd === 'ellipsoid') {
                             glowObjs[cmd.idx] = sphere(cfg)
                         } else if (cmd.cmd === 'extrusion') {
-                            glowObjs[cmd.idx] = extrusion(cfg)
+                            var obj = glowObjs[cmd.idx] = extrusion(cfg)
+                            // Return computed compound pos and size to Python
+                            send_compound(obj.canvas['idx'], obj.pos, obj.size)
                         } else if (cmd.cmd === 'text') {
-                            glowObjs[cmd.idx] = text(cfg)
+                            var obj = glowObjs[cmd.idx] = text(cfg)
+                            send_compound(obj.canvas['idx'], vec(obj.length, obj.descender, 0), vec(0,0,0))
                         } else if (cmd.cmd === 'rotate') {
                             glowObjs[cmd.idx].rotate(cfg)
                         } else if (cmd.cmd === 'local_light') {
@@ -521,6 +530,9 @@ function handler(msg) {
                             glowObjs[cmd.idx] = distant_light(cfg)
                         } else if (cmd.cmd === 'compound') {
                             glowObjs[cmd.idx] = compound(objects, cfg)
+                            var obj = glowObjs[cmd.idx]
+                            // Return computed compound pos and size to Python
+                            send_compound(obj.canvas['idx'], obj.pos, obj.size)
                         } else if (cmd.cmd === 'canvas') {
                             glowObjs[cmd.idx] = canvas(cfg)
                             glowObjs[cmd.idx]['idx'] = cmd.idx
