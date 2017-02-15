@@ -221,7 +221,6 @@ function decode(data) { // [ [{'a': '3c0.0,1.0,1.0'}], .....] or can be a method
     var output = [], s, m, idx, attr, val, datatype, out
     for (var i in data) { // step through the list of dictionaries
         var d = data[i]
-        //console.log('---- in ------')
         // constructor or appendcmd not currently compressed; complex methods or attributes:
         if (d['_pass'] !== undefined) {
             delete d['_pass']
@@ -237,7 +236,6 @@ function decode(data) { // [ [{'a': '3c0.0,1.0,1.0'}], .....] or can be a method
             s = d['m']
             datatype = 'method'
         }
-        //for (var a in d) console.log(a, d[a])
         m = s.match(patt)
         idx = Number(m[1])
         if (datatype == 'attr') {
@@ -340,7 +338,7 @@ function handler(msg) {
                         }
                     }
                     if (cmd.method !== undefined) {
-                        //console.log('cmd.method', cmd.method, cmd.cmd, cmd.val)
+                        //console.log('cmd.method', cmd.idx, cmd.method, cmd.val)
                         var parametric = ['splice', 'modify']
                         var val = cmd.val
                         if (cmd.method == 'GSprint') {

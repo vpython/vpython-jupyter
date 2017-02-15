@@ -251,7 +251,6 @@ class baseObj(object):
     def appendcmd(self,cmd):
         # The following code makes sure that constructors are sent to the front end first.
         cmd['_pass'] = 1 # indicate that this should be ignored by glowcomm/decode()
-        #baseObj.glow.comm.send([cmd])
         if len(baseObj.cmds) == 0:
             commsend() # send any pending output
         baseObj.cmds.append(cmd)
@@ -388,23 +387,23 @@ def commsend():
                                 commcmds[L]['val'] = attrval
                             L += 1
                             if L > baseObj.qSize:
-                               baseObj.glow.comm.send(encode_attr(commcmds[:L])) # send attributes and methods to glowcomm
-                               L = 0
-                            
+                                baseObj.glow.comm.send(encode_attr(commcmds[:L])) # send attributes and methods to glowcomm
+                                L = 0
+                           
             if (ob is not None) and (hasattr(ob,'methodsupdt')) and (len(ob.methodsupdt) > 0 ):
                 for m in ob.methodsupdt: # a list
-                    #if L >= len(commcmds): break
                     if 'attr' in commcmds[L]: del commcmds[L]['attr'] # if left over from previous use of slot
                     method = m[0]
                     data = m[1]
+                    if method == 'clone' and str(ob.idx) == data: continue
                     commcmds[L]['idx'] = ob.idx
                     commcmds[L]['method'] = method
                     if method == 'add_to_trail': data = data.value
                     commcmds[L]['val'] = data
                     L += 1
                     if L > baseObj.qSize:
-                       baseObj.glow.comm.send(encode_attr(commcmds[:L])) # send attributes and methods to glowcomm
-                       L = 0
+                        baseObj.glow.comm.send(encode_attr(commcmds[:L])) # send attributes and methods to glowcomm
+                        L = 0
                 ob.methodsupdt = []
                 
             if L > baseObj.qSize:
@@ -682,6 +681,10 @@ class standardAttributes(baseObj):
         self._pickable = True
         self._oldaxis = None # used in linking axis and up
         self._oldup = None # used in linking axis and up
+        cloning = False
+        if '_cloning' in args:
+            cloning = args['_cloning']
+            del args['_cloning']
         
         argsToSend = []  ## send to GlowScript only attributes specified in constructor
         
@@ -691,7 +694,7 @@ class standardAttributes(baseObj):
             if a in args:
                 argsToSend.append(a)
                 val = args[a]
-                if isinstance(val, vector): setattr(self, '_'+a, vector(val))  ## by_passing setters; copy of val
+                if isinstance(val, vector): setattr(self, '_'+a, vector(val))  ## by-passing setters; copy of val
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
                 
@@ -726,7 +729,7 @@ class standardAttributes(baseObj):
         for a in attrs:
             if a in args:
                 argsToSend.append(a)
-                setattr(self, '_'+a, args[a])  ## by_pass setters
+                setattr(self, '_'+a, args[a])  ## by-pass setters
                 del args[a] 
 
         scalarInteractions={'red':'color', 'green':'color', 'blue':'color', 'radius':'size', 'thickness':'size',
@@ -765,8 +768,8 @@ class standardAttributes(baseObj):
         cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
         self.canvas.objz(self,'add')
                    
-        self._constructing = False  ## from now on any setter call will not be from constructor        
-        self.appendcmd(cmd)
+        self._constructing = False  ## from now on any setter call will not be from constructor
+        if not cloning: self.appendcmd(cmd)
        
         # if ('frame' in args and args['frame'] != None):
             # frame.objects.append(self)
@@ -1134,20 +1137,85 @@ class standardAttributes(baseObj):
         pass
         
     def clone(self, **args):
-        if isinstance(self, triangle) or isinstance(self, quad):
-            raise TypeError('Cannot clone a '+self._objName+' object')
-        newAtts = {}
-        exclude = ['idx', 'attrsupdt', '_constructing']
-        for k,v in vars(self).items():
-            if k not in exclude:
-                key = k[:]
-                if k[0] == '_':
-                    key = k[1:]     ## get rid of underscore
-                newAtts[key] = v  
-        for k, v in args.items():   ## overrides and user attrs
-            newAtts[k] = v
-        dup = type(self)(**newAtts)
-        return dup
+        objName = self._objName
+        ## Deal with compound separately -- with its own clone method:
+        #if objName[:8] == 'compound': objName = 'compound'
+        if objName == 'triangle' or objName == 'quad':
+            raise TypeError('Cannot clone a '+objName+' object.')
+        elif objName == 'text': # the text object is a wrapper around an extrusion, which is a compound
+            newargs = {'pos':self._pos, 'canvas':self.canvas,
+                    'color':self._color, 'opacity':self._opacity, 
+                    'size':self._size, 'axis':self._axis, 'up':self._up, 'text':self._text,
+                    'length':self._length, 'height':self._height, 'depth':self._depth,
+                    'font':self._font, 'align':self._align, 'billboard':self._billboard,
+                    'show_start_face':self._show_start_face, 'show_end_face':self._show_end_face,
+                    'start_face_color':self._start_face_color, 'end_face_color':self._end_face_color,
+                    'start':self._start, 'end':self._end, 'descender':self._descender,
+                    'vertical_spacing':self._vertical_spacing,
+                    'upper_left':self._upper_left, 'upper_right':self._upper_right,
+                    'lower_left':self._lower_left, 'lower_right':self._lower_right,
+                    'shininess':self._shininess, 'emissive':self._emissive,
+                    'pickable':self._pickable}
+        elif objName == 'curve':
+            newargs = {'origin':self._origin, 'pos':self.pos,
+                    'color':self._color, r'adius':self._radius,
+                    'size':self._size, 'axis':self._axis, 'up':self._up,
+                    'shininess':self._shininess, 'emissive':self._emissive, 
+                    'visible':True, 'pickable':self._pickable}
+        elif objName == 'helix':
+            newargs = {'pos':self.pos, 'color':self._color,
+                    'thickness':self._thickness, 'coils':self._coils,
+                    'size':self._size, 'axis':self._axis, 'up':self._up,
+                    'shininess':self._shininess, 'emissive':self._emissive, 
+                    'visible':True, 'pickable':self._pickable}
+        else:
+            newargs = {'pos':self._pos, 'color':self._color,
+                    'opacity':self._opacity, 'size':self._size, 'axis':self._axis, 'up':self._up,
+                    'texture':self.texture, 'shininess':self._shininess, 'emissive':self._emissive,
+                    'visible':True, 'pickable':self._pickable}
+            if objName == 'arrow':
+                newargs['shaftwidth'] = self._shaftwidth
+                newargs['headwidth'] = self._headwidth
+                newargs['headlength'] = self._headlength
+        for k, v in args.items():   # overrides and user attrs
+            newargs[k] = v
+        return type(self)(**newargs)
+        
+    # def clone(self, **args):
+        # if isinstance(self, triangle) or isinstance(self, quad):
+            # raise TypeError('Cannot clone a '+self._objName+' object')
+        # newAtts = {}
+        # exclude = ['idx', 'attrsupdt', '_constructing']
+        # for k,v in vars(self).items():
+            # if k not in exclude:
+                # key = k[:]
+                # if k[0] == '_':
+                    # key = k[1:]     ## get rid of underscore
+                # newAtts[key] = v  
+        # for k, v in args.items():   ## overrides and user attrs
+            # newAtts[k] = v
+        # dup = type(self)(**newAtts)
+        # return dup
+    
+        # newAtts = {}
+        # exclude = ['idx', 'attrsupdt', '_constructing']
+        # for k,v in vars(self).items():
+            # if k not in exclude:
+                # key = k[:]
+                # if k[0] == '_':
+                    # key = k[1:]     # get rid of underscore
+                # newAtts[key] = v  
+        # newAtts['_cloning'] = True  # don't send all the info to glowcomm
+        # dup = type(self)(**newAtts) # create the Python clone
+        # self.addmethod('clone', str(dup.idx))
+        # self.canvas._waitfor = False
+        # self.canvas._compound = None
+        # while self.canvas._waitfor is False:
+            # rate(60)
+        # # for k, v in args.items():   # overrides and user attrs
+            # # scene.append_to_caption('add vals {} {}\n'.format(k,v))
+            # # setattr(dup, k, v)
+        # return dup
            
     def __del__(self):
         super(standardAttributes, self).__del__()
@@ -2699,7 +2767,7 @@ class canvas(baseObj):
                 
     # set values of user-defined attributes
         for key, value in args.items(): # Assign all other properties
-            setattr(self, key, value)                
+            setattr(self, key, value)
         
         self._forward.on_change = self._on_forward_change
         self._up.on_change = self._on_up_change
@@ -3775,5 +3843,5 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
         s += str(a)+' '
     s = s[:-1]
     return(s)
-    
+  
 trigger() # start the trigger ping-pong process
