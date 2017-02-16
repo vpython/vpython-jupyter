@@ -102,7 +102,7 @@ attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single
 attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':'e',
           'normal':'f', 'data':'g', 'checked':'h', 'disabled':'i', 'selected':'j',
           'vertical':'k', 'min':'l', 'max':'m', 'step':'n', 'value':'o', 'left':'p',
-          'right':'q', 'top':'r', 'bottom':'s'}
+          'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t'}
 
 # methods are X in {'m': '23X....'}
 methods = {'select':'a', 'start':'c', 'stop':'d', 'clear':'f', # unused bexyCDFghzAB
@@ -395,7 +395,6 @@ def commsend():
                     if 'attr' in commcmds[L]: del commcmds[L]['attr'] # if left over from previous use of slot
                     method = m[0]
                     data = m[1]
-                    if method == 'clone' and str(ob.idx) == data: continue
                     commcmds[L]['idx'] = ob.idx
                     commcmds[L]['method'] = method
                     if method == 'add_to_trail': data = data.value
@@ -628,8 +627,7 @@ class standardAttributes(baseObj):
                          'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable' ],
                         ['red', 'green', 'blue','length', 'width', 'height'] ],
-                 'text': [ ['pos', 'up', 'color', 'start_face_color', 'end_face_color', 
-                                'upper_left', 'upper_right', 'lower_left', 'lower_right'],
+                 'text': [ ['pos', 'up', 'color', 'start_face_color', 'end_face_color'],
                           ['axis', 'size'],
                           ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
@@ -681,10 +679,10 @@ class standardAttributes(baseObj):
         self._pickable = True
         self._oldaxis = None # used in linking axis and up
         self._oldup = None # used in linking axis and up
-        cloning = False
-        if '_cloning' in args:
-            cloning = args['_cloning']
-            del args['_cloning']
+        cloning = None
+        if '_cloneid' in args:
+            cloning = args['_cloneid']
+            del args['_cloneid']
         
         argsToSend = []  ## send to GlowScript only attributes specified in constructor
         
@@ -769,7 +767,8 @@ class standardAttributes(baseObj):
         self.canvas.objz(self,'add')
                    
         self._constructing = False  ## from now on any setter call will not be from constructor
-        if not cloning: self.appendcmd(cmd)
+        if cloning is not None: cmd["attrs"].append({"attr":"_cloneid", "value":cloning})
+        self.appendcmd(cmd)
        
         # if ('frame' in args and args['frame'] != None):
             # frame.objects.append(self)
@@ -1145,17 +1144,14 @@ class standardAttributes(baseObj):
         elif objName == 'text': # the text object is a wrapper around an extrusion, which is a compound
             newargs = {'pos':self._pos, 'canvas':self.canvas,
                     'color':self._color, 'opacity':self._opacity, 
-                    'size':self._size, 'axis':self._axis, 'up':self._up, 'text':self._text,
-                    'length':self._length, 'height':self._height, 'depth':self._depth,
-                    'font':self._font, 'align':self._align, 'billboard':self._billboard,
-                    'show_start_face':self._show_start_face, 'show_end_face':self._show_end_face,
-                    'start_face_color':self._start_face_color, 'end_face_color':self._end_face_color,
-                    'start':self._start, 'end':self._end, 'descender':self._descender,
-                    'vertical_spacing':self._vertical_spacing,
-                    'upper_left':self._upper_left, 'upper_right':self._upper_right,
-                    'lower_left':self._lower_left, 'lower_right':self._lower_right,
-                    'shininess':self._shininess, 'emissive':self._emissive,
-                    'pickable':self._pickable}
+                    'size':self._size, 'axis':self._axis, 'up':self._up, '_text':self._text,
+                    '_length':self._length, '_height':self._height, '_depth':self._depth,
+                    '_font':self._font, '_align':self._align, '_billboard':self._billboard,
+                    '_show_start_face':self._show_start_face, '_show_end_face':self._show_end_face,
+                    '_start_face_color':self._start_face_color, '_end_face_color':self._end_face_color,
+                    '_descender':self._descender,
+                    '_shininess':self._shininess, '_emissive':self._emissive,
+                    '_pickable':self._pickable}
         elif objName == 'curve':
             newargs = {'origin':self._origin, 'pos':self.pos,
                     'color':self._color, r'adius':self._radius,
@@ -1177,46 +1173,15 @@ class standardAttributes(baseObj):
                 newargs['shaftwidth'] = self._shaftwidth
                 newargs['headwidth'] = self._headwidth
                 newargs['headlength'] = self._headlength
+        if objName == 'text' or objName == 'extrusion' or objName == 'compound':
+            newargs['_cloneid'] = self.idx
         for k, v in args.items():   # overrides and user attrs
             newargs[k] = v
-        return type(self)(**newargs)
-        
-    # def clone(self, **args):
-        # if isinstance(self, triangle) or isinstance(self, quad):
-            # raise TypeError('Cannot clone a '+self._objName+' object')
-        # newAtts = {}
-        # exclude = ['idx', 'attrsupdt', '_constructing']
-        # for k,v in vars(self).items():
-            # if k not in exclude:
-                # key = k[:]
-                # if k[0] == '_':
-                    # key = k[1:]     ## get rid of underscore
-                # newAtts[key] = v  
-        # for k, v in args.items():   ## overrides and user attrs
-            # newAtts[k] = v
-        # dup = type(self)(**newAtts)
-        # return dup
+        if objName == 'extrusion':
+            return compound(**newargs)
+        else:
+            return type(self)(**newargs)
     
-        # newAtts = {}
-        # exclude = ['idx', 'attrsupdt', '_constructing']
-        # for k,v in vars(self).items():
-            # if k not in exclude:
-                # key = k[:]
-                # if k[0] == '_':
-                    # key = k[1:]     # get rid of underscore
-                # newAtts[key] = v  
-        # newAtts['_cloning'] = True  # don't send all the info to glowcomm
-        # dup = type(self)(**newAtts) # create the Python clone
-        # self.addmethod('clone', str(dup.idx))
-        # self.canvas._waitfor = False
-        # self.canvas._compound = None
-        # while self.canvas._waitfor is False:
-            # rate(60)
-        # # for k, v in args.items():   # overrides and user attrs
-            # # scene.append_to_caption('add vals {} {}\n'.format(k,v))
-            # # setattr(dup, k, v)
-        # return dup
-           
     def __del__(self):
         super(standardAttributes, self).__del__()
 
@@ -3590,7 +3555,12 @@ class text(standardAttributes):
         self._lower_right = vector(0,0,0)
         self._start = vector(0,0,0)
         self._end = vector(0,0,0)
-        self._lines = len(args['text'].split('\n'))
+        if 'text' in args:
+            self._lines = len(args['text'].split('\n'))
+        elif '_text' in args: # cloning, so text cannot be changed
+            self._lines = len(args['_text'].split('\n'))
+        else:
+            raise AttributeError('A text object must have a text attribute')
         if 'color' in args:
             self._start_face_color = args['color']
             self._end_face_color = args['color']

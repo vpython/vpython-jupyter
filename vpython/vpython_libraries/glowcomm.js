@@ -195,7 +195,7 @@ var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use s
 var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':'fov',
               'f':'normal', 'g':'data', 'h':'checked', 'i':'disabled', 'j':'selected',
               'k':'vertical', 'l':'min', 'm':'max', 'n':'step', 'o':'value',
-              'p':'left', 'q':'right', 'r':'top', 's':'bottom'}
+              'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid'}
 
 // methods are X in {'m': '23X....'}
 var methods = {'a':'select', 'c':'start', 'd':'stop', 'f':'clear', // unused bsxyCDFghzAB
@@ -518,8 +518,14 @@ function handler(msg) {
                             // Return computed compound pos and size to Python
                             send_compound(obj.canvas['idx'], obj.pos, obj.size)
                         } else if (cmd.cmd === 'text') {
-                            var obj = glowObjs[cmd.idx] = text(cfg)
-                            send_compound(obj.canvas['idx'], vec(obj.length, obj.descender, 0), vec(0,0,0))
+                            if (cfg._cloneid !== undefined) {
+                                var idoriginal = cfg._cloneid
+                                delete cfg._cloneid
+                                glowObjs[cmd.idx] = glowObjs[idoriginal].clone(cfg)
+                            } else {
+                                var obj = glowObjs[cmd.idx] = text(cfg)
+                                send_compound(obj.canvas['idx'], vec(obj.length, obj.descender, 0), vec(0,0,0))
+                            }
                         } else if (cmd.cmd === 'rotate') {
                             glowObjs[cmd.idx].rotate(cfg)
                         } else if (cmd.cmd === 'local_light') {
@@ -527,10 +533,16 @@ function handler(msg) {
                         } else if (cmd.cmd === 'distant_light') {
                             glowObjs[cmd.idx] = distant_light(cfg)
                         } else if (cmd.cmd === 'compound') {
-                            glowObjs[cmd.idx] = compound(objects, cfg)
-                            var obj = glowObjs[cmd.idx]
-                            // Return computed compound pos and size to Python
-                            send_compound(obj.canvas['idx'], obj.pos, obj.size)
+                            if (cfg._cloneid !== undefined) {
+                                var idoriginal = cfg._cloneid
+                                delete cfg._cloneid
+                                obj = glowObjs[cmd.idx] = glowObjs[idoriginal].clone(cfg)
+                            } else {
+                                glowObjs[cmd.idx] = compound(objects, cfg)
+                                var obj = glowObjs[cmd.idx]
+                                // Return computed compound pos and size to Python
+                                send_compound(obj.canvas['idx'], obj.pos, obj.size)
+                            }
                         } else if (cmd.cmd === 'canvas') {
                             glowObjs[cmd.idx] = canvas(cfg)
                             glowObjs[cmd.idx]['idx'] = cmd.idx
