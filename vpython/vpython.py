@@ -1173,12 +1173,12 @@ class standardAttributes(baseObj):
                 newargs['shaftwidth'] = self._shaftwidth
                 newargs['headwidth'] = self._headwidth
                 newargs['headlength'] = self._headlength
-        if objName == 'text' or objName == 'extrusion' or objName == 'compound':
+        if objName == 'text' or objName == 'extrusion' or objName[:8] == 'compound':
             newargs['_cloneid'] = self.idx
         for k, v in args.items():   # overrides and user attrs
             newargs[k] = v
-        if objName == 'extrusion':
-            return compound(**newargs)
+        if objName[:8] == 'compound' or objName == 'extrusion':
+            return compound([], **newargs)
         else:
             return type(self)(**newargs)
     
@@ -1496,19 +1496,26 @@ compound_idx = 0 # same numbering scheme as in GlowScript
         
 class compound(standardAttributes):
     def __init__(self, objList, **args):
-        global compound_idx
+        global compound_idx, _sent
         self._obj_idxs = None
         idxlist = []
         ineligible = [label, curve, helix, points]  ## type objects
-        cvs = objList[0].canvas
-        for obj in objList:
-            if obj.canvas is not cvs:
-                raise AttributeError('all objects used in compound must belong to the same canvas')
-            if type(obj) in ineligible:
-                raise TypeError('A ' + obj._objName + ' object cannot be used in a compound')
-            idxlist.append(obj.idx)
+        cloning =  None
+        if '_cloneid' in args:
+            cloning = args['_cloneid']
+        else:
+            cvs = objList[0].canvas
+            for obj in objList:
+                if obj.canvas is not cvs:
+                    raise AttributeError('all objects used in compound must belong to the same canvas')
+                if type(obj) in ineligible:
+                    raise TypeError('A ' + obj._objName + ' object cannot be used in a compound')
+                idxlist.append(obj.idx)
+            args['obj_idxs'] = idxlist
+            _sent = False
+            while not _sent: # wait for compounding objects to exist
+                rate(60)
         args['_default_size'] = vector(1,1,1) # to keep standardAttributes happy
-        args['obj_idxs'] = idxlist
         savesize = None
         if 'size' in args:
             savesize = args['size']
@@ -1522,10 +1529,11 @@ class compound(standardAttributes):
             # GlowScript will make the objects invisible, so need not set obj.visible
             obj._visible = False  ## ideally these should be deleted
             
-        self.canvas._waitfor = False
-        self.canvas._compound = self # used by event handler to update pos and size
-        while self.canvas._waitfor is False:
-            rate(60)
+        if cloning is None:
+            self.canvas._waitfor = False
+            self.canvas._compound = self # used by event handler to update pos and size
+            while self.canvas._waitfor is False:
+                rate(60)
         if savesize is not None:
             self.size = savesize
 
@@ -3555,12 +3563,15 @@ class text(standardAttributes):
         self._lower_right = vector(0,0,0)
         self._start = vector(0,0,0)
         self._end = vector(0,0,0)
-        if 'text' in args:
-            self._lines = len(args['text'].split('\n'))
-        elif '_text' in args: # cloning, so text cannot be changed
+        cloning = None
+        if '_cloneid' in args:
+            cloning = args['_cloneid']
             self._lines = len(args['_text'].split('\n'))
         else:
-            raise AttributeError('A text object must have a text attribute')
+            if 'text' in args:
+                self._lines = len(args['text'].split('\n'))
+            else:
+                raise AttributeError('A text object must have a text attribute')
         if 'color' in args:
             self._start_face_color = args['color']
             self._end_face_color = args['color']
@@ -3571,12 +3582,13 @@ class text(standardAttributes):
 
         super(text, self).setup(args)
         
-        self.canvas._waitfor = False
-        self.canvas._compound = self # used by event handler to update pos and size
-        while self.canvas._waitfor is False:
-            rate(60)
-        if savesize is not None:
-            self.size = savesize
+        if cloning is None:
+            self.canvas._waitfor = False
+            self.canvas._compound = self # used by event handler to update pos and size
+            while self.canvas._waitfor is False:
+                rate(60)
+            if savesize is not None:
+                self.size = savesize
         
     @property
     def height(self):

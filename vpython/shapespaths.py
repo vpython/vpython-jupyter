@@ -121,7 +121,7 @@ def addpos(cp, pos=[0,0]):
 ####################################################################
 #CREATES THE BASE INVOLUTE PROFILE
 ####################################################################
-def ToothOutline(n=30, res=1, phi=20., radius=5.0, addendum=0.4, dedendum=0.5, fradius=0.1, bevel=0.05):
+def ToothOutline(n=30, res=1, phi=20, radius=50, addendum=0.4, dedendum=0.5, fradius=0.1, bevel=0.05):
     TOOTHGEO = {
         'PitchRadius' : radius,
         'TeethN'      : n,
@@ -249,7 +249,7 @@ def ToothOutline(n=30, res=1, phi=20., radius=5.0, addendum=0.4, dedendum=0.5, f
 ####################################################################
 #CREATES THE BASE RACK PROFILE
 ####################################################################
-def RackOutline(n=30, res=1, phi=20., radius=5.0, addendum=0.4, dedendum=0.5, fradius=0.1, bevel=0.05):
+def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradius=0.1, bevel=0.05):
     TOOTHGEO = {
         'PitchRadius' : radius,
         'TeethN'      : n,
@@ -852,14 +852,13 @@ class shape_object(object):
         if roundness > 0: cp = roundc(cp, roundness=roundness, invert=invert)
         return cp
         
-    def gear(self, pos=(0,0), n=20, radius=1, phi=20, addendum=None, dedendum=None,
-                fradius=None, rotate=0, scale=1.0, internal=False, res=1, bevel=0):
+    def gear(self, pos=[0,0], n=20, radius=1, phi=20, addendum=None, dedendum=None,
+                fradius=None, rotate=0, scale=1, res=1, bevel=0):
             if addendum is None: addendum = 0.08*radius
             if dedendum is None: dedendum = 0.1*radius
             if fradius is None: fradius = 0.02*radius
             tooth = ToothOutline(n=n, res=res, phi=phi, radius=radius, 
-                        addendum=addendum, dedendum=dedendum, fradius=fradius, bevel=bevel)
-            lastx = lasty = 1e9
+                        addendum=addendum, dedendum=dedendum, fradius=fradius, bevel=0)
             g = []
             for i in range(n):
                 rotan = -i * 2 * pi / n
@@ -875,7 +874,8 @@ class shape_object(object):
             if scale != 1: g = scalecp(g, scale, scale)
             if rotate != 0: g = rotatecp(g, pos, rotate)
             pts = []
-            for i in range(len(g)):
+            i = 0
+            while i < len(g):
                 ### must eliminate neighboring repeated points and collinear points; poly2tri.js chokes on them
                 g1 = g[i]
                 pts.append(g1)
@@ -883,14 +883,14 @@ class shape_object(object):
                 g2 = g[i+1]
                 if i < len(g)-2:
                     g3 = g[i+2]
-                    ### just check for a-b-a instance of collinear points
+                    # check for a-b-a instance of collinear points
                     if abs(g3[0]-g1[0]) < .001*radius and abs(g3[1]-g1[1]) < .001*radius: i += 2
                     g2 = g[i]
-                    if g1[0] == g2[0] and g1[1] == g2[1]: i += 1
-                    continue
-                if g1[0] == g2[0] and g1[1] == g2[1]:
+                    if abs(g1[0] - g2[0]) < .001*radius and abs(g1[1] - g2[1]) < .001*radius:
+                        i += 1
+                if abs(g1[0] - g2[0]) < .001*radius and abs(g1[1] - g2[1]) < .001*radius:
                     i += 1
-                    continue
+                i += 1
             return pts
 
     def rackgear(self, pos=(0,0), n=30, radius=5., phi=20., addendum=0.4, dedendum=0.5,
