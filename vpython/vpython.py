@@ -5,7 +5,7 @@ import colorsys
 from .rate_control import *
 try:
     from .cyvector import *
-    v = vector(0.,0.,0.)
+    v = vector(0,0,0)
 except:
     from .vector import *
 from .shapespaths import *
@@ -775,6 +775,7 @@ class standardAttributes(baseObj):
             # frame.update_obj_list()
 
     # attribute vectors have these methods which call self.addattr()
+    # The vector class calls a change function when there's a change in x, y, or z.
         noSize = ['points', 'label', 'vertex', 'triangle', 'quad', 'attach_arrow', 'attach_trail']
         if objName not in noSize:
             self._axis.on_change = self._on_axis_change
@@ -782,7 +783,6 @@ class standardAttributes(baseObj):
             self._up.on_change = self._on_up_change
         noPos = ['curve', 'points', 'triangle', 'quad', 'attach_arrow']
         if objName not in noPos:
-        # if objName != 'curve' and objName != 'points':
             self._pos.on_change = self._on_pos_change
         elif objName == 'curve':
             self._origin.on_change = self._on_origin_change
@@ -795,7 +795,7 @@ class standardAttributes(baseObj):
         if self._up.mag2 == 0: self._oldup = vector(0,1,0)
     
     def adjust_up(self, oldaxis, newaxis): # adjust up when axis is changed
-        if newaxis.mag2 == 0:
+        if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:
             # If axis has changed to <0,0,0>, must save the old axis to restore later
             if self._oldaxis is None: self._oldaxis = oldaxis
             return
@@ -803,6 +803,7 @@ class standardAttributes(baseObj):
             # Restore saved oldaxis now that newaxis is nonzero
             oldaxis = self._oldaxis
             self._oldaxis = None
+        if newaxis.dot(self._up) == 0: return # axis and up already orthogonal
         angle = oldaxis.diff_angle(newaxis)
         if angle > 1e-6: # smaller angles lead to catastrophes
             # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
@@ -814,7 +815,7 @@ class standardAttributes(baseObj):
             self._up = newup
 
     def adjust_axis(self, oldup, newup): # adjust axis when up is changed
-        if newup.mag2 == 0:
+        if abs(newup.x) + abs(newup.y) + abs(newup.z):
             # If up will be set to <0,0,0>, must save the old up to restore later
             if self._oldup is None:
                 self._oldup = oldup
@@ -822,6 +823,7 @@ class standardAttributes(baseObj):
             # Restore saved oldup now that newup is nonzero
             oldup = self._oldup
             self._oldup = None
+        if newup.dot(self._axis) == 0: return # axis and up already orthogonal
         angle = oldup.diff_angle(newup)
         if angle > 1e-6: # smaller angles lead to catastrophes
             # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
@@ -836,11 +838,11 @@ class standardAttributes(baseObj):
     def pos(self):
         return self._pos    
     @pos.setter
-    def pos(self,other):
-        self._pos.value = other
+    def pos(self,value):
+        self._pos.value = value
         if not self._constructing:
             if self._make_trail and self._interval > 0:
-                self.addmethod('add_to_trail', other)
+                self.addmethod('add_to_trail', value)
             else:
                 self.addattr('pos')
             
@@ -848,9 +850,9 @@ class standardAttributes(baseObj):
     def up(self):
         return self._up  
     @up.setter
-    def up(self,other):
+    def up(self,value):
         oldup = norm(self._up)
-        self._up.value = other
+        self._up.value = value
         if not self._constructing:
             self.addattr('up')
         self.adjust_axis(oldup, self.up)
@@ -859,33 +861,35 @@ class standardAttributes(baseObj):
     def size(self):
         return self._size   
     @size.setter
-    def size(self,other):
-        self._size.value = other
+    def size(self,value):
+        self._size.value = value
         if not self._constructing:
             self.addattr('size')
-        a = self._axis.norm() * other.x
-        if mag(self._axis) == 0:
-            a = vector(other.x,0,0)
-        v = self._axis
-        if not v.equals(a):
-            self._axis.value = a
-            if not self._constructing:
-                self.addattr('axis')
+        if self._objName != 'text':
+            a = self._axis.norm() * value.x
+            if mag(self._axis) == 0:
+                a = vector(value.x,0,0)
+            v = self._axis
+            if not v.equals(a):
+                self._axis.value = a
+                if not self._constructing:
+                    self.addattr('axis')
 
     @property
     def axis(self):
         return self._axis
     @axis.setter
-    def axis(self,other):
+    def axis(self,value):
         oldaxis = norm(self._axis)
-        self._axis.value = other
+        self._axis.value = value
         if not self._constructing:
             self.addattr('axis')
-        m = other.mag
-        if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
-            self._size._x = m
-            if not self._constructing:
-                self.addattr('size')
+        if self._objName != 'text':
+            m = value.mag
+            if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
+                self._size._x = m
+                if not self._constructing:
+                    self.addattr('size')
         self.adjust_up(oldaxis, self.axis)
             
     @property
@@ -1102,31 +1106,36 @@ class standardAttributes(baseObj):
             rotaxis = self.axis
         else:
             rotaxis = axis
-        if origin == None:
-            origin = self.pos
-        newpos = origin+(self.pos-origin).rotate(angle, rotaxis)
-        if isinstance(self, curve):
-            self.origin = newpos
-        else:
-            self.pos = newpos
+        if self._objName != 'text': # pos of text extrusion is not at text.pos
+            if origin == None:
+                origin = self.pos
+            newpos = origin+(self.pos-origin).rotate(angle, rotaxis)
+            if isinstance(self, curve):
+                self.origin = newpos
+            else:
+                self.pos = newpos
         axis = self._axis
         if diff_angle(axis,rotaxis) > 1e-6:
-            self.axis = axis.rotate(angle=angle, axis=rotaxis)
+            if abs(angle-math.pi) < 1e-6:
+                self.axis = -axis
+            else:
+                self.axis = axis.rotate(angle=angle, axis=rotaxis)
         else:
             self.up = self._up.rotate(angle=angle, axis=rotaxis)
 
-    def _on_size_change(self):
+    def _on_size_change(self): # the vector class calls this when there's a change in x, y, or z
         self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
         self.addattr('size')
 
-    def _on_pos_change(self):
+    def _on_pos_change(self): # the vector class calls this when there's a change in x, y, or z
         self.addattr('pos')
 
-    def _on_axis_change(self):
-        self._size.x = self._axis.mag
+    def _on_axis_change(self): # the vector class calls this when there's a change in x, y, or z
+        if self._objName != 'text':
+            self._size.x = self._axis.mag
         self.addattr('axis')
 
-    def _on_up_change(self):
+    def _on_up_change(self): # the vector class calls this when there's a change in x, y, or z
         self.addattr('up')        
         
     def clear_trail(self):
@@ -1210,8 +1219,8 @@ class sphere(standardAttributes):
     def axis(self):
         return self._axis
     @axis.setter
-    def axis(self,other): # changing a sphere axis should not affect size
-        self._axis.value = other
+    def axis(self,value): # changing a sphere axis should not affect size
+        self._axis.value = value
         if not self._constructing:
             self.addattr('axis')
         
@@ -2447,9 +2456,9 @@ class label(standardAttributes):
     def background(self):
         return self._background
     @background.setter
-    def background(self,other):
-        if isinstance(other, vector):
-            self._background.value = other
+    def background(self,value):
+        if isinstance(value, vector):
+            self._background.value = value
         else:
             raise TypeError('background must be a vector')
         if not self._constructing:
@@ -2495,9 +2504,9 @@ class label(standardAttributes):
     def linecolor(self):
         return self._linecolor
     @linecolor.setter
-    def linecolor(self,other):
-        if isinstance(other, vector):
-            self._linecolor.value = other
+    def linecolor(self,value):
+        if isinstance(value, vector):
+            self._linecolor.value = value
         else:
             raise TypeError('linecolor must be a vector')
         if not self._constructing:
@@ -3057,7 +3066,7 @@ class canvas(baseObj):
         
     def waitfor(self, eventtype):
         global _sent
-        evts = ['redraw', 'draw_complete'] 
+        evts = ['redraw', 'draw_complete', 'textures'] 
         if eventtype in evts:
             _sent = False  
             while _sent is False:    ## set by commsend
@@ -3825,5 +3834,5 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
         s += str(a)+' '
     s = s[:-1]
     return(s)
-  
+ 
 trigger() # start the trigger ping-pong process
