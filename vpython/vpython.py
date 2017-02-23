@@ -53,14 +53,6 @@ GSversion = [__gs_version__, 'glowscript']
 def eprint(*args, **kwargs): # this may output when ordinary print won't
     print(*args, file=sys.stderr, **kwargs)
 
-# Clean out of nbextensions old vpython files (now in nbextensions/vpython_libraries)
-nbdir = jupyter_data_dir()+'/nbextensions/'
-nb = os.listdir(nbdir)
-deletions = ['glow.2.1.min.js', 'glowcomm.js']
-for f in nb:
-    if f in deletions:
-        os.remove(nbdir+f)
-
 # scalar attribute:  { <'a' or 'b'>: string }
 # string is str(idx)+attrs[<attributename>]+str(attributevalue) 
 # for example:  {'a':'23K1.72'}  thickness of object 23 is 1.72
@@ -211,6 +203,14 @@ elif IPython.__version__ >= '3.0.0' :
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
 else:
     IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_libraries",package_dir+"/vpython_data"],overwrite=True,verbose=0)
+
+# Clean out of nbextensions old vpython files (now in nbextensions/vpython_libraries)
+nbdir = jupyter_data_dir()+'/nbextensions/'
+nb = os.listdir(nbdir)
+deletions = ['glow.2.1.min.js', 'glowcomm.js']
+for f in nb:
+    if f in deletions:
+        os.remove(nbdir+f)
 
 object_registry = {}    ## idx -> instance
 attach_arrows = []
