@@ -679,6 +679,7 @@ class standardAttributes(baseObj):
         self._pickable = True
         self._oldaxis = None # used in linking axis and up
         self._oldup = None # used in linking axis and up
+        self._adjustupaxis = True # normally, link axis and up
         cloning = None
         if '_cloneid' in args:
             cloning = args['_cloneid']
@@ -855,7 +856,7 @@ class standardAttributes(baseObj):
         self._up.value = value
         if not self._constructing:
             self.addattr('up')
-        self.adjust_axis(oldup, self.up)
+        if self._adjustupaxis: self.adjust_axis(oldup, self.up) # not in object.rotate
             
     @property
     def size(self):
@@ -890,7 +891,7 @@ class standardAttributes(baseObj):
                 self._size._x = m
                 if not self._constructing:
                     self.addattr('size')
-        self.adjust_up(oldaxis, self.axis)
+        if self._adjustupaxis: self.adjust_up(oldaxis, self.axis) # not in object.rotate
             
     @property
     def length(self): 
@@ -1115,14 +1116,18 @@ class standardAttributes(baseObj):
             else:
                 self.pos = newpos
         axis = self._axis
+        
+        self._adjustupaxis = False # temporarily remove linkage of axis and up
         if diff_angle(axis,rotaxis) > 1e-6:
             if abs(angle-math.pi) < 1e-6:
                 self.axis = -axis
             else:
                 self.axis = axis.rotate(angle=angle, axis=rotaxis)
+                self.up = self._up.rotate(angle=angle, axis=rotaxis)
         else:
             self.up = self._up.rotate(angle=angle, axis=rotaxis)
-
+        self._adjustupaxis = True
+        
     def _on_size_change(self): # the vector class calls this when there's a change in x, y, or z
         self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
         self.addattr('size')
