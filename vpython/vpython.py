@@ -194,15 +194,17 @@ if sys.version > '3':
 ifunc = simulateDelay(delayAvg = 0.001)
 rate = RateKeeper2(interactFunc = ifunc)
 
+# John Coady pointed out that for mybinder purposes it may be necessary to load vpython_data before loading vpython_libraries,
+# hence the switch to loading vpython_data first (20170224).
 package_dir = os.path.dirname(__file__)
 if IPython.__version__ >= '4.0.0' :
-    notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
 elif IPython.__version__ >= '3.0.0' :
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
     IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
+    IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
 else:
-    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_libraries",package_dir+"/vpython_data"],overwrite=True,verbose=0)
+    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_data", package_dir+"/vpython_libraries"],overwrite=True,verbose=0)
 
 # Clean out of nbextensions old vpython files (now in nbextensions/vpython_libraries)
 nbdir = jupyter_data_dir()+'/nbextensions/'
