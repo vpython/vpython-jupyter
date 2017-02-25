@@ -47,6 +47,7 @@ if ispython3:
 else:
     from inspect import getargspec # Python 2; needed to allow zero arguments in a bound function
 
+# __version__ is the version number of the Jupyter VPython installer, generated in building the installer.
 version = [__version__, 'jupyter']
 GSversion = [__gs_version__, 'glowscript']
 
@@ -194,25 +195,60 @@ if sys.version > '3':
 ifunc = simulateDelay(delayAvg = 0.001)
 rate = RateKeeper2(interactFunc = ifunc)
 
-# John Coady pointed out that for mybinder purposes it may be necessary to load vpython_data before loading vpython_libraries,
-# hence the switch to loading vpython_data first (20170224).
-package_dir = os.path.dirname(__file__)
-if IPython.__version__ >= '4.0.0' :
-    notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-    notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-elif IPython.__version__ >= '3.0.0' :
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-    IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-else:
-    IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_data", package_dir+"/vpython_libraries"],overwrite=True,verbose=0)
+# The following file operations check whether nbextensions already has the correct files.
+package_dir = os.path.dirname(__file__) # The location in site-packages of the vpython module
+datacnt = len(os.listdir(package_dir+"/vpython_data"))     # the number of files in the site-packages vpython data folder
+libcnt = len(os.listdir(package_dir+"/vpython_libraries")) # the number of files in the site-packages vpython libraries folder
+jd = jupyter_data_dir()
+nbdir = jd+'/nbextensions/'
+nbdata = nbdir+'vpython_data'
+nblib = nbdir+'vpython_libraries'
+transfer = True # need to transfer files from site-packages to nbextensions
 
-# Clean out of nbextensions old vpython files (now in nbextensions/vpython_libraries)
-nbdir = jupyter_data_dir()+'/nbextensions/'
-nb = os.listdir(nbdir)
-deletions = ['glow.2.1.min.js', 'glowcomm.js']
-for f in nb:
-    if f in deletions:
-        os.remove(nbdir+f)
+if 'nbextensions' in os.listdir(jd):
+    ldir = os.listdir(nbdir)
+    if ('vpython_data' in ldir and len(os.listdir(nbdata)) == datacnt and
+       'vpython_libraries' in ldir and len(os.listdir(nblib)) == libcnt and
+        'vpython_version.txt' in ldir):
+        v = open(nbdir+'/vpython_version.txt').read()
+        transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
+
+if transfer:
+    if IPython.__version__ >= '4.0.0' :
+        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
+        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
+    elif IPython.__version__ >= '3.0.0' :
+        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
+        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
+    else:
+        IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_data", package_dir+"/vpython_libraries"],overwrite=True,verbose=0)
+
+    # Wait for files to be transferred to nbextensions:
+    libready = False
+    dataready = False
+    while True:
+        nb = os.listdir(nbdir)
+        for f in nb:
+            if f == 'vpython_data':
+                if len(os.listdir(nbdata)) == datacnt:
+                    dataready = True
+            if f == 'vpython_libraries':
+                if len(os.listdir(nblib)) == libcnt:
+                    libready = True
+        if libready and dataready: break
+    # Mark with the version number that the files have been transferred successfully:
+    fd = open(nbdir+'/vpython_version.txt', 'w')
+    fd.write(__version__)    
+    fd.close()
+
+### This is probably not a great idea:
+# # Clean out of nbextensions old vpython files (now in nbextensions/vpython_libraries)
+# nbdir = jupyter_data_dir()+'/nbextensions/'
+# nb = os.listdir(nbdir)
+# deletions = ['glow.2.1.min.js', 'glowcomm.js']
+# for f in nb:
+    # if f in deletions:
+        # os.remove(nbdir+f)
 
 object_registry = {}    ## idx -> instance
 attach_arrows = []
