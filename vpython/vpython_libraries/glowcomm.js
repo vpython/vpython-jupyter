@@ -11,16 +11,16 @@ function msclock() {
 }
 var tstart = msclock()
 
-window.Jupyter_VPython = '/nbextensions/vpython_data/'
+window.Jupyter_VPython = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/'
 
 function fontloading() {
-    var fsans = '/nbextensions/vpython_data/Roboto-Medium.ttf'
+    var fsans = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/Roboto-Medium.ttf'
     opentype_load(fsans, function(err, fontrefsans) {
         if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
         window.__font_sans = fontrefsans // an opentype.js Font object
         console.log('SANS-SERIF FONT LOADED')
     })
-    var fserif = '/nbextensions/vpython_data/NimbusRomNo9L-Med.otf'
+    var fserif = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/NimbusRomNo9L-Med.otf'
     opentype_load(fserif, function(err, fontrefserif) {
         if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
         window.__font_serif = fontrefserif // an opentype.js Font object
