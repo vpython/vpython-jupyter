@@ -634,7 +634,7 @@ class shape_object(object):
             if angle1 != 0 or angle2 != 2 *pi:
                 cp.append([ corner[0], corner[1] ])
             seg = 2 * pi / np       
-            nseg = floor(abs((angle2 - angle1) / seg + .5))
+            nseg = int(floor(abs((angle2 - angle1) / seg + .5)))
             seg = (angle2 - angle1) / nseg
             if angle1 != 0 or angle2 != 2 * pi: nseg += 1
             c = radius * cos(angle1)
@@ -662,7 +662,7 @@ class shape_object(object):
         cp = []  # outer arc
         cpi = [] # inner arc
         seg = 2 * pi / np
-        nseg = floor(abs(angle2 - angle1) / seg) + 1
+        nseg = int(floor(abs(angle2 - angle1) / seg) + 1)
         seg = (angle2 - angle1) / nseg
         for i in range(nseg+1):
             x = cos(angle1 + i * seg)
@@ -901,7 +901,7 @@ class shape_object(object):
             tooth = RackOutline(n=n, res=res, phi=phi, radius=radius, 
                         addendum=addendum, dedendum=dedendum, fradius=fradius, bevel=bevel)
             toothl = tooth[0][1] - tooth[-1][1]
-            nt = floor(length / toothl)
+            nt = int(floor(length / toothl))
             flength = nt * toothl
             g = []
             lastx = lasty = 1e9
