@@ -21,19 +21,25 @@ environment:
     # the appveyor setup only sets up the SDK once, so separate by python
     # versions.
     - TARGET_ARCH: "x64"
-      CONDA_PY: "3.5"
+      CONDA_PY: "3.6"
+      CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
     - TARGET_ARCH: "x64"
-      CONDA_PY: "3.4"
+      CONDA_PY: "3.5"
+      CONDA_INSTALL_LOCN: "C:\\Miniconda35-x64"
     - TARGET_ARCH: "x64"
       CONDA_PY: "2.7"
+      CONDA_INSTALL_LOCN: "C:\\Miniconda-x64"
 
     # 32-bit builds
     - TARGET_ARCH: "x86"
-      CONDA_PY: "3.5"
+      CONDA_PY: "3.6"
+      CONDA_INSTALL_LOCN: "C:\\Miniconda36"
     - TARGET_ARCH: "x86"
-      CONDA_PY: "3.4"
+      CONDA_PY: "3.5"
+      CONDA_INSTALL_LOCN: "C:\\Miniconda35"
     - TARGET_ARCH: "x86"
       CONDA_PY: "2.7"
+      CONDA_INSTALL_LOCN: "C:\\Miniconda"
 
 # We always use a 64-bit machine, but can build x86 distributions
 # with the TARGET_ARCH variable.
@@ -43,8 +49,6 @@ platform:
 install:
     # Clone  to get the script for setting up Windows build environment and the script for installing conda.
     - cmd: git clone https://github.com/pelson/Obvious-CI.git
-
-    - cmd: python Obvious-CI\bootstrap-obvious-ci-and-miniconda.py %CONDA_INSTALL_LOCN% %TARGET_ARCH% %CONDA_PY:~0,1% --without-obvci
 
     - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
 
@@ -61,6 +65,7 @@ install:
     - cmd: conda install --quiet patch psutil
 
     - conda create --quiet -n wheel-build python=%CONDA_PY% wheel cython
+    - conda info -a
 
 # Skip .NET project specific build phase.
 build: off
@@ -77,6 +82,8 @@ test_script:
     - for /F "delims=" %%i in (to_upload.txt) do set "BUILT_PACKAGE=%%i"
     - echo %BUILT_PACKAGE%
     - if NOT EXIST %BUILT_PACKAGE% exit /b 1
+    - for %%F in (%BUILT_PACKAGE%) do set dirname=%%~dpF
+    - echo %dirname%
     - activate wheel-build
     - "%CMD_IN_ENV% python setup.py bdist_wheel"
     - deactivate
