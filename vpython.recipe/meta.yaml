@@ -34,12 +34,18 @@ requirements:
     - vpnotebook
     - ujson
     - cython
+    - wheel
 
   run:
     - python
     - jupyter
     - vpnotebook
     - ujson
+
+outputs:
+    - type: wheel   # [not win]
+    - type: conda
+      name: vpython
 
 about:
   home: http://vpython.org
