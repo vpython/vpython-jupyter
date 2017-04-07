@@ -56,13 +56,15 @@ install:
     # Clone  to get the script for setting up Windows build environment and the script for installing conda.
     - cmd: git clone https://github.com/pelson/Obvious-CI.git
 
-    - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
+    - cmd: set PATH=%CONDA_INSTALL_LOCN%;%CONDA_INSTALL_LOCN%\Scripts;%PATH%
 
     # Gets us vpnotebook
     - cmd: conda config --add channels vpython
 
     - cmd: conda config --set always_yes true
     - cmd: conda update --quiet conda
+    - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
+
 
     - cmd: conda install --quiet jinja2 conda-build anaconda-client cython
     - cmd: conda install --quiet wheel
