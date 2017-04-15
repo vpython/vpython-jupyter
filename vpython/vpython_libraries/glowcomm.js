@@ -2,7 +2,7 @@ define(["nbextensions/vpython_libraries/jquery-ui.custom.min",
         "nbextensions/vpython_libraries/glow.min"], function() {
 
 // The following is necessary to be able to re-run programs.
-// Otherwise the repeated execution of update_canvas() causes problems after klling Python.
+// Otherwise the repeated execution of update_canvas() causes problems after killing Python.
 if (timer !== undefined && timer !== null) clearTimeout(timer)
 
 function msclock() {
@@ -48,19 +48,19 @@ var sliders = {}
 
 function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
     "use strict";
-    var evt = {event:event.event}
+	var evt = {event:event.type}
     var idx = event.canvas['idx']
     evt.canvas = idx
-    var pos = event.pos
-    evt.pos = [pos.x, pos.y, pos.z]
-    evt.press = event.press
-    evt.release = event.release
-    evt.which = event.which
-    var ray = event.canvas.mouse.ray 
-    evt.ray = [ ray.x, ray.y, ray.z ]
-    evt.alt = event.canvas.mouse.alt
-    evt.ctrl = event.canvas.mouse.ctrl
-    evt.shift = event.canvas.mouse.shift
+	var pos = event.pos
+	evt.pos = [pos.x, pos.y, pos.z]
+	evt.press = event.press
+	evt.release = event.release
+	evt.which = event.which
+	var ray = event.canvas.mouse.ray 
+	evt.ray = [ ray.x, ray.y, ray.z ]
+	evt.alt = event.canvas.mouse.alt
+	evt.ctrl = event.canvas.mouse.ctrl
+	evt.shift = event.canvas.mouse.shift
     comm.send( {arguments: [evt]} )
 }
 
@@ -284,12 +284,18 @@ function handler(msg) {
     //console.log('glow', data, data.length)
     //console.log(data)
     data = decode(data)
-    //console.log('JSON ' + JSON.stringify(data))
     if (data[0]['trigger'] !== undefined) {
+		// This timer is what drives the Python program to update the data.
         if (timer !== null) clearTimeout(timer)
-        timer = setTimeout(update_canvas, interval)
+		var t = msclock()
+		var dt = tstart+interval-t // attempt to keep the time between renders constant
+		if (dt < 0) dt = 1
+		tstart = t+dt
+        timer = setTimeout(update_canvas, dt)
         return
     }
+	//console.log('\n\n**** '+data.length+' ******************************************')
+	//for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -298,8 +304,8 @@ function handler(msg) {
         triangle_quad = ['v0', 'v1', 'v2', 'v3']
         for (i = 0; i < len; i++) {
             cmd = data.shift()
-//            console.log('\n\n-------------------')
-//            console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
+            //console.log('\n\n-------------------')
+            //console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
             if (cmd.cmd === undefined) { //  not a constructor
                 if (cmd.idx !== undefined) {
                     if (cmd.attr !== undefined) {      
@@ -513,6 +519,16 @@ function handler(msg) {
                             glowObjs[cmd.idx] = label(cfg)
                         } else if (cmd.cmd === 'ellipsoid') {
                             glowObjs[cmd.idx] = sphere(cfg)
+                        } else if (cmd.cmd === 'compound') {
+                            if (cfg._cloneid !== undefined) {
+                                var idoriginal = cfg._cloneid
+                                delete cfg._cloneid
+                                glowObjs[cmd.idx] = glowObjs[idoriginal].clone(cfg)
+							} else {
+								var obj = glowObjs[cmd.idx] = compound(objects, cfg)
+								// Return computed compound pos and size to Python
+								send_compound(obj.canvas['idx'], obj.pos, obj.size)
+							}
                         } else if (cmd.cmd === 'extrusion') {
                             var obj = glowObjs[cmd.idx] = extrusion(cfg)
                             // Return computed compound pos and size to Python
@@ -523,6 +539,7 @@ function handler(msg) {
                                 delete cfg._cloneid
                                 glowObjs[cmd.idx] = glowObjs[idoriginal].clone(cfg)
                             } else {
+								// Return text parameters to Python
                                 var obj = glowObjs[cmd.idx] = text(cfg)
                                 send_compound(obj.canvas['idx'], vec(obj.length, obj.descender, 0), vec(0,0,0))
                             }
@@ -532,17 +549,6 @@ function handler(msg) {
                             glowObjs[cmd.idx] = local_light(cfg)
                         } else if (cmd.cmd === 'distant_light') {
                             glowObjs[cmd.idx] = distant_light(cfg)
-                        } else if (cmd.cmd === 'compound') {
-                            if (cfg._cloneid !== undefined) {
-                                var idoriginal = cfg._cloneid
-                                delete cfg._cloneid
-                                obj = glowObjs[cmd.idx] = glowObjs[idoriginal].clone(cfg)
-                            } else {
-                                glowObjs[cmd.idx] = compound(objects, cfg)
-                                var obj = glowObjs[cmd.idx]
-                                // Return computed compound pos and size to Python
-                                send_compound(obj.canvas['idx'], obj.pos, obj.size)
-                            }
                         } else if (cmd.cmd === 'canvas') {
                             glowObjs[cmd.idx] = canvas(cfg)
                             glowObjs[cmd.idx]['idx'] = cmd.idx
@@ -642,6 +648,6 @@ function handler(msg) {
     }
     if (timer === null) update_canvas()
 };
-console.log("end of glowcomm");
+console.log("END OF GLOWCOMM");
 
 });

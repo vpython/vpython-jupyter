@@ -10,6 +10,9 @@ except:
     from .vector import *
 from .shapespaths import *
 
+########################################################################################
+#### Imports for Jupyter VPython
+
 import IPython
 if IPython.__version__ >= '4.0.0' :
     import ipykernel
@@ -20,6 +23,9 @@ from IPython.display import HTML
 from IPython.display import display
 from IPython.display import Javascript
 from IPython.core.getipython import get_ipython
+from jupyter_core.paths import jupyter_data_dir
+
+########################################################################################
 
 import time
 import math
@@ -29,16 +35,11 @@ import os
 import collections
 import copy
 import sys
-from jupyter_core.paths import jupyter_data_dir
 
 from . import __version__, __gs_version__
 
 import json
 #import ujson as json # some Python installations apparently don't have ujson
-
-# To print immediately, do this:
-#    print(.....)
-#    sys.stdout.flush()
 
 import platform
 ispython3 = platform.python_version()[0] == '3'
@@ -50,6 +51,10 @@ else:
 # __version__ is the version number of the Jupyter VPython installer, generated in building the installer.
 version = [__version__, 'jupyter']
 GSversion = [__gs_version__, 'glowscript']
+
+# To print immediately, do this:
+#    print(.....)
+#    sys.stdout.flush()
 
 def eprint(*args, **kwargs): # this may output when ordinary print won't
     print(*args, file=sys.stderr, **kwargs)
@@ -167,11 +172,6 @@ class RateKeeper2(RateKeeper):
         # This is called by the rate() function, through rate_control RateKeeper callInteract().
         # See the function commsend() for details of how the browser is updated.
         self.active = True
-        if baseObj.glow is not None: # baseObj.glow is None while waiting at the end of this file
-            try:
-                commsend()
-            finally:
-                pass
         self.lasttime = clock() # trigger needs to know when rate was last called 
         
         # Check if events to process from front end
@@ -194,61 +194,6 @@ if sys.version > '3':
 
 ifunc = simulateDelay(delayAvg = 0.001)
 rate = RateKeeper2(interactFunc = ifunc)
-
-# The following file operations check whether nbextensions already has the correct files.
-package_dir = os.path.dirname(__file__) # The location in site-packages of the vpython module
-datacnt = len(os.listdir(package_dir+"/vpython_data"))     # the number of files in the site-packages vpython data folder
-libcnt = len(os.listdir(package_dir+"/vpython_libraries")) # the number of files in the site-packages vpython libraries folder
-jd = jupyter_data_dir()
-nbdir = jd+'/nbextensions/'
-nbdata = nbdir+'vpython_data'
-nblib = nbdir+'vpython_libraries'
-transfer = True # need to transfer files from site-packages to nbextensions
-
-if 'nbextensions' in os.listdir(jd):
-    ldir = os.listdir(nbdir)
-    if ('vpython_data' in ldir and len(os.listdir(nbdata)) == datacnt and
-       'vpython_libraries' in ldir and len(os.listdir(nblib)) == libcnt and
-        'vpython_version.txt' in ldir):
-        v = open(nbdir+'/vpython_version.txt').read()
-        transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
-
-if transfer:
-    if IPython.__version__ >= '4.0.0' :
-        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-    elif IPython.__version__ >= '3.0.0' :
-        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-    else:
-        IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_data", package_dir+"/vpython_libraries"],overwrite=True,verbose=0)
-
-    # Wait for files to be transferred to nbextensions:
-    libready = False
-    dataready = False
-    while True:
-        nb = os.listdir(nbdir)
-        for f in nb:
-            if f == 'vpython_data':
-                if len(os.listdir(nbdata)) == datacnt:
-                    dataready = True
-            if f == 'vpython_libraries':
-                if len(os.listdir(nblib)) == libcnt:
-                    libready = True
-        if libready and dataready: break
-    # Mark with the version number that the files have been transferred successfully:
-    fd = open(nbdir+'/vpython_version.txt', 'w')
-    fd.write(__version__)    
-    fd.close()
-
-### This is probably not a great idea:
-# # Clean out of nbextensions old vpython files (now in nbextensions/vpython_libraries)
-# nbdir = jupyter_data_dir()+'/nbextensions/'
-# nb = os.listdir(nbdir)
-# deletions = ['glow.2.1.min.js', 'glowcomm.js']
-# for f in nb:
-    # if f in deletions:
-        # os.remove(nbdir+f)
 
 object_registry = {}    ## idx -> instance
 attach_arrows = []
@@ -284,13 +229,11 @@ class baseObj(object):
             baseObj.glow.comm.send([cmd])
         else:
             self.appendcmd(cmd)
-        #baseObj.cmds.append(cmd)
+        baseObj.cmds.append(cmd)
 
     def appendcmd(self,cmd):
         # The following code makes sure that constructors are sent to the front end first.
         cmd['_pass'] = 1 # indicate that this should be ignored by glowcomm/decode()
-        if len(baseObj.cmds) == 0:
-            commsend() # send any pending output
         baseObj.cmds.append(cmd)
     
     def addattr(self, attr):
@@ -453,15 +396,14 @@ def commsend():
     finally:
         _sent = True
 
-def trigger(): # called by a canvas update event from browser
+def trigger(): # called by a canvas update event from browser, coming from GlowWidget.handle_msg
+    global tlast
+    baseObj.glow.comm.send([{'trigger':1, '_pass':1}]) # handshake with glowcomm.js
     if rate.active:
         dt = clock() - rate.lasttime # time elapsed since last time sendtofrontend was executed
         if dt > 5/rate.rval:
             rate.active = False
-    length = len(baseObj.cmds)
-    if _sent and (not rate.active): # don't interrupt commsend; don't call if rate is handling updates
-        commsend()
-    baseObj.glow.comm.send([{'trigger':1, '_pass':1, 'len1':length, 'len2':len(baseObj.cmds)}])
+    commsend()
 
 class GlowWidget(object):    
     def __init__(self, comm, msg):
@@ -470,7 +412,8 @@ class GlowWidget(object):
         self.comm.on_close(self.handle_close)
         baseObj.glow = self
 
-##object_registry = {}    ## idx -> instance        
+    ## object_registry = {}
+    ## idx -> instance
     def handle_msg(self, msg):
         evt = msg['content']['data']['arguments'][0]
         if 'widget' in evt:
@@ -502,6 +445,56 @@ class GlowWidget(object):
 
     def handle_close(self, data):
         print ("comm closed")
+        
+########################################################################################
+#### Setup for Jupyter VPython
+
+# The following file operations check whether nbextensions already has the correct files.
+package_dir = os.path.dirname(__file__) # The location in site-packages of the vpython module
+datacnt = len(os.listdir(package_dir+"/vpython_data"))     # the number of files in the site-packages vpython data folder
+libcnt = len(os.listdir(package_dir+"/vpython_libraries")) # the number of files in the site-packages vpython libraries folder
+jd = jupyter_data_dir()
+nbdir = jd+'/nbextensions/'
+nbdata = nbdir+'vpython_data'
+nblib = nbdir+'vpython_libraries'
+transfer = True # need to transfer files from site-packages to nbextensions
+
+if 'nbextensions' in os.listdir(jd):
+    ldir = os.listdir(nbdir)
+    if ('vpython_data' in ldir and len(os.listdir(nbdata)) == datacnt and
+       'vpython_libraries' in ldir and len(os.listdir(nblib)) == libcnt and
+        'vpython_version.txt' in ldir):
+        v = open(nbdir+'/vpython_version.txt').read()
+        transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
+
+transfer = True ### testing
+if transfer:
+    if IPython.__version__ >= '4.0.0' :
+        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
+        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
+    elif IPython.__version__ >= '3.0.0' :
+        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
+        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
+    else:
+        IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_data", package_dir+"/vpython_libraries"],overwrite=True,verbose=0)
+
+    # Wait for files to be transferred to nbextensions:
+    libready = False
+    dataready = False
+    while True:
+        nb = os.listdir(nbdir)
+        for f in nb:
+            if f == 'vpython_data':
+                if len(os.listdir(nbdata)) == datacnt:
+                    dataready = True
+            if f == 'vpython_libraries':
+                if len(os.listdir(nblib)) == libcnt:
+                    libready = True
+        if libready and dataready: break
+    # Mark with the version number that the files have been transferred successfully:
+    fd = open(nbdir+'/vpython_version.txt', 'w')
+    fd.write(__version__)    
+    fd.close()
 
 if IPython.__version__ >= '3.0.0' :
     get_ipython().kernel.comm_manager.register_target('glow', GlowWidget)
@@ -517,6 +510,8 @@ display(Javascript("""require(["nbextensions/vpython_libraries/glowcomm"], funct
 display(Javascript("""require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
             
 get_ipython().kernel.do_one_iteration()
+
+########################################################################################
 
 class color(object):
     black = vector(0,0,0)
@@ -1229,6 +1224,8 @@ class standardAttributes(baseObj):
             newargs['_cloneid'] = self.idx
         for k, v in args.items():   # overrides and user attrs
             newargs[k] = v
+        # wait for cloning objects to exist
+        while len(baseObj.cmds) > 0 or len(baseObj.updtobjs) > 0: pass
         if objName[:8] == 'compound' or objName == 'extrusion':
             return compound([], **newargs)
         else:
@@ -1548,9 +1545,12 @@ compound_idx = 0 # same numbering scheme as in GlowScript
         
 class compound(standardAttributes):
     def __init__(self, objList, **args):
-        global compound_idx, _sent
+        global compound_idx
         self._obj_idxs = None
         idxlist = []
+        # wait for compounding or cloning objects to exist
+        while len(baseObj.cmds) > 0 or len(baseObj.updtobjs) > 0:
+            rate(60)
         ineligible = [label, curve, helix, points]  ## type objects
         cloning =  None
         if '_cloneid' in args:
@@ -1564,9 +1564,6 @@ class compound(standardAttributes):
                     raise TypeError('A ' + obj._objName + ' object cannot be used in a compound')
                 idxlist.append(obj.idx)
             args['obj_idxs'] = idxlist
-            _sent = False
-            while not _sent: # wait for compounding objects to exist
-                rate(60)
         args['_default_size'] = vector(1,1,1) # to keep standardAttributes happy
         savesize = None
         if 'size' in args:
@@ -2418,7 +2415,7 @@ class graph(baseObj):
 
 class faces(object):
     def __init__(self, **args):
-        raise NameError('faces is no longer supported; use vertex and triangle and quad, which will be available soon')      
+        raise NameError('faces is no longer supported; use vertex with triangle or quad')      
 
 class label(standardAttributes):
     def __init__(self, **args):
@@ -2630,8 +2627,8 @@ class Mouse(baseObj):
     def pick(self):
         self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1, '_pass':1 })
         self._pick_ready = False
-        while self._pick_ready == False:
-            rate(120)  ## wait for render to finish and call setpick
+        while self._pick_ready == False: # wait for render to finish and call setpick
+            rate(60)
         return self._pick            
     @pick.setter
     def pick(self, value):
@@ -2761,6 +2758,7 @@ class canvas(baseObj):
         self._mouse = Mouse(self)
         self._binds = {'mousedown':[], 'mouseup':[], 'mousemove':[],'click':[],
                         'mouseenter':[], 'mouseleave':[], 'keydown':[], 'keyup':[],
+                        'redraw':[], 'draw_complete':[],
                         '_compound':[]}
             # no key events unless notebook command mode can be disabled
         self._camera = Camera(self)
@@ -3044,7 +3042,8 @@ class canvas(baseObj):
             else:
                 obj.pos = list_to_vec(p)
                 s = evt['size']
-                obj.size = list_to_vec(s)
+                obj._size = list_to_vec(s)
+                obj._axis = obj._size._x*norm(obj._axis)
             self._waitfor = True
         else:
             if 'pos' in evt:
@@ -3109,16 +3108,20 @@ class canvas(baseObj):
         
     def waitfor(self, eventtype):
         global _sent
-        evts = ['redraw', 'draw_complete', 'textures'] 
+        if 'textures' in eventtype: # textures are local; no need to wait
+            eventtype = eventtype.replace('textures', '')
+            if eventtype == '': return
+        evts = ['redraw', 'draw_complete']
         if eventtype in evts:
-            _sent = False  
-            while _sent is False:    ## set by commsend
+            _sent = False
+            while not _sent: # set by commsend
                 rate(60)
         else:
             self._waitfor = False    
             self.bind(eventtype, self.fwaitfor)
-            while self._waitfor is False:
+            while not self._waitfor:
                 rate(60)
+            scene.append_to_caption('\nafter',_sent)
             self.unbind(eventtype, self.fwaitfor)
         
     def pause(self,*s):
@@ -3847,9 +3850,8 @@ def sleep(dt): # don't use time.sleep because it delays output queued up before 
 radians = math.radians
 degrees = math.degrees
 
-while True:   ## try to make sure setup is complete
-    rate(30)
-    if baseObj.glow is not None: break
+while baseObj.glow is None: # try to make sure setup is complete
+    rate(60)
 rate.active = False
 
 scene = canvas()
