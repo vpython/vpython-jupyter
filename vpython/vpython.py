@@ -10,23 +10,6 @@ except:
     from .vector import *
 from .shapespaths import *
 
-########################################################################################
-#### Imports for Jupyter VPython
-
-import IPython
-if IPython.__version__ >= '4.0.0' :
-    import ipykernel
-    import notebook
-else:
-    import IPython.html.nbextensions
-from IPython.display import HTML
-from IPython.display import display
-from IPython.display import Javascript
-from IPython.core.getipython import get_ipython
-from jupyter_core.paths import jupyter_data_dir
-
-########################################################################################
-
 import time
 import math
 import inspect
@@ -198,6 +181,8 @@ rate = RateKeeper2(interactFunc = ifunc)
 object_registry = {}    ## idx -> instance
 attach_arrows = []
 attach_trails = []  ## needed only for functions
+_sent = True  ## set to True when commsend completes; needed for canvas.waitfor(...)
+sender = None # set this to be the equivalent of baseObj.glow.comm.send (the Jupyter case)
 
 def list_to_vec(L):
     return vector(L[0], L[1], L[2])
@@ -226,7 +211,7 @@ class baseObj(object):
         baseObj.decrObjCnt()
         cmd = {"cmd": "delete", "idx": self.idx}
         if (baseObj.glow != None):
-            baseObj.glow.comm.send([cmd])
+            sender([cmd])
         else:
             self.appendcmd(cmd)
         baseObj.cmds.append(cmd)
@@ -255,7 +240,7 @@ class baseObj(object):
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
         if (baseObj.glow != None):
-            baseObj.glow.comm.send([cmd])
+            sender([cmd])
         else:
             self.appendcmd(cmd)
 
@@ -263,7 +248,6 @@ commcmds = []
 
 for i in range(2*baseObj.qSize):
     commcmds.append({"idx": -1, "attr": 'dummy', "val": 0})
-_sent = True  ## set to True when commsend completes; needed for canvas.waitfor(...)
 
 def commsend():
     # Jupyter does not immediately transmit data to the browser from a thread,
@@ -294,7 +278,7 @@ def commsend():
     _sent = False
     try:
         if len(baseObj.cmds) > 0:
-            baseObj.glow.comm.send(baseObj.cmds)
+            sender(baseObj.cmds)
             baseObj.cmds = []
 
         ## update every attach_arrow if relevant vector has changed    
@@ -368,7 +352,7 @@ def commsend():
                                 commcmds[L]['val'] = attrval
                             L += 1
                             if L > baseObj.qSize:
-                                baseObj.glow.comm.send(encode_attr(commcmds[:L])) # send attributes and methods to glowcomm
+                                sender(encode_attr(commcmds[:L])) # send attributes and methods to glowcomm
                                 L = 0
                            
             if (ob is not None) and (hasattr(ob,'methodsupdt')) and (len(ob.methodsupdt) > 0 ):
@@ -382,23 +366,23 @@ def commsend():
                     commcmds[L]['val'] = data
                     L += 1
                     if L > baseObj.qSize:
-                        baseObj.glow.comm.send(encode_attr(commcmds[:L])) # send attributes and methods to glowcomm
+                        sender(encode_attr(commcmds[:L])) # send attributes and methods to glowcomm
                         L = 0
                 ob.methodsupdt = []
                 
             if L > baseObj.qSize:
-                baseObj.glow.comm.send(encode_attr(commcmds[:L]))  # Send attributes and methods to glowcomm
+                sender(encode_attr(commcmds[:L]))  # Send attributes and methods to glowcomm
                 L = 0
                 
         if L > 0:
-            baseObj.glow.comm.send(encode_attr(commcmds[:L]))  # Send attributes and methods to glowcomm
+            sender(encode_attr(commcmds[:L]))  # Send attributes and methods to glowcomm
 
     finally:
         _sent = True
 
 def trigger(): # called by a canvas update event from browser, coming from GlowWidget.handle_msg
     global tlast
-    baseObj.glow.comm.send([{'trigger':1, '_pass':1}]) # handshake with glowcomm.js
+    sender([{'trigger':1, '_pass':1}]) # handshake with glowcomm.js
     if rate.active:
         dt = clock() - rate.lasttime # time elapsed since last time sendtofrontend was executed
         if dt > 5/rate.rval:
@@ -407,10 +391,12 @@ def trigger(): # called by a canvas update event from browser, coming from GlowW
 
 class GlowWidget(object):    
     def __init__(self, comm, msg):
+        global sender
         self.comm = comm
         self.comm.on_msg(self.handle_msg)
         self.comm.on_close(self.handle_close)
         baseObj.glow = self
+        sender = comm.send
 
     ## object_registry = {}
     ## idx -> instance
@@ -445,6 +431,23 @@ class GlowWidget(object):
 
     def handle_close(self, data):
         print ("comm closed")
+
+########################################################################################
+#### Imports for Jupyter VPython
+
+import IPython
+if IPython.__version__ >= '4.0.0' :
+    import ipykernel
+    import notebook
+else:
+    import IPython.html.nbextensions
+from IPython.display import HTML
+from IPython.display import display
+from IPython.display import Javascript
+from IPython.core.getipython import get_ipython
+from jupyter_core.paths import jupyter_data_dir
+
+########################################################################################
         
 ########################################################################################
 #### Setup for Jupyter VPython
@@ -467,7 +470,7 @@ if 'nbextensions' in os.listdir(jd):
         v = open(nbdir+'/vpython_version.txt').read()
         transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
 
-transfer = True ### testing
+#transfer = True ### use when testing, so that changes are active
 if transfer:
     if IPython.__version__ >= '4.0.0' :
         notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
