@@ -397,7 +397,6 @@ def commsend():
         _sent = True
 
 def trigger(): # called by a canvas update event from browser, coming from GlowWidget.handle_msg
-    print('trigger')
     if (not rate.active) and (not isnotebook):
         # stop + run_forever is how to implement running the interact loop once
         interact_loop.stop()
@@ -423,9 +422,7 @@ class GlowWidget(object):
     ## object_registry = {}
     ## idx -> instance
     def handle_msg(self, msg):
-        print('handle_msg', msg)
         evt = msg['content']['data']['arguments'][0]
-        print(evt)
         if 'widget' in evt:
             obj = object_registry[evt['idx']]
             if evt['widget'] == 'button':
@@ -595,7 +592,6 @@ import atexit as _atexit
 
 def _close_final(): # There is a window, or an activated display
     global _do_loop
-    print('_close_final')
     if _do_loop:
         _do_loop = False # make sure we don't trigger this twice
         while True: # at end of user program, wait for user to close the program
