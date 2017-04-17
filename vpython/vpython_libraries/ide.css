@@ -1,0 +1,441 @@
+html { height: 100%; }
+
+body
+{
+	font-family: Verdana, Sans-Serif;
+	background:	#f1f2f4;
+	font-size: 90%;
+}
+
+body .ideBody
+{
+	margin: 	0 auto;
+	
+}
+
+a:link, a:visited, a:hover {
+    color: #0000ff;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.header {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    height: 3.2em;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow: hidden;
+    background: #5c9ccc url('redmond/IDE/images/ui-bg_gloss-wave_55_5c9ccc_500x100.png') 50% 50% repeat-x; 
+    color: #ffffff; 
+    z-index: 10;
+	
+}
+
+.headerInner	{
+
+	position:		relative;
+	text-indent:	40px;
+
+}
+.headerInner h2	{
+
+	margin-top:		5px;
+
+}
+
+.header a { color: #fff; }
+
+
+#pageWrapperIDE	
+{
+			margin:		0 auto;
+			position: 		relative;
+			width:		95%;
+			min-height:	250px;
+			padding-left:	10px;
+			padding-right:	10px;
+			padding-bottom:	10px;
+			padding-top:	10px;
+			border:		1px solid #e2e2e2;
+			background:	#fff;	
+			overflow:		hidden;
+			z-index:		1;		
+}
+
+#pageWrapperIDE h4	
+{
+			margin-top: 20px;
+			margin-bottom: 10px;	
+}
+
+img.right		
+{
+			float:		right;
+			margin:		5px;
+			padding:		2px;
+			border:		2px solid #000;
+}
+
+#footerWrap	
+{
+			margin:		0 auto;
+			position: 		relative;
+			width:		95%;
+			padding-left:	10px;
+			padding-right:	10px;
+			height:		80px;
+			border:		1px solid #bad;
+			background:	#ec5;			
+
+
+}
+		
+#footerInner
+{
+			position:		relative;
+			float:		right;
+			color:		#731;
+			padding:		10px;
+}
+
+#footerInner a  		{ color: #222; }
+#footerInner a:hover  	{ color: #f41; }
+
+#footerInner h2	
+{
+			margin-top:	0px;
+			margin-bottom: 	6px;
+			color:		#f81;
+}
+
+.right-header
+{
+	position:fixed;
+	top:0px;
+	right: 0px;
+    color: #ffffff; 
+    z-index: 15;
+}
+
+.right-header a { color: #fff; }
+
+.after-header 
+{
+	margin-top: 3.9em;
+}
+
+#ajaxBody 
+{
+	position: absolute;
+	left: 0px; top: 0px; right: 0px;
+	height: 100%;
+}
+
+.help-panel 
+{
+	position: fixed;
+	top: 0px;
+	right: 0px;
+	width: 500px;
+	display: none;
+	height: 100%;
+}
+
+.help-panel-inner
+{
+	position: absolute;
+	left: .5em;
+	right: .5em;
+	top: 3.2em;
+	bottom: .5em;
+	margin: 0px;
+	overflow: hidden;
+	background: #f8f8f8;
+	z-index: 5;
+}
+
+.help-panel-inner iframe
+{
+	border-style: none; 
+	border: 0;
+	width: 100%; height: 100%;
+	margin:0; padding:0;
+}
+
+.spacer 
+{
+	margin: 0.4em;
+}
+
+.editPage .program-editor
+{
+	position:absolute; top:4em; bottom: 3px; left: 3px; right: 3px
+}
+
+.editPage .program-status 
+{
+}
+
+.folderPage .programs .program
+{
+	overflow: hidden;
+	margin: 10px;
+	font-size: 80%;
+}
+
+.folderPage .programs .program .prog-run
+{
+	margin-left: 20px;
+}
+
+.folderPage .programs .program .prog-screenshot
+{
+	float:left; 
+	margin-right:20px; 
+	width:128px;
+	height:90px;
+}
+
+.prog-description
+{
+	float: left;
+	margin-left: 20px;
+	font-size: 80%;
+}
+
+.folderPage .programs .program .prog-header
+{
+	margin-bottom: 5px;
+}
+
+.prog-name, .programname, .folder-name
+{
+	font-weight: bold;
+}
+
+.help-highlight
+{
+	font-weight: bold;
+	color: #ff2020 !important;
+}
+
+a.button
+{
+	margin-left: 50px;
+	color: Blue;
+}
+
+.template
+{
+	display:none
+}
+
+.errorText
+{
+	color: #e00000
+}
+
+.runPage .run-container 
+{
+	position:absolute;
+	overflow:hidden;
+	left:0px; right:0px;
+	top:3.2em; bottom:5px;
+	margin:0; padding:0; border:0;
+	border-style:none;
+}
+
+.runPage iframe.untrusted-frame
+{
+	border-style: none;
+	border: 0;
+	width: 100%; height: 100%;
+	margin:0; padding:0;
+    font-size:80%;
+}
+
+.form-dialog input.text { margin-bottom:12px; width:95%; padding: .4em; }
+
+.embedSource, .frameSource
+{
+	width: 80%;
+	height: 15em;
+	overflow: scroll;	
+}
+
+.error-dialog
+{
+	font-size:150%;
+}
+
+.code-preformat
+{
+	font-family: "Inconsolata",monospace;
+}
+
+/* Custom theme for the editor */
+
+.ace-custom.ace_editor 
+{
+  /* Editing was formerly font-size:90%, with gray background */
+  font-family:"Inconsolata",monospace;
+  font-size:95%;
+  background-color:#ffffff;
+}
+.ace-custom .ace_text-layer {
+  font-family:"Inconsolata",monospace;
+  cursor: text;
+}
+
+/*
+.ace-custom.ace_editor {
+  border: 2px solid rgb(159, 159, 159);
+}
+.ace-custom.ace_editor.ace_focus {
+  border: 2px solid #327fbd;
+}*/
+
+.ace-custom .ace_gutter {
+  width: 50px;
+  background: #e8e8e8;
+  color: #333;
+  overflow : hidden;
+}
+
+.ace-custom .ace_gutter-layer {
+  width: 100%;
+  text-align: right;
+}
+
+.ace-custom .ace_gutter-layer .ace_gutter-cell {
+  padding-right: 6px;
+}
+
+.ace-custom .ace_print_margin {
+  width: 1px;
+  background: #e8e8e8;
+}
+
+.ace-custom .ace_cursor {
+  border-left: 2px solid black;
+}
+
+.ace-custom .ace_cursor.ace_overwrite {
+  border-left: 0px;
+  border-bottom: 1px solid black;
+}
+
+/***** Syntax highlighting *****/
+
+/*.ace-custom .ace_line .ace_identifier {
+  color: #5C3317;
+}*/
+.ace-custom .ace_line .ace_keyword {
+  color: #AA0D91;
+}
+.ace-custom .ace_line .ace_keyword.ace_wait {
+  color: Red;
+}
+/*.ace-custom .ace_line .ace_keyword.ace_operator {
+  color: blue;
+}*/
+.ace-custom .ace_line .ace_builtin {
+  color: blue;
+}
+.ace-custom .ace_line .ace_variable.ace_language {
+  color: blue;
+}
+.ace-custom .ace_line .ace_comment {
+  color: rgb(160, 160, 160);
+}
+.ace-custom .ace_line .ace_string {
+  color: rgb(15, 130, 70);
+}
+.ace-custom .ace_line .ace_constant {
+  color: rgb(15, 130, 70);
+}
+.ace-custom .ace_line .ace_string.ace_regexp {
+  color: rgb(15, 130, 70);
+}
+
+
+/*
+.ace-custom .ace_line .ace_fold {
+    background-color: #E4E4E4;
+    border-radius: 3px;
+}
+.ace-custom .ace_line .ace_keyword.ace_operator {
+  color: rgb(104, 118, 135);
+}
+.ace-custom .ace_line .ace_identifier.ace_builtin {
+}
+.ace-custom .ace_line .ace_attribute.ace_builtin {
+}*/
+/*.ace-custom .ace_line .ace_constant.ace_buildin {
+}
+.ace-custom .ace_line .ace_constant.ace_language {
+}
+.ace-custom .ace_line .ace_constant.ace_library {
+}
+.ace-custom .ace_line .ace_constant.ace_numeric {
+}*/
+
+/*
+.ace-custom .ace_line .ace_invisible {
+  color: rgb(191, 191, 191);
+}
+
+.ace-custom .ace_line .ace_comment.ace_doc {
+  color: rgb(0, 102, 255);
+}
+
+.ace-custom .ace_line .ace_comment.ace_doc.ace_tag {
+  color: rgb(128, 159, 191);
+}
+
+.ace-custom .ace_line .ace_variable {
+  color: rgb(49, 132, 149);
+}
+
+.ace-custom .ace_line .ace_xml_pe {
+  color: rgb(104, 104, 91);
+}
+*/
+
+.ace-custom .ace_line .ace_invalid {
+  background-color: rgb(153, 0, 0);
+  color: white;
+}
+
+.ace-custom .ace_marker-layer .ace_selection {
+  background: rgb(181, 213, 255);
+}
+
+.ace-custom .ace_marker-layer .ace_step {
+  background: rgb(252, 255, 0);
+}
+
+.ace-custom .ace_marker-layer .ace_stack {
+  background: rgb(164, 229, 101);
+}
+
+.ace-custom .ace_marker-layer .ace_bracket {
+  margin: -1px 0 0 -1px;
+  border: 1px solid rgb(192, 192, 192);
+}
+
+.ace-custom .ace_marker-layer .ace_active_line {
+  background: rgb(232, 242, 254);
+}
+
+.ace-custom .ace_marker-layer .ace_selected_word {
+  background: rgb(250, 250, 255);
+  border: 1px solid rgb(200, 200, 250);
+}

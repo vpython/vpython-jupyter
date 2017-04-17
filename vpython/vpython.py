@@ -19,10 +19,20 @@ import collections
 import copy
 import sys
 
-from . import __version__, __gs_version__
+def checkisnotebook(): # returns True if running in Jupyter notebook
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':  # Jupyter notebook or qtconsole?
+            return True
+        elif shell == 'TerminalInteractiveShell':  # Terminal running IPython?
+            return False
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False      # Probably standard Python interpreter
+isnotebook = checkisnotebook()
 
-import json
-#import ujson as json # some Python installations apparently don't have ujson
+from . import __version__, __gs_version__
 
 import platform
 ispython3 = platform.python_version()[0] == '3'
@@ -140,7 +150,15 @@ def encode_attr(L): # L is a list of dictionaries
         else:
             s += "{:.16G}".format(val)
         output.append({sendtype:s})
-    return(output)
+    return output
+
+object_registry = {}    ## idx -> instance
+attach_arrows = []
+attach_trails = []  ## needed only for functions
+_sent = True  ## set to True when commsend completes; needed for canvas.waitfor(...)
+sender = None # set this to be the equivalent of baseObj.glow.comm.send (the Jupyter case)
+interact_loop = None # used in non-notebook case
+_do_loop = False # used by atexit function in non-notebook environment
 
 class RateKeeper2(RateKeeper):
     
@@ -158,12 +176,17 @@ class RateKeeper2(RateKeeper):
         self.lasttime = clock() # trigger needs to know when rate was last called 
         
         # Check if events to process from front end
-        if IPython.__version__ >= '3.0.0' :
-            kernel = get_ipython().kernel
-            parent = kernel._parent_header
-            ident = kernel._parent_ident
-            kernel.do_one_iteration()
-            kernel.set_parent(ident, parent)
+        if isnotebook:
+            if IPython.__version__ >= '3.0.0' :
+                kernel = get_ipython().kernel
+                parent = kernel._parent_header
+                ident = kernel._parent_ident
+                kernel.do_one_iteration()
+                kernel.set_parent(ident, parent)
+        else:
+            # stop + run_forever is how to implement running the interact loop once
+            interact_loop.stop()
+            interact_loop.run_forever()
             
     def __call__(self, N): # rate(N) calls this function
         if (not self.active) or (N != self.rval):
@@ -177,12 +200,6 @@ if sys.version > '3':
 
 ifunc = simulateDelay(delayAvg = 0.001)
 rate = RateKeeper2(interactFunc = ifunc)
-
-object_registry = {}    ## idx -> instance
-attach_arrows = []
-attach_trails = []  ## needed only for functions
-_sent = True  ## set to True when commsend completes; needed for canvas.waitfor(...)
-sender = None # set this to be the equivalent of baseObj.glow.comm.send (the Jupyter case)
 
 def list_to_vec(L):
     return vector(L[0], L[1], L[2])
@@ -210,7 +227,7 @@ class baseObj(object):
     def delete(self):
         baseObj.decrObjCnt()
         cmd = {"cmd": "delete", "idx": self.idx}
-        if (baseObj.glow != None):
+        if (baseObj.glow is not None):
             sender([cmd])
         else:
             self.appendcmd(cmd)
@@ -239,13 +256,12 @@ class baseObj(object):
 
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
-        if (baseObj.glow != None):
+        if (baseObj.glow is not None):
             sender([cmd])
         else:
             self.appendcmd(cmd)
 
 commcmds = []
-
 for i in range(2*baseObj.qSize):
     commcmds.append({"idx": -1, "attr": 'dummy', "val": 0})
 
@@ -381,27 +397,35 @@ def commsend():
         _sent = True
 
 def trigger(): # called by a canvas update event from browser, coming from GlowWidget.handle_msg
-    global tlast
+    print('trigger')
+    if (not rate.active) and (not isnotebook):
+        # stop + run_forever is how to implement running the interact loop once
+        interact_loop.stop()
+        interact_loop.run_forever()
     sender([{'trigger':1, '_pass':1}]) # handshake with glowcomm.js
     if rate.active:
         dt = clock() - rate.lasttime # time elapsed since last time sendtofrontend was executed
         if dt > 5/rate.rval:
             rate.active = False
     commsend()
+        
 
 class GlowWidget(object):    
-    def __init__(self, comm, msg):
+    def __init__(self, comm, msg): # msg is passed but not used in notebook case
         global sender
-        self.comm = comm
-        self.comm.on_msg(self.handle_msg)
-        self.comm.on_close(self.handle_close)
         baseObj.glow = self
+        if isnotebook:
+            comm.on_msg(self.handle_msg)
+            comm.on_close(self.handle_close)
         sender = comm.send
+        self.show = True
 
     ## object_registry = {}
     ## idx -> instance
     def handle_msg(self, msg):
+        print('handle_msg', msg)
         evt = msg['content']['data']['arguments'][0]
+        print(evt)
         if 'widget' in evt:
             obj = object_registry[evt['idx']]
             if evt['widget'] == 'button':
@@ -432,89 +456,154 @@ class GlowWidget(object):
     def handle_close(self, data):
         print ("comm closed")
 
-########################################################################################
-#### Imports for Jupyter VPython
+if isnotebook:
+    ########################################################################################
+    #### Imports for Jupyter VPython
 
-import IPython
-if IPython.__version__ >= '4.0.0' :
-    import ipykernel
-    import notebook
-else:
-    import IPython.html.nbextensions
-from IPython.display import HTML
-from IPython.display import display
-from IPython.display import Javascript
-from IPython.core.getipython import get_ipython
-from jupyter_core.paths import jupyter_data_dir
-
-########################################################################################
-        
-########################################################################################
-#### Setup for Jupyter VPython
-
-# The following file operations check whether nbextensions already has the correct files.
-package_dir = os.path.dirname(__file__) # The location in site-packages of the vpython module
-datacnt = len(os.listdir(package_dir+"/vpython_data"))     # the number of files in the site-packages vpython data folder
-libcnt = len(os.listdir(package_dir+"/vpython_libraries")) # the number of files in the site-packages vpython libraries folder
-jd = jupyter_data_dir()
-nbdir = jd+'/nbextensions/'
-nbdata = nbdir+'vpython_data'
-nblib = nbdir+'vpython_libraries'
-transfer = True # need to transfer files from site-packages to nbextensions
-
-if 'nbextensions' in os.listdir(jd):
-    ldir = os.listdir(nbdir)
-    if ('vpython_data' in ldir and len(os.listdir(nbdata)) == datacnt and
-       'vpython_libraries' in ldir and len(os.listdir(nblib)) == libcnt and
-        'vpython_version.txt' in ldir):
-        v = open(nbdir+'/vpython_version.txt').read()
-        transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
-
-#transfer = True ### use when testing, so that changes are active
-if transfer:
+    import IPython
     if IPython.__version__ >= '4.0.0' :
-        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-    elif IPython.__version__ >= '3.0.0' :
-        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
+        import ipykernel
+        import notebook
     else:
-        IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_data", package_dir+"/vpython_libraries"],overwrite=True,verbose=0)
+        import IPython.html.nbextensions
+    from IPython.display import HTML
+    from IPython.display import display
+    from IPython.display import Javascript
+    from IPython.core.getipython import get_ipython
+    from jupyter_core.paths import jupyter_data_dir
 
-    # Wait for files to be transferred to nbextensions:
-    libready = False
-    dataready = False
-    while True:
-        nb = os.listdir(nbdir)
-        for f in nb:
-            if f == 'vpython_data':
-                if len(os.listdir(nbdata)) == datacnt:
-                    dataready = True
-            if f == 'vpython_libraries':
-                if len(os.listdir(nblib)) == libcnt:
-                    libready = True
-        if libready and dataready: break
-    # Mark with the version number that the files have been transferred successfully:
-    fd = open(nbdir+'/vpython_version.txt', 'w')
-    fd.write(__version__)    
-    fd.close()
-
-if IPython.__version__ >= '3.0.0' :
-    get_ipython().kernel.comm_manager.register_target('glow', GlowWidget)
-else:
-    get_ipython().comm_manager.register_target('glow', GlowWidget) 
-
-display(Javascript("""require.undef("nbextensions/vpython_libraries/glow.min");"""))
-display(Javascript("""require.undef("nbextensions/vpython_libraries/glowcomm");"""))
-display(Javascript("""require.undef("nbextensions/vpython_libraries/jquery-ui.custom.min");"""))
-
-display(Javascript("""require(["nbextensions/vpython_libraries/glow.min"], function(){console.log("GLOW LOADED");})"""))
-display(Javascript("""require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");})"""))
-display(Javascript("""require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
+    ########################################################################################
             
-get_ipython().kernel.do_one_iteration()
+    ########################################################################################
+    #### Setup for Jupyter VPython
 
-########################################################################################
+    # The following file operations check whether nbextensions already has the correct files.
+    package_dir = os.path.dirname(__file__) # The location in site-packages of the vpython module
+    datacnt = len(os.listdir(package_dir+"/vpython_data"))     # the number of files in the site-packages vpython data folder
+    libcnt = len(os.listdir(package_dir+"/vpython_libraries")) # the number of files in the site-packages vpython libraries folder
+    jd = jupyter_data_dir()
+    nbdir = jd+'/nbextensions/'
+    nbdata = nbdir+'vpython_data'
+    nblib = nbdir+'vpython_libraries'
+    transfer = True # need to transfer files from site-packages to nbextensions
+
+    if 'nbextensions' in os.listdir(jd):
+        ldir = os.listdir(nbdir)
+        if ('vpython_data' in ldir and len(os.listdir(nbdata)) == datacnt and
+           'vpython_libraries' in ldir and len(os.listdir(nblib)) == libcnt and
+            'vpython_version.txt' in ldir):
+            v = open(nbdir+'/vpython_version.txt').read()
+            transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
+
+    #transfer = True ### use when testing, so that changes are active
+    if transfer:
+        if IPython.__version__ >= '4.0.0' :
+            notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
+            notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
+        elif IPython.__version__ >= '3.0.0' :
+            IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
+            IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
+        else:
+            IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_data", package_dir+"/vpython_libraries"],overwrite=True,verbose=0)
+
+        # Wait for files to be transferred to nbextensions:
+        libready = False
+        dataready = False
+        while True:
+            nb = os.listdir(nbdir)
+            for f in nb:
+                if f == 'vpython_data':
+                    if len(os.listdir(nbdata)) == datacnt:
+                        dataready = True
+                if f == 'vpython_libraries':
+                    if len(os.listdir(nblib)) == libcnt:
+                        libready = True
+            if libready and dataready: break
+        # Mark with the version number that the files have been transferred successfully:
+        fd = open(nbdir+'/vpython_version.txt', 'w')
+        fd.write(__version__)    
+        fd.close()
+
+    if IPython.__version__ >= '3.0.0' :
+        get_ipython().kernel.comm_manager.register_target('glow', GlowWidget)
+    else:
+        get_ipython().comm_manager.register_target('glow', GlowWidget) 
+
+    display(Javascript("""require.undef("nbextensions/vpython_libraries/glow.min");"""))
+    display(Javascript("""require.undef("nbextensions/vpython_libraries/glowcomm");"""))
+    display(Javascript("""require.undef("nbextensions/vpython_libraries/jquery-ui.custom.min");"""))
+
+    display(Javascript("""require(["nbextensions/vpython_libraries/glow.min"], function(){console.log("GLOW LOADED");})"""))
+    display(Javascript("""require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");})"""))
+    display(Javascript("""require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
+                
+    get_ipython().kernel.do_one_iteration()
+
+    ########################################################################################
+    
+else: # not running in Jupyter notebook
+    
+    import asyncio
+    import webbrowser
+    import json
+
+    PORT_NUMBER = 9000
+
+    from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
+
+    class ServerProtocol(WebSocketServerProtocol):
+        # Data sent and received must be type "bytes", so use string.encode and string.decode
+        connection = None
+
+        def send(self, data):
+            j = json.dumps(data, separators=(',', ':')).encode('utf_8')
+            self.sendMessage(j, isBinary=False)
+
+        def onConnect(self, request):
+            self.connection = self
+
+        def onOpen(self):
+            global sender
+            sender = self.send
+            self.widget = GlowWidget(self, None)
+
+        def onMessage(self, data, isBinary):
+            d = json.loads(data.decode("utf-8"))
+            # mock up message format for notebook: evt = msg['content']['data']['arguments'][0]
+            msg = {'content':{'data':d}}
+            self.widget.handle_msg(msg)
+
+        def onClose(self, wasClean, code, reason):
+            #print("Server WebSocket connection closed: {0}".format(reason))
+            self.connection = None
+
+    url = __file__.replace('vpython.py','vpython_libraries/glowcomm.html') # full path to glowcomm.html
+    webbrowser.open_new_tab(url)
+
+    factory = WebSocketServerFactory(u"ws://localhost:{}/".format(PORT_NUMBER))
+    factory.protocol = ServerProtocol
+    interact_loop = asyncio.get_event_loop()
+    coro = interact_loop.create_server(factory, '0.0.0.0', PORT_NUMBER)
+    interact_loop.run_until_complete(coro)
+
+# This is an atexit handler so that programs remain 'running' after they've finished
+# executing the code in the program body. For vpython this is important so that the
+# windows don't close before the user can interact with them.
+# _do_loop is set to True if a canvas is created.
+# Otherwise we exit immediately (pure calculations with no displays).
+import atexit as _atexit
+
+def _close_final(): # There is a window, or an activated display
+    global _do_loop
+    print('_close_final')
+    if _do_loop:
+        _do_loop = False # make sure we don't trigger this twice
+        while True: # at end of user program, wait for user to close the program
+            rate(1)
+
+_atexit.register(_close_final)
+# The following is needed by Python 3, else running from vidle3/run.py doesn't drive _close_final:
+sys.exitfunc = _close_final
 
 class color(object):
     black = vector(0,0,0)
@@ -2720,8 +2809,12 @@ class canvas(baseObj):
     maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
     
     def __init__(self, **args):
-        display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
-        display(Javascript("""window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
+        global _do_loop
+        if isnotebook:
+            display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
+            display(Javascript("""window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
+        else:
+            _do_loop = True # atexit function uses this to keep canvas alive
 
         super(canvas, self).__init__()   ## get idx, attrsupdt
         

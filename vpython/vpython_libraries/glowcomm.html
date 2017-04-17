@@ -1,12 +1,46 @@
-define(["nbextensions/vpython_libraries/jquery-ui.custom.min",
-        "nbextensions/vpython_libraries/glow.min"], function() {
+<div id="glowscript" class="glowscript">
+<link type="text/css" href="ide.css" rel="stylesheet" />
+<script type="text/javascript" src="jquery.min.js"></script>
+<script type="text/javascript" src="jquery-ui.custom.min.js"></script>
+<script type="text/javascript" src="glow.min.js"></script>
+<script type="text/javascript">
 
-comm = IPython.notebook.kernel.comm_manager.new_comm('glow')
-comm.on_msg(handler)
-console.log("comm created for glow target", comm)
+window.__context = { glowscript_container: $("#glowscript") }
 
-//var datadir = '../vpython_data/'
-var datadir = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/'
+console.log('Start of glowcomm.html')
+
+var ws = null
+var isopen = false
+
+window.onload = function() {
+	console.log('window onload')
+
+	ws = new WebSocket("ws://localhost:9000")
+	ws.binaryType = "arraybuffer";
+
+	ws.onopen = function() {
+	   isopen = true;
+	}
+
+	ws.onmessage = function(e) {
+		var msg = JSON.parse(e.data)
+		handler(msg)
+	}
+
+	ws.onclose = function(e) {
+		ws = null
+		isopen = false
+	}
+
+	ws.onerror = function(e) {
+		console.log('Error in glowcomm.html')
+	}
+}
+
+var comm = {send: function(data) { ws.send(JSON.stringify(data)) } }
+
+var datadir = '../vpython_data/'
+//var datadir = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/'
 window.Jupyter_VPython = datadir
 
 function fontloading() {
@@ -23,8 +57,8 @@ function fontloading() {
         console.log('SERIF FONT LOADED')
     })
 }
-fontloading()
-
+//fontloading() // cross-origin problems, sigh
+	  
 // The following is necessary to be able to re-run programs.
 // Otherwise the repeated execution of update_canvas() causes problems after killing Python.
 if (timer !== undefined && timer !== null) clearTimeout(timer)
@@ -82,7 +116,6 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
         evt.widget = 'slider'
         sliders[obj.idx] = evt
         return
-//        console.log('slider', evt.value)
     } else if (obj.objName === 'checkbox') {
         evt.value = obj.checked
         evt.widget = 'checkbox'
@@ -108,6 +141,7 @@ var lastautoscale = true
 var interval = 30 // milliseconds
 
 function update_canvas() { // mouse location and other stuff
+console.log('update_canvas')
     "use strict";
     //var t = msclock()
     //console.log(t-tstart)
@@ -281,12 +315,12 @@ function fix_location(cfgx) {
 
 function handler(msg) {
     "use strict";
-    var data = msg.content.data
     //console.log('glow msg', msg, msg.content)
-    //console.log('glow', data, data.length)
-    //console.log(data)
-    data = decode(data)
+    //console.log('msg.length', msg.length)
+    //console.log(msg)
+    var data = decode(msg)
     if (data[0]['trigger'] !== undefined) {
+		console.log('triggered')
 		// This timer is what drives the Python program to update the data.
         if (timer !== null) clearTimeout(timer)
 		var t = msclock()
@@ -296,8 +330,8 @@ function handler(msg) {
         timer = setTimeout(update_canvas, dt)
         return
     }
-	//console.log('\n\n**** '+data.length+' ******************************************')
-	//for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
+	console.log('\n\n**** '+data.length+' ******************************************')
+	for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -407,7 +441,7 @@ function handler(msg) {
                         }                         
                     }
                 }
-            } else { // processing a constructor           
+            } else { // processing a constructor
                 /*
                 if (cmd.cmd !== 'heartbeat') {
                     console.log('glow', data, data.length)
@@ -652,4 +686,5 @@ function handler(msg) {
 };
 console.log("END OF GLOWCOMM");
 
-});
+</script>
+</div>
