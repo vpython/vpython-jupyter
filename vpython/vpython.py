@@ -183,10 +183,10 @@ class RateKeeper2(RateKeeper):
                 ident = kernel._parent_ident
                 kernel.do_one_iteration()
                 kernel.set_parent(ident, parent)
-        else:
-            # stop + run_forever is how to implement running the interact loop once
-            interact_loop.stop()
-            interact_loop.run_forever()
+##        else:
+##            # stop + run_forever is how to implement running the interact loop once
+##            interact_loop.stop()
+##            interact_loop.run_forever()
             
     def __call__(self, N): # rate(N) calls this function
         if (not self.active) or (N != self.rval):
@@ -397,10 +397,6 @@ def commsend():
         _sent = True
 
 def trigger(): # called by a canvas update event from browser, coming from GlowWidget.handle_msg
-    if (not rate.active) and (not isnotebook):
-        # stop + run_forever is how to implement running the interact loop once
-        interact_loop.stop()
-        interact_loop.run_forever()
     sender([{'trigger':1, '_pass':1}]) # handshake with glowcomm.js
     if rate.active:
         dt = clock() - rate.lasttime # time elapsed since last time sendtofrontend was executed
@@ -543,6 +539,7 @@ else: # not running in Jupyter notebook
     import asyncio
     import webbrowser
     import json
+    import threading
 
     PORT_NUMBER = 9000
 
@@ -582,24 +579,10 @@ else: # not running in Jupyter notebook
     interact_loop = asyncio.get_event_loop()
     coro = interact_loop.create_server(factory, '0.0.0.0', PORT_NUMBER)
     interact_loop.run_until_complete(coro)
-
-# This is an atexit handler so that programs remain 'running' after they've finished
-# executing the code in the program body. For vpython this is important so that the
-# windows don't close before the user can interact with them.
-# _do_loop is set to True if a canvas is created.
-# Otherwise we exit immediately (pure calculations with no displays).
-import atexit as _atexit
-
-def _close_final(): # There is a window, or an activated display
-    global _do_loop
-    if _do_loop:
-        _do_loop = False # make sure we don't trigger this twice
-        while True: # at end of user program, wait for user to close the program
-            rate(1)
-
-_atexit.register(_close_final)
-# The following is needed by Python 3, else running from vidle3/run.py doesn't drive _close_final:
-sys.exitfunc = _close_final
+    # Need to put interact loop inside a thread in order to get a display
+    # in the absence of a loop containing a rate statement.
+    t = threading.Thread(target=interact_loop.run_forever)
+    t.start()
 
 class color(object):
     black = vector(0,0,0)

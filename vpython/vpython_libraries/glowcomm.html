@@ -39,10 +39,11 @@ window.onload = function() {
 
 var comm = {send: function(data) { ws.send(JSON.stringify(data)) } }
 
-var datadir = '../vpython_data/'
-//var datadir = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/'
-window.Jupyter_VPython = datadir
+//var datadir = '../vpython_data/'
+var datadir = 'https://s3.amazonaws.com/glowscript/fonts/' // kludge until CORS problem solved
+//window.Jupyter_VPython = datadir
 
+/*
 function fontloading() {
     var fsans = datadir+'Roboto-Medium.ttf'
     opentype_load(fsans, function(err, fontrefsans) {
@@ -57,7 +58,8 @@ function fontloading() {
         console.log('SERIF FONT LOADED')
     })
 }
-//fontloading() // cross-origin problems, sigh
+fontloading() // cross-origin problems if fonts local; else "decode.MACSTRING is not a function"
+*/
 	  
 // The following is necessary to be able to re-run programs.
 // Otherwise the repeated execution of update_canvas() causes problems after killing Python.
