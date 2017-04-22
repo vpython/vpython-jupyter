@@ -536,12 +536,67 @@ if isnotebook:
     
 else: # not running in Jupyter notebook
     
-    import asyncio
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from os import curdir, sep
     import webbrowser
+    import asyncio
     import json
     import threading
 
-    PORT_NUMBER = 9000
+    HTTP_PORT = 9000
+    serverlib = __file__.replace('vpython.py','vpython_libraries')
+    serverdata = __file__.replace('vpython.py','vpython_data')
+
+    class serveHTTP(BaseHTTPRequestHandler):
+            
+        def do_GET(self):
+            if self.path == "/":
+                self.path = sep+'glowcomm.html'
+            elif self.path[0] == "/":
+                self.path = sep+self.path[1:]
+            try:
+                sendReply = False
+                if self.path.endswith(".jpg") or self.path.endswith(".jpeg"):
+                    self.path = serverdata+self.path
+                    mimetype='image/jpg'
+                    sendReply = True
+                elif self.path.endswith(".otf") or self.path.endswith(".ttf"):
+                    self.path = serverdata+self.path
+                    mimetype='image/'+self.path[-3:]
+                    sendReply = True
+                elif self.path.endswith(".html"):
+                    self.path = serverlib+self.path
+                    mimetype='text/html'
+                    sendReply = True
+                elif self.path.endswith(".js"):
+                    self.path = serverlib+self.path
+                    mimetype='application/javascript'
+                    sendReply = True
+                elif self.path.endswith(".css"):
+                    self.path = serverlib+self.path
+                    mimetype='text/css'
+                    sendReply = True
+                elif self.path.endswith(".ico"):
+                    mimetype='image/x-icon'
+                    sendReply = True
+                elif self.path.endswith(".gif"):
+                    mimetype='image/gif'
+                    sendReply = True
+
+                if sendReply == True:
+                    f = open(self.path, 'rb')
+                    self.send_response(200)
+                    self.send_header('Content-type',mimetype)
+                    # CORS enable:
+                    #self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(f.read())
+                    f.close()
+            except IOError:
+                    self.send_error(404,'File Not Found: %s' % self.path)
+
+    SOCKET_PORT = 9001
+    # http://stackoverflow.com/questions/43551026/cors-enable-autobahn-asyncio-websocket-server
 
     from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
 
@@ -568,21 +623,25 @@ else: # not running in Jupyter notebook
             self.widget.handle_msg(msg)
 
         def onClose(self, wasClean, code, reason):
-            #print("Server WebSocket connection closed: {0}".format(reason))
+            print("Server WebSocket connection closed: {0}".format(reason))
             self.connection = None
 
-    url = __file__.replace('vpython.py','vpython_libraries/glowcomm.html') # full path to glowcomm.html
-    webbrowser.open_new_tab(url)
-
-    factory = WebSocketServerFactory(u"ws://localhost:{}/".format(PORT_NUMBER))
+    factory = WebSocketServerFactory(u"ws://localhost:{}/".format(SOCKET_PORT))
+    #factory.setProtocolOptions(allowedOrigins=['*'])
     factory.protocol = ServerProtocol
     interact_loop = asyncio.get_event_loop()
-    coro = interact_loop.create_server(factory, '0.0.0.0', PORT_NUMBER)
+    coro = interact_loop.create_server(factory, '0.0.0.0', SOCKET_PORT)
     interact_loop.run_until_complete(coro)
     # Need to put interact loop inside a thread in order to get a display
     # in the absence of a loop containing a rate statement.
     t = threading.Thread(target=interact_loop.run_forever)
     t.start()
+
+    server = HTTPServer(('', HTTP_PORT), serveHTTP)
+    webbrowser.open('http://localhost:{}'.format(HTTP_PORT)) # or webbrowser.open_new_tab()
+    w = threading.Thread(target=server.serve_forever)
+    w.start()
+    # server.handle_request() may be a single-shot interaction; not sure
 
 class color(object):
     black = vector(0,0,0)
