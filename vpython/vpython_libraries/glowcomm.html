@@ -1,8 +1,11 @@
-<div id="glowscript" class="glowscript">
+<head>
 <link type="text/css" href="ide.css" rel="stylesheet" />
 <script type="text/javascript" src="jquery.min.js"></script>
 <script type="text/javascript" src="jquery-ui.custom.min.js"></script>
 <script type="text/javascript" src="glow.min.js"></script>
+</head>
+<body>
+<div id="glowscript" class="glowscript">
 <script type="text/javascript">
 
 window.__context = { glowscript_container: $("#glowscript") }
@@ -39,28 +42,24 @@ window.onload = function() {
 
 var comm = {send: function(data) { ws.send(JSON.stringify(data)) } }
 
-window.Jupyter_VPython = ''
+window.Jupyter_VPython = '' // prefix used by glow.min.js for textures and fonts
 
 function loadfonts() {
-	//var fsans = 'https://s3.amazonaws.com/glowscript/fonts/Roboto-Medium.ttf'
 	var fsans = 'Roboto-Medium.ttf'
     opentype_load(fsans, function(err, fontrefsans) {
-		console.log('err', err, typeof err)
-        if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
+        if (err) throw new Error(fsans + ' could not be loaded by opentype: "' + err+'"')
         window.__font_sans = fontrefsans // an opentype.js Font object
         console.log('SANS-SERIF FONT LOADED')
     })
-    //var fserif = 'https://s3.amazonaws.com/glowscript/fonts/NimbusRomNo9L-Med.otf'
-	var fserif = 'NimbusRomNo9L-Med.otf'
+    var fserif = 'NimbusRomNo9L-Med.otf'
     opentype_load(fserif, function(err, fontrefserif) {
-		console.log('err', err, typeof err)
-        if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
+        if (err) throw new Error(fserif + ' could not be loaded by opentype: "' + err+'"')
         window.__font_serif = fontrefserif // an opentype.js Font object
         console.log('SERIF FONT LOADED')
     })
 }
 //loadfonts()
-//fontloading() // cross-origin problems if fonts local; else "decode.MACSTRING is not a function"
+fontloading()
 	  
 // The following is necessary to be able to re-run programs.
 // Otherwise the repeated execution of update_canvas() causes problems after killing Python.
@@ -689,3 +688,4 @@ console.log("END OF GLOWCOMM");
 
 </script>
 </div>
+</body>

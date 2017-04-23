@@ -594,6 +594,9 @@ else: # not running in Jupyter notebook
                     f.close()
             except IOError:
                     self.send_error(404,'File Not Found: %s' % self.path)
+                    
+        def log_message(self, format, *args): # this suppresses server stderr output
+            return
 
     SOCKET_PORT = 9001
     # http://stackoverflow.com/questions/43551026/cors-enable-autobahn-asyncio-websocket-server
@@ -623,7 +626,7 @@ else: # not running in Jupyter notebook
             self.widget.handle_msg(msg)
 
         def onClose(self, wasClean, code, reason):
-            print("Server WebSocket connection closed: {0}".format(reason))
+            #print("Server WebSocket connection closed: {0}".format(reason))
             self.connection = None
 
     factory = WebSocketServerFactory(u"ws://localhost:{}/".format(SOCKET_PORT))
