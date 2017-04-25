@@ -44,22 +44,7 @@ var comm = {send: function(data) { ws.send(JSON.stringify(data)) } }
 
 window.Jupyter_VPython = '' // prefix used by glow.min.js for textures and fonts
 
-function loadfonts() {
-	var fsans = 'Roboto-Medium.ttf'
-    opentype_load(fsans, function(err, fontrefsans) {
-        if (err) throw new Error(fsans + ' could not be loaded by opentype: "' + err+'"')
-        window.__font_sans = fontrefsans // an opentype.js Font object
-        console.log('SANS-SERIF FONT LOADED')
-    })
-    var fserif = 'NimbusRomNo9L-Med.otf'
-    opentype_load(fserif, function(err, fontrefserif) {
-        if (err) throw new Error(fserif + ' could not be loaded by opentype: "' + err+'"')
-        window.__font_serif = fontrefserif // an opentype.js Font object
-        console.log('SERIF FONT LOADED')
-    })
-}
-//loadfonts()
-fontloading()
+fontloading() // get the sans and serif font files used by 3D text
 	  
 // The following is necessary to be able to re-run programs.
 // Otherwise the repeated execution of update_canvas() causes problems after killing Python.
@@ -70,6 +55,7 @@ function msclock() {
     else return new Date().getTime()
 }
 var tstart = msclock()
+var t0 = tstart
 
 var glowObjs = []
 
@@ -117,7 +103,7 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
         evt.value = obj.value
         evt.widget = 'slider'
         sliders[obj.idx] = evt
-        return
+		return
     } else if (obj.objName === 'checkbox') {
         evt.value = obj.checked
         evt.widget = 'checkbox'
@@ -144,9 +130,6 @@ var interval = 30 // milliseconds
 
 function update_canvas() { // mouse location and other stuff
     "use strict";
-    //var t = msclock()
-    //console.log(t-tstart)
-    //tstart = t
     for (var ss in sliders){
         comm.send( { arguments: [ sliders[ss] ] } )
     }

@@ -163,17 +163,13 @@ _do_loop = False # used by atexit function in non-notebook environment
 class RateKeeper2(RateKeeper):
     
     def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
-        self.active = False
         self.rval = 30
-        self.lasttime = 0
         self.tocall = None
         super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
 
     def sendtofrontend(self):
         # This is called by the rate() function, through rate_control RateKeeper callInteract().
         # See the function commsend() for details of how the browser is updated.
-        self.active = True
-        self.lasttime = clock() # trigger needs to know when rate was last called 
         
         # Check if events to process from front end
         if isnotebook:
@@ -183,14 +179,14 @@ class RateKeeper2(RateKeeper):
                 ident = kernel._parent_ident
                 kernel.do_one_iteration()
                 kernel.set_parent(ident, parent)
-##        else:
-##            # stop + run_forever is how to implement running the interact loop once
-##            interact_loop.stop()
-##            interact_loop.run_forever()
+        else:
+            # stop + run_forever is how to implement running the interact loop once
+            interact_loop.stop()
+            interact_loop.run_forever()
             
     def __call__(self, N): # rate(N) calls this function
-        if (not self.active) or (N != self.rval):
-            self.count = 0 # new rate statement or change in rate value
+##        if (not self.active) or (N != self.rval):
+##            self.count = 0 # new rate statement or change in rate value
         self.rval = N          
         if self.rval < 1: raise ValueError("rate value must be greater than or equal to 1")
         super(RateKeeper2, self).__call__(self.rval) ## calls __call__ in rate_control.py
@@ -271,24 +267,17 @@ def commsend():
     # even caused display mistakes due to losing portions of data sent to the browser
     # from within a thread.
     
-    # Now there is no threading. The function commsend(), which sends data to the
-    # browser, is called either from the trigger() function or from the rate-associated
-    # function sendtofrontend(). When in a loop containing a rate() statement, it is
-    # sendtofrontend() that is called every time the rate statement is executed.
-    # If commsend() is not called by a rate statement (which requires rate.active to be True),
-    # it is called from trigger(), which is called by a canvas_update event sent to
-    # Python from the browser (glowcomm.js), currently every 30 milliseconds. When
-    # trigger() is called, it immediately signals the browser to set a timeout of 30 ms
-    # to send another signal to Python. If trigger() finds rate.active to be False, it
-    # calls commsend(), otherwise it checks to see whether there it has been several rate
-    # periods since the last execution of a rate statement, which indicates that the loop
-    # that contained the rate statement has exited, in which case trigger() calls commsend().
+    # Now there is no threading in Jupyter VPython. The function commsend(), which sends data to the
+    # browser, is called from the trigger() function, which is called by a
+    # canvas_update event sent to Python from the browser (glowcomm.js), currently
+    # every 30 milliseconds. When trigger() is called, it immediately signals
+    # the browser to set a timeout of 30 ms to send another signal to Python.
     # Note that a typical VPython program starts out by creating objects (constructors) and
     # specifying their attributes. The 30 ms signal from the browser is adequate to ensure
-    # prompt data transmissions to the browser. Following this setup phase of the user
-    # program, a rate statement is encountered, wich calls sendtofrontend() which sets
-    # rate.active to True, thereby blocking trigger() from interfering with sendtofrontend's
-    # own calls to commsend().
+    # prompt data transmissions to the browser.
+
+    # The situation with non-notebook use is similar, but the http server is threaded,
+    # in order to serve glowcomm.html, jpg texture files, and font files.
     
     global commcmds, _sent
     _sent = False
@@ -398,12 +387,7 @@ def commsend():
 
 def trigger(): # called by a canvas update event from browser, coming from GlowWidget.handle_msg
     sender([{'trigger':1, '_pass':1}]) # handshake with glowcomm.js
-    if rate.active:
-        dt = clock() - rate.lasttime # time elapsed since last time sendtofrontend was executed
-        if dt > 5/rate.rval:
-            rate.active = False
     commsend()
-        
 
 class GlowWidget(object):    
     def __init__(self, comm, msg): # msg is passed but not used in notebook case
@@ -412,7 +396,7 @@ class GlowWidget(object):
         if isnotebook:
             comm.on_msg(self.handle_msg)
             comm.on_close(self.handle_close)
-        sender = comm.send
+            sender = comm.send
         self.show = True
 
     ## object_registry = {}
@@ -635,10 +619,12 @@ else: # not running in Jupyter notebook
     interact_loop = asyncio.get_event_loop()
     coro = interact_loop.create_server(factory, '0.0.0.0', SOCKET_PORT)
     interact_loop.run_until_complete(coro)
+    #interact_loop.run_forever()
+    #interact_loop.stop()
     # Need to put interact loop inside a thread in order to get a display
     # in the absence of a loop containing a rate statement.
-    t = threading.Thread(target=interact_loop.run_forever)
-    t.start()
+##    t = threading.Thread(target=interact_loop.run_forever)
+##    t.start()
 
     server = HTTPServer(('', HTTP_PORT), serveHTTP)
     webbrowser.open('http://localhost:{}'.format(HTTP_PORT)) # or webbrowser.open_new_tab()
@@ -2861,8 +2847,6 @@ class canvas(baseObj):
         
         self._constructing = True        
         canvas.selected_canvas = self
-
-        rate.active = False
             
         self._objz = set()
         self.lights = []
@@ -3989,7 +3973,6 @@ degrees = math.degrees
 
 while baseObj.glow is None: # try to make sure setup is complete
     rate(60)
-rate.active = False
 
 scene = canvas()
 
@@ -4016,5 +3999,5 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
         s += str(a)+' '
     s = s[:-1]
     return(s)
- 
+
 trigger() # start the trigger ping-pong process

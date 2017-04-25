@@ -81,8 +81,7 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
         evt.value = obj.value
         evt.widget = 'slider'
         sliders[obj.idx] = evt
-        return
-//        console.log('slider', evt.value)
+		return
     } else if (obj.objName === 'checkbox') {
         evt.value = obj.checked
         evt.widget = 'checkbox'
