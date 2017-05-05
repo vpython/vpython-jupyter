@@ -23,11 +23,12 @@ window.onload = function() {
 
 	ws.onopen = function() {
 		isopen = true;
+		console.log('onopen')
 	}
 
 	ws.onmessage = function(e) {
 		var msg = JSON.parse(e.data)
-		handler(msg)
+		if (msg != 'trigger') handler(msg)
 	}
 
 	ws.onclose = function(e) {
@@ -40,38 +41,150 @@ window.onload = function() {
 	}
 }
 
-var comm = {send: function(data) { ws.send(JSON.stringify(data)) } }
-
-window.Jupyter_VPython = '' // prefix used by glow.min.js for textures and fonts
-
-fontloading() // get the sans and serif font files used by 3D text
-	  
-// The following is necessary to be able to re-run programs.
-// Otherwise the repeated execution of update_canvas() causes problems after killing Python.
-if (timer !== undefined && timer !== null) clearTimeout(timer)
-
 function msclock() {
     if (performance.now) return performance.now()
     else return new Date().getTime()
 }
-var tstart = msclock()
-var t0 = tstart
 
-var glowObjs = []
+var events = []
 
-//scene.title.text("fps = frames/sec\n ")
-// Display frames per second and render time:
-//$("<div id='fps'/>").appendTo(scene.title)
-
-function o2vec3(p) {
-    "use strict";
-    return vec(p[0], p[1], p[2])
+function send() { // periodically send update_canvas to websocket and request object update
+	if (isopen) {
+		var data = update_canvas()
+		if (data === null && events.length > 0) data = events
+		else if (events.length > 0) data = data.concat(events)
+		events = []
+		if (data !== null) data = JSON.stringify(data)
+		else data = 'trigger' // trigger websocket to send updates on objects and attributes
+		ws.send(data)
+	}
 }
 
-var sliders = {}
+var lastpos = vec(0,0,0)
+var lastray = vec(0,0,0)
+var lastforward = vec(0,0,0)
+var lastup = vec(0,0,0)
+var lastrange = 1
+var lastautoscale = true
+var lastsliders = {}
+
+function update_canvas() { // mouse location and other stuff
+    "use strict";
+	var dosend = false
+    if (canvas.hasmouse !== null && canvas.hasmouse !== undefined) {
+		var evt = {event:'update_canvas'}
+		var cvs = canvas.hasmouse  // only way to change these values is with mouse
+		var idx = cvs.idx
+		evt.canvas = idx
+		var pos = cvs.mouse.pos
+		if (!pos.equals(lastpos)) {evt.pos = [pos.x,pos.y,pos.z]; dosend=true}
+		lastpos = pos
+		var ray = cvs.mouse.ray 
+		if (!ray.equals(lastray)) {evt.ray = [ray.x,ray.y,ray.z]; dosend=true}
+		lastray = ray
+		// forward and range may be changed by user (and up with touch), and autoscale (by zoom)
+		if (cvs.userspin) {
+			var forward = cvs.forward
+			if (!forward.equals(lastforward)) {
+				evt.forward = [forward.x,forward.y,forward.z]
+				dosend=true
+			}
+			lastforward = forward
+			var up = cvs.up
+			if (!up.equals(lastup)) {evt.up = [up.x,up.y,up.z]; dosend=true}
+			lastup = up
+		}
+		if (cvs.userzoom) {
+			var range = cvs.range
+			if (range !== lastrange) {evt.range=range; dosend=true}
+			lastrange = range
+			var autoscale = cvs.autoscale
+			if (autoscale !== lastautoscale) {evt.autoscale = autoscale; dosend=true}
+			lastautoscale = autoscale
+		}
+		if (dosend) evt = [evt]
+	}
+	var output_sliders = []
+    for (var ss in sliders){
+		var ev = sliders[ss]
+		if (ss in lastsliders && ev.value !== lastsliders[ss].value)
+			output_sliders.push(ev) //avoid sending an unchnaged slider value
+		lastsliders[ss] = ev
+    }
+	if (output_sliders.length > 0) {
+		if (dosend) evt = evt.concat(output_sliders)
+		else evt = output_sliders
+		dosend = true
+	}
+    if (dosend) return evt
+	else return null
+}
+
+var timer = setInterval(send,33) // send to websocket 30 times per second
+
+window.Jupyter_VPython = '/' // prefix used by glow.min.js for textures
+
+function fontloading() { // trigger loading of fonts for 3D text
+	// override the fontloading url's in the GlowScript library
+	if (window.__font_sans === undefined) {
+		var fsans
+		fsans =  'Roboto-Medium.ttf' // a sans serif font
+		opentype_load(fsans, function(err, fontrefsans) {
+			if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
+			window.__font_sans = fontrefsans // an opentype.js Font object
+		})
+	}
+	if (window.__font_serif === undefined) {
+		var fserif
+		fserif = 'NimbusRomNo9L-Med.otf' // a serif font
+		opentype_load(fserif, function(err, fontrefserif) {
+			if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
+			window.__font_serif = fontrefserif // an opentype.js Font object
+		})
+	}
+}
+
+fontloading() // get the sans and serif font files used by 3D text
+
+/*
+var request = new XMLHttpRequest()
+
+function send_to_server(data, callback) { // send to HTTP server
+	var data= JSON.stringify(data)
+	request.open('get', data, true)
+    request.responseType = 'json'
+	request.onload = function() {
+		if (request.status !== 200) {
+			return callback('Error in requesting data: '+request.statusText)
+		}
+		callback(request.response)
+	}
+	request.send()
+}
+
+function ok(req) { ; }
+*/
+
+function send_pick(cvs, p, seg) {
+    "use strict";
+    var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg}
+    //send_to_server(evt, ok)
+	events.push(evt)
+}
+
+function send_compound(cvs, pos, size) {
+    "use strict";
+    var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 'size': [size.x, size.y, size.z]}
+    //send_to_server(evt, ok)
+	events.push(evt)
+}
+
+var waitfor_canvas = null
+var waitfor_options = null
 
 function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
     "use strict";
+	console.log('process', event.type)
 	var evt = {event:event.type}
     var idx = event.canvas['idx']
     evt.canvas = idx
@@ -85,21 +198,21 @@ function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mous
 	evt.alt = event.canvas.mouse.alt
 	evt.ctrl = event.canvas.mouse.ctrl
 	evt.shift = event.canvas.mouse.shift
-    comm.send( {arguments: [evt]} )
+	//send_to_server(evt, ok)
+	events.push(evt)
 }
 
-function process_pause(event) {
-    "use strict";
-    return // ignore return from pause; a regular click event will follow
-}
+var sliders = {}
 
 function control_handler(obj) {  // button, menu, slider, radio, checkbox
     "use strict";
-    var evt = { idx: obj.idx}
+    var evt = {idx: obj.idx}
     if (obj.objName === 'button') {
         evt.value = 0 
         evt.widget = 'button'
     } else if (obj.objName === 'slider') {
+		// sliders are special; we want to transmit not all changes
+		//    but a sample taken at render times
         evt.value = obj.value
         evt.widget = 'slider'
         sliders[obj.idx] = evt
@@ -116,73 +229,19 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
     } else {
         console.log('unrecognized control', 'obj=', obj, obj.text)
     }
-    comm.send( {arguments: [evt]} )
+	//send_to_server(evt, ok)
+	events.push(evt)
 }
 
-var timer = null
-var lastpos = vec(0,0,0)
-var lastray = vec(0,0,0)
-var lastforward = vec(0,0,0)
-var lastup = vec(0,0,0)
-var lastrange = 1
-var lastautoscale = true
-var interval = 30 // milliseconds
-
-function update_canvas() { // mouse location and other stuff
+function process_waitfor(evt) {
     "use strict";
-    for (var ss in sliders){
-        comm.send( { arguments: [ sliders[ss] ] } )
-    }
-    sliders = {}
-    var dosend = false
-    var evt = {event:'update_canvas'}
-    if (canvas.hasmouse === null || canvas.hasmouse === undefined) {
-        comm.send( {arguments: [{event:'update_canvas', 'trigger':1}]} )
-        return
-    } 
-    var cvs = canvas.hasmouse  // only way to change these values is with mouse
-    var idx = cvs.idx
-    evt.canvas = idx
-    var pos = cvs.mouse.pos
-    if (!pos.equals(lastpos)) {evt.pos = [pos.x, pos.y, pos.z]; dosend=true}
-    lastpos = pos
-    var ray = cvs.mouse.ray 
-    if (!ray.equals(lastray)) {evt.ray = [ ray.x, ray.y, ray.z ]; dosend=true}
-    lastray = ray
-    // forward and range may be changed by user (and up with touch), and autoscale (by zoom)
-    if (cvs.userspin) {
-        var forward = cvs.forward
-        if (!forward.equals(lastforward)) {
-            evt.forward = [forward.x, forward.y, forward.z]
-            dosend=true
-        }
-        lastforward = forward
-        var up = cvs.up
-        if (!up.equals(lastup)) {evt.up = [up.x, up.y, up.z]; dosend=true}
-        lastup = up
-    }
-    if (cvs.userzoom) {
-        var range = cvs.range
-        if (range !== lastrange) {evt.range = range; dosend=true}
-        lastrange = range
-        var autoscale = cvs.autoscale
-        if (autoscale !== lastautoscale) {evt.autoscale = autoscale; dosend=true}
-        lastautoscale = autoscale
-    }
-    if (dosend) comm.send( {arguments: [evt]} )
-    else comm.send( {arguments: [{event:'update_canvas', 'trigger':1}]} )
-}
-
-function send_pick(cvs, p, seg) {
-    "use strict";
-    var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg}
-    comm.send( {arguments: [evt]} ) 
-}
-
-function send_compound(cvs, pos, size) {
-    "use strict";
-    var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 'size': [size.x, size.y, size.z]}
-    comm.send( {arguments: [evt]} )
+    // come here on a pause or waitfor
+	glowObjs[waitfor_canvas].unbind(waitfor_options, process_waitfor)
+	if (evt === null) evt = {} // event is null if pause rather than waitfor
+	evt.event = 'waitfor'
+	evt.canvas = waitfor_canvas
+	//send_to_server(evt, ok)
+	events.push(evt)
 }
 
 // attrs are X in {'a': '23X....'}
@@ -222,7 +281,8 @@ var methods = {'a':'select', 'c':'start', 'd':'stop', 'f':'clear', // unused bsx
            'i':'append', 'j':'npoints', 'k':'pop', 'l':'shift', 'm':'unshift',
            'n':'slice', 'o':'splice', 'p':'modify', 'q':'plot', 's':'add_to_trail',
            't':'follow', 'u':'append_to_caption', 'v':'append_to_title', 'w':'clear_trail',
-           'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint'}
+           'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
+		   'M':'delete'}
          
 var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 'textcolor',
                 'direction', 'linecolor', 'bumpaxis', 'dotcolor', 'ambient', 'add_to_trail',
@@ -276,6 +336,8 @@ function decode(data) { // [ [{'a': '3c0.0,1.0,1.0'}], .....] or can be a method
                 start += m[1].length+m[2].length+2
                 if (start > s.length) break
             }
+		} else if (attr == 'waitfor' || attr == 'pause' || attr == 'delete') {
+			val = m[3]
         } else val = Number(m[3])
         out = {'idx':idx, 'val':val}
         out[datatype] = attr
@@ -297,25 +359,25 @@ function fix_location(cfgx) {
     return cfgx
 }
 
+var glowObjs = []
+
+//scene.title.text("fps = frames/sec\n ")
+// Display frames per second and render time:
+//$("<div id='fps'/>").appendTo(scene.title)
+
+function o2vec3(p) {
+    "use strict";
+    return vec(p[0], p[1], p[2])
+}
+
+outcnt = 0
 function handler(msg) {
     "use strict";
     //console.log('glow msg', msg, msg.content)
     //console.log('msg.length', msg.length)
-    //console.log(msg)
     var data = decode(msg)
-    if (data[0]['trigger'] !== undefined) {
-		// This timer is what drives the Python program to update the data.
-        if (timer !== null) clearTimeout(timer)
-		var t = msclock()
-		var dt = tstart+interval-t // attempt to keep the time between renders constant
-		if (dt < 0) dt = 1
-		tstart = t+dt
-        timer = setTimeout(update_canvas, dt)
-        return
-    }
 	//console.log('\n\n**** '+data.length+' ******************************************')
 	//for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
-
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
         var triangle_quad, objects, cvsParams
@@ -380,14 +442,21 @@ function handler(msg) {
                         } else if (cmd.method === 'bind') {
                             glowObjs[cmd.idx].bind(cmd.val, process)
                         } else if (cmd.method === 'unbind') {
-                            glowObjs[cmd.idx].unbind(cmd.val, process)                     
+                            glowObjs[cmd.idx].unbind(cmd.val, process)
                         } else if (cmd.method === "follow") {
                             glowObjs[cmd.idx].camera.follow(glowObjs[cmd.val])
+						} else if (cmd.method === 'waitfor') {
+							console.log('waitfor', cmd)
+							waitfor_canvas = cmd.idx
+							waitfor_options = cmd.val
+							glowObjs[cmd.idx].bind(waitfor_options, process_waitfor)
                         } else if (cmd.method === 'pause') {
+							waitfor_canvas = cmd.idx
+							waitfor_options = 'click'
                             if (cmd.val.length > 0) {
-                               glowObjs[cmd.idx].pause(cmd.val, process_pause) 
+                               glowObjs[cmd.idx].pause(cmd.val, process_waitfor) 
                             } else {
-                               glowObjs[cmd.idx].pause(process_pause) 
+                               glowObjs[cmd.idx].pause(process_waitfor) 
                             }
                         } else if (cmd.method === 'pick') {
                             var p = glowObjs[cmd.val].mouse.pick()   // wait for pick render; cmd.val is canvas
@@ -664,8 +733,7 @@ function handler(msg) {
                 }
             }
         }
-    }
-    if (timer === null) update_canvas()
+    } 
 };
 console.log("END OF GLOWCOMM");
 

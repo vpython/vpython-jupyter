@@ -50,6 +50,7 @@ var sliders = {}
 
 function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
     "use strict";
+	console.log('process', event)
 	var evt = {event:event.type}
     var idx = event.canvas['idx']
     evt.canvas = idx
@@ -63,11 +64,23 @@ function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mous
 	evt.alt = event.canvas.mouse.alt
 	evt.ctrl = event.canvas.mouse.ctrl
 	evt.shift = event.canvas.mouse.shift
-    comm.send( {arguments: [evt]} )
+    comm.send( evt )
+}
+
+var waitfor_canvas = null
+var waitfor_options = null
+
+function process_waitfor(event) {
+    "use strict";
+    // come here on a pause or waitfor
+	console.log('process_waitfor', event)
+	waitfor_canvas.unbind(waitfor_options, process_waitfor)
+	process(event)
 }
 
 function process_pause(event) {
     "use strict";
+	console.log('process_pause', event)
     return // ignore return from pause; a regular click event will follow
 }
 
@@ -94,7 +107,7 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
     } else {
         console.log('unrecognized control', 'obj=', obj, obj.text)
     }
-    comm.send( {arguments: [evt]} )
+    comm.send( evt )
 }
 
 var timer = null
@@ -112,13 +125,13 @@ function update_canvas() { // mouse location and other stuff
     //console.log(t-tstart)
     //tstart = t
     for (var ss in sliders){
-        comm.send( { arguments: [ sliders[ss] ] } )
+        comm.send( sliders[ss] )
     }
     sliders = {}
     var dosend = false
     var evt = {event:'update_canvas'}
     if (canvas.hasmouse === null || canvas.hasmouse === undefined) {
-        comm.send( {arguments: [{event:'update_canvas', 'trigger':1}]} )
+        comm.send( {event:'update_canvas', 'trigger':1} )
         return
     } 
     var cvs = canvas.hasmouse  // only way to change these values is with mouse
@@ -150,20 +163,20 @@ function update_canvas() { // mouse location and other stuff
         if (autoscale !== lastautoscale) {evt.autoscale = autoscale; dosend=true}
         lastautoscale = autoscale
     }
-    if (dosend) comm.send( {arguments: [evt]} )
-    else comm.send( {arguments: [{event:'update_canvas', 'trigger':1}]} )
+    if (dosend) comm.send( evt )
+    else comm.send( {event:'update_canvas', 'trigger':1} )
 }
 
 function send_pick(cvs, p, seg) {
     "use strict";
     var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg}
-    comm.send( {arguments: [evt]} ) 
+    comm.send( evt ) 
 }
 
 function send_compound(cvs, pos, size) {
     "use strict";
     var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 'size': [size.x, size.y, size.z]}
-    comm.send( {arguments: [evt]} )
+    comm.send( evt )
 }
 
 // attrs are X in {'a': '23X....'}
@@ -203,7 +216,8 @@ var methods = {'a':'select', 'c':'start', 'd':'stop', 'f':'clear', // unused bsx
            'i':'append', 'j':'npoints', 'k':'pop', 'l':'shift', 'm':'unshift',
            'n':'slice', 'o':'splice', 'p':'modify', 'q':'plot', 's':'add_to_trail',
            't':'follow', 'u':'append_to_caption', 'v':'append_to_title', 'w':'clear_trail',
-           'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint'}
+           'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
+		   'M':'delete'}
          
 var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 'textcolor',
                 'direction', 'linecolor', 'bumpaxis', 'dotcolor', 'ambient', 'add_to_trail',
@@ -257,6 +271,8 @@ function decode(data) { // [ [{'a': '3c0.0,1.0,1.0'}], .....] or can be a method
                 start += m[1].length+m[2].length+2
                 if (start > s.length) break
             }
+		} else if (attr == 'waitfor' || attr == 'pause' || attr == 'delete') {
+			val = m[3]
         } else val = Number(m[3])
         out = {'idx':idx, 'val':val}
         out[datatype] = attr
@@ -295,8 +311,8 @@ function handler(msg) {
         timer = setTimeout(update_canvas, dt)
         return
     }
-	//console.log('\n\n**** '+data.length+' ******************************************')
-	//for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
+	console.log('\n\n**** '+data.length+' ******************************************')
+	for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -350,7 +366,7 @@ function handler(msg) {
                         var val = cmd.val
                         if (cmd.method == 'GSprint') {
                             GSprint(cmd.val)
-                        } else if (val == 'None') {
+                        } else if (val === 'None') {
                             if (cmd.method == 'delete') glowObjs[cmd.idx]['remove']()
                             else glowObjs[cmd.idx][cmd.method]()
                         } else if ((cmd.method === 'title' || cmd.method === 'caption') && glowObjs[cmd.idx] instanceof canvas) {
@@ -365,12 +381,21 @@ function handler(msg) {
                             glowObjs[cmd.idx].unbind(cmd.val, process)                     
                         } else if (cmd.method === "follow") {
                             glowObjs[cmd.idx].camera.follow(glowObjs[cmd.val])
+						} else if (cmd.method === 'waitfor') {
+							console.log('waitfor', cmd.val)
+							waitfor_canvas = glowObjs[cmd.idx]
+							waitfor_options = cmd.val
+							waitfor_canvas.bind(waitfor_options, process_waitfor)
                         } else if (cmd.method === 'pause') {
+							console.log('pause ['+cmd.val+']')
+							waitfor_canvas = glowObjs[cmd.idx]
+							waitfor_options = 'click'
                             if (cmd.val.length > 0) {
-                               glowObjs[cmd.idx].pause(cmd.val, process_pause) 
+                               waitfor_canvas.pause(cmd.val, process_pause) 
                             } else {
-                               glowObjs[cmd.idx].pause(process_pause) 
+                               waitfor_canvas.pause(process_pause) 
                             }
+							waitfor_canvas.bind(waitfor_options, process_waitfor)
                         } else if (cmd.method === 'pick') {
                             var p = glowObjs[cmd.val].mouse.pick()   // wait for pick render; cmd.val is canvas
                             var seg = null

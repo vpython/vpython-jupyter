@@ -100,7 +100,8 @@ methods = {'select':'a', 'start':'c', 'stop':'d', 'clear':'f', # unused bexyCDFg
            'pop':'k', 'shift':'l', 'unshift':'m',
            'slice':'n', 'splice':'o', 'modify':'p', 'plot':'q', 'add_to_trail':'s',
            'follow':'t', 'append_to_caption':'u', 'append_to_title':'v', 'clear_trail':'w',
-           'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L'}
+           'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L',
+           'delete':'M'}
 
 vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
             'direction', 'linecolor', 'bumpaxis', 'dotcolor', 'add_to_trail', 'textcolor',
@@ -145,7 +146,7 @@ def encode_attr(L): # L is a list of dictionaries
                 s += "{:.16G},{:.16G},".format(p[0], p[1])
             s =s[:-1]
         elif sendtype == 'm':
-            if sendval == 'follow': val = str(val) # scene.camera.follow(object idx)
+            if sendval in ['follow', 'waitfor', 'delete']: val = str(val) # scene.camera.follow(object idx)
             s += val
         else:
             s += "{:.16G}".format(val)
@@ -156,15 +157,13 @@ object_registry = {}    ## idx -> instance
 attach_arrows = []
 attach_trails = []  ## needed only for functions
 _sent = True  ## set to True when commsend completes; needed for canvas.waitfor(...)
-sender = None # set this to be the equivalent of baseObj.glow.comm.send (the Jupyter case)
-interact_loop = None # used in non-notebook case
-_do_loop = False # used by atexit function in non-notebook environment
 
 class RateKeeper2(RateKeeper):
     
     def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
         self.rval = 30
         self.tocall = None
+        self.lasttime = 0
         super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
 
     def sendtofrontend(self):
@@ -180,9 +179,15 @@ class RateKeeper2(RateKeeper):
                 kernel.do_one_iteration()
                 kernel.set_parent(ident, parent)
         else:
-            # stop + run_forever is how to implement running the interact loop once
-            interact_loop.stop()
-            interact_loop.run_forever()
+            #print('.', sep='', end='')
+            #server.handle_request() # one-shot running of http server
+            # stop + run_forever is how to implement running the websocket interact loop once
+##            try:
+##                interact_loop.stop()
+##                interact_loop.run_forever()
+##            except:
+##                pass
+            self.lasttime = clock()
             
     def __call__(self, N): # rate(N) calls this function
 ##        if (not self.active) or (N != self.rval):
@@ -397,12 +402,12 @@ class GlowWidget(object):
             comm.on_msg(self.handle_msg)
             comm.on_close(self.handle_close)
             sender = comm.send
-        self.show = True
+            self.show = True
 
     ## object_registry = {}
     ## idx -> instance
     def handle_msg(self, msg):
-        evt = msg['content']['data']['arguments'][0]
+        evt = msg['content']['data']
         if 'widget' in evt:
             obj = object_registry[evt['idx']]
             if evt['widget'] == 'button':
@@ -428,7 +433,8 @@ class GlowWidget(object):
             if 'trigger' not in evt:
                 cvs = object_registry[evt['canvas']]
                 cvs.handle_event(evt)
-            trigger()
+            if isnotebook:
+                trigger()
 
     def handle_close(self, data):
         print ("comm closed")
@@ -519,9 +525,13 @@ if isnotebook:
     ########################################################################################
     
 else: # not running in Jupyter notebook
+    # Not using websockets seems doomed, because the roundtrip from sending a message
+    # from client to server with response back to client takes a long time.
+    # Here is a sequence of such round-trip times in milliseconds:
+    # 276, 28, 288, 316, 16, 308, 249, 305, 63, 254, 52, 268, 303, 40
     
     from http.server import BaseHTTPRequestHandler, HTTPServer
-    from os import curdir, sep
+    from os import sep
     import webbrowser
     import asyncio
     import json
@@ -530,107 +540,140 @@ else: # not running in Jupyter notebook
     HTTP_PORT = 9000
     serverlib = __file__.replace('vpython.py','vpython_libraries')
     serverdata = __file__.replace('vpython.py','vpython_data')
+    mimes = {'html':['text/html', serverlib],
+              'js' :['application/javascript', serverlib],
+              'css':['text/css', serverlib],
+              'jpg':['image/jpg', serverdata],
+              'otf':['application/x-font-otf', serverdata],
+              'ttf':['application/x-font-ttf', serverdata],
+              'ico':['image/x-icon', serverdata]}
 
+    # Requests from client can be the following:
+    #    get glowcomm.html, library .js files, images, or font files
+    #    trigger event; return data (constructors, attributes, methods)
+    #    other event; process, pick, compound
+
+    GW = None
+
+    t0 = clock()
     class serveHTTP(BaseHTTPRequestHandler):
+        lock = threading.Lock()
             
         def do_GET(self):
+            global t0, GW
+            #serveHTTP.lock.acquire() # Do we need to lock this code?
+            if GW is None: GW = GlowWidget(None, None)
             if self.path == "/":
                 self.path = sep+'glowcomm.html'
             elif self.path[0] == "/":
                 self.path = sep+self.path[1:]
+            f = self.path.rfind('.')
+            fext = None
+            if f > 0: fext = self.path[f+1:]
             try:
-                sendReply = False
-                if self.path.endswith(".jpg") or self.path.endswith(".jpeg"):
-                    self.path = serverdata+self.path
-                    mimetype='image/jpg'
-                    sendReply = True
-                elif self.path.endswith(".otf") or self.path.endswith(".ttf"):
-                    self.path = serverdata+self.path
-                    mimetype='image/'+self.path[-3:]
-                    sendReply = True
-                elif self.path.endswith(".html"):
-                    self.path = serverlib+self.path
-                    mimetype='text/html'
-                    sendReply = True
-                elif self.path.endswith(".js"):
-                    self.path = serverlib+self.path
-                    mimetype='application/javascript'
-                    sendReply = True
-                elif self.path.endswith(".css"):
-                    self.path = serverlib+self.path
-                    mimetype='text/css'
-                    sendReply = True
-                elif self.path.endswith(".ico"):
-                    mimetype='image/x-icon'
-                    sendReply = True
-                elif self.path.endswith(".gif"):
-                    mimetype='image/gif'
-                    sendReply = True
-
-                if sendReply == True:
-                    f = open(self.path, 'rb')
+                if fext in mimes:
+                    mime = mimes[fext]
+                    loc = mime[1] + self.path
+                    fd = open(loc, 'rb') 
                     self.send_response(200)
-                    self.send_header('Content-type',mimetype)
-                    # CORS enable:
-                    #self.send_header("Access-Control-Allow-Origin", "*")
+                    self.send_header('Content-type', mime[0])
                     self.end_headers()
-                    self.wfile.write(f.read())
-                    f.close()
+                    self.wfile.write(fd.read())
+                    fd.close()
+##                else: # handle event
+##                    self.send_response(200)
+##                    self.send_header('Content-type','text/plain')
+##                    self.end_headers()
+##                    jdata = json.dumps('ok', separators=(',', ':')).encode('utf_8')
+##                    self.wfile.write(jdata)
+##                    
+##                    # Restore spaces and braces to the string:
+##                    data = self.path[1:].replace('%22', '"')
+##                    data = data.replace('%7B', '{')
+##                    data = data.replace('%7D', '}')
+##                    data = bytes(data, 'utf_8') # json expects a binary string
+##                    
+##                    d = json.loads(data.decode("utf_8"))
+##                    msg = {'content':{'data':d}} # message format used by notebook
+##                    GW.handle_msg(msg)
+                #serveHTTP.lock.release()
+##                    if (clock()-rate.lasttime) > 0.3:
+##                        try:
+##                            interact_loop.run_forever()
+##                            interact_loop.stop()
+##                        except:
+##                            pass
             except IOError:
-                    self.send_error(404,'File Not Found: %s' % self.path)
-                    
-        def log_message(self, format, *args): # this suppresses server stderr output
+                    self.send_error(404,'File Not Found: {}'.format(self.path))
+                        
+        def log_message(self, format, *args): # this overrides server stderr output
             return
 
     SOCKET_PORT = 9001
     # http://stackoverflow.com/questions/43551026/cors-enable-autobahn-asyncio-websocket-server
 
     from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
-
-    class ServerProtocol(WebSocketServerProtocol):
+    
+    class WSserver(WebSocketServerProtocol):
         # Data sent and received must be type "bytes", so use string.encode and string.decode
         connection = None
+        objdata = []
+        lock = threading.Lock()
 
-        def send(self, data):
-            j = json.dumps(data, separators=(',', ':')).encode('utf_8')
-            self.sendMessage(j, isBinary=False)
+        @staticmethod
+        def bufferdata(d): # store data to be sent to client
+            WSserver.objdata.extend(d)
 
         def onConnect(self, request):
             self.connection = self
 
         def onOpen(self):
-            global sender
-            sender = self.send
-            self.widget = GlowWidget(self, None)
+            global GW
+            if GW is None: GW = GlowWidget(None, None)
 
-        def onMessage(self, data, isBinary):
-            d = json.loads(data.decode("utf-8"))
-            # mock up message format for notebook: evt = msg['content']['data']['arguments'][0]
-            msg = {'content':{'data':d}}
-            self.widget.handle_msg(msg)
+        async def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
+            #WSserver.lock.acquire() # Do we need to lock this code?
+            commsend()
+            if len(WSserver.objdata) > 0:
+                d = WSserver.objdata
+                jdata = json.dumps(d, separators=(',', ':')).encode('utf_8')
+                self.sendMessage(jdata, isBinary=False)
+            WSserver.objdata = []
+            if data == b'trigger': return # nothing but a trigger from the client, asking for updates
+            d = json.loads(data.decode("utf_8")) # update_canvas info
+            for m in d:
+                msg = {'content':{'data':m}} # message format used by notebook
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, GW.handle_msg, msg)
+            #WSserver.lock.release()
 
         def onClose(self, wasClean, code, reason):
             #print("Server WebSocket connection closed: {0}".format(reason))
             self.connection = None
 
     factory = WebSocketServerFactory(u"ws://localhost:{}/".format(SOCKET_PORT))
-    #factory.setProtocolOptions(allowedOrigins=['*'])
-    factory.protocol = ServerProtocol
+    factory.protocol = WSserver
     interact_loop = asyncio.get_event_loop()
     coro = interact_loop.create_server(factory, '0.0.0.0', SOCKET_PORT)
     interact_loop.run_until_complete(coro)
-    #interact_loop.run_forever()
+    sender = WSserver.bufferdata
     #interact_loop.stop()
+    #interact_loop.run_forever()
     # Need to put interact loop inside a thread in order to get a display
     # in the absence of a loop containing a rate statement.
-##    t = threading.Thread(target=interact_loop.run_forever)
-##    t.start()
+    t = threading.Thread(target=interact_loop.run_forever)
+    t.start()
 
     server = HTTPServer(('', HTTP_PORT), serveHTTP)
     webbrowser.open('http://localhost:{}'.format(HTTP_PORT)) # or webbrowser.open_new_tab()
     w = threading.Thread(target=server.serve_forever)
     w.start()
-    # server.handle_request() may be a single-shot interaction; not sure
+    # server.handle_request() is a single-shot interaction
+
+def _wait(cvs): # wait for an event
+    cvs._waitfor = False
+    while cvs._waitfor is False:
+        rate(30)
 
 class color(object):
     black = vector(0,0,0)
@@ -1344,7 +1387,8 @@ class standardAttributes(baseObj):
         for k, v in args.items():   # overrides and user attrs
             newargs[k] = v
         # wait for cloning objects to exist
-        while len(baseObj.cmds) > 0 or len(baseObj.updtobjs) > 0: pass
+        while len(baseObj.cmds) > 0 or len(baseObj.updtobjs) > 0:
+            rate(60)
         if objName[:8] == 'compound' or objName == 'extrusion':
             return compound([], **newargs)
         else:
@@ -1669,7 +1713,7 @@ class compound(standardAttributes):
         idxlist = []
         # wait for compounding or cloning objects to exist
         while len(baseObj.cmds) > 0 or len(baseObj.updtobjs) > 0:
-            rate(60)
+            rate(60)            
         ineligible = [label, curve, helix, points]  ## type objects
         cloning =  None
         if '_cloneid' in args:
@@ -1698,10 +1742,8 @@ class compound(standardAttributes):
             obj._visible = False  ## ideally these should be deleted
             
         if cloning is None:
-            self.canvas._waitfor = False
             self.canvas._compound = self # used by event handler to update pos and size
-            while self.canvas._waitfor is False:
-                rate(60)
+            _wait(self.canvas)
         if savesize is not None:
             self.size = savesize
 
@@ -2070,7 +2112,7 @@ class curveMethods(standardAttributes):
         if start >= len(self._pts) or (start < 0 and -start >= len(self._pts)):
             raise ValueError('The starting location, {}, is outside the bounds of the list of points'.format(start))
         if start >= 0:
-            if start+howmany >= len(self._pts):
+            if start+howmany > len(self._pts):
                 raise ValueError('The starting position plus deletions is beyond the list of points'.format(howmany))
         else:
             if start+howmany >= 0:
@@ -2080,7 +2122,7 @@ class curveMethods(standardAttributes):
         self.appendcmd({"val":[start, howmany, cps[:]], "method":"splice","idx":self.idx})
     
     def modify(self, N, *arg1, **args):
-        attrs = ['color', 'radius', 'visible', 'retain']
+        attrs = ['pos', 'color', 'radius', 'visible', 'retain']
         if N >= len(self._pts) or (N < 0 and -N >= len(self._pts)):
             raise ValueError('N = {} is outside the bounds 0-{} of the curve points'.format(N, len(self._pts)))
         p = self._pts[N]
@@ -2089,22 +2131,24 @@ class curveMethods(standardAttributes):
             p['pos'] = arg1[0]
             cp['pos'] = arg1[0].value
         else:
+            pos = p['pos']
             for a in args:
                 if a == 'x':
-                    p['pos'].x = args[a]
-                    cp['pos'][0] = args[a]
+                    pos.x = args[a]
                 elif a == 'y':
-                    p['pos'].y = args[a]
-                    cp['pos'][1] = args[a]
+                    pos.y = args[a]
                 elif a == 'z':
-                    p['pos'].z = args[a]
-                    cp['pos'][2] = args[a]
+                    pos.z = args[a]
                 elif a in attrs:
                     p[a] = args[a]
-                    if a == 'color':
+                    if a == 'pos':
+                        pos = args[a]
+                    elif a == 'color':
                         cp[a] = args[a].value
                     else:
                         cp[a] = args[a]
+            cp['pos'] = pos.value
+            
         self.appendcmd({"val":[N, [cp]], "method":"modify","idx":self.idx})
         
     @property
@@ -2122,6 +2166,16 @@ class curveMethods(standardAttributes):
     @pos.setter
     def pos(self,val):
         raise AttributeError('use object methods to change its shape')
+
+    def rotate(self, **args):
+        raise AttributeError('Currently curve and points rotate is broken')
+        angle = 0
+        axis = vector(0,0,1)
+        origin = self.origin
+        if 'angle' in args: angle = args['angle']
+        if 'axis' in args: axis = args['axis']
+        if 'origin' in args: origin = args['origin']
+        
      
     # def __del__(self):
         # pass
@@ -2524,6 +2578,9 @@ class graph(baseObj):
         self._ymax = val
         self.addattr('ymax')
 
+    def delete(self):
+        self.addmethod('delete','None')
+
     def _ipython_display_(self): # don't print something when making an (anonymous) graph
         pass
     
@@ -2709,6 +2766,8 @@ class Mouse(baseObj):
         
     @property
     def pos(self):
+        if self._pos is None: # can be none if mouse has never been inside canvas
+            self._pos = vector(0,0,0)
         return self._pos    
     @pos.setter
     def pos(self,value):
@@ -2745,9 +2804,7 @@ class Mouse(baseObj):
     @property
     def pick(self):
         self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1, '_pass':1 })
-        self._pick_ready = False
-        while self._pick_ready == False: # wait for render to finish and call setpick
-            rate(60)
+        _wait(self._canvas) # wait for render to finish and call setpick
         return self._pick            
     @pick.setter
     def pick(self, value):
@@ -2762,7 +2819,6 @@ class Mouse(baseObj):
             self._pick = po
         else:
             self._pick = None
-        self._pick_ready = True
 
     def project(self, **args):
         if 'normal' not in args:
@@ -2836,12 +2892,9 @@ class canvas(baseObj):
     maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
     
     def __init__(self, **args):
-        global _do_loop
         if isnotebook:
             display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
             display(Javascript("""window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
-        else:
-            _do_loop = True # atexit function uses this to keep canvas alive
 
         super(canvas, self).__init__()   ## get idx, attrsupdt
         
@@ -2928,6 +2981,9 @@ class canvas(baseObj):
     def select(self):
         canvas.selected_canvas = self
         self.addmethod('select','None')
+
+    def delete(self):
+        self.addmethod('delete','None')
 
     @classmethod
     def get_selected(cls):
@@ -3148,12 +3204,14 @@ class canvas(baseObj):
         except:
             raise TypeError(obj + ' is not an object belonging to a canvas')
             
-## key events conflict with notebook command mode; not permitted for now
-        
+## key events conflict with notebook command mode; not permitted for now   
     def handle_event(self, evt):  ## events and scene info updates
         ev = evt['event']
         if ev == 'pick':
             self.mouse.setpick( evt )
+            self._waitfor = True # what pick is looking for
+        elif ev == 'waitfor':
+            self._waitfor = True # what pause/waitfor is looking for
         elif ev == '_compound':
             obj = self._compound
             p = evt['pos']
@@ -3165,7 +3223,7 @@ class canvas(baseObj):
                 s = evt['size']
                 obj._size = list_to_vec(s)
                 obj._axis = obj._size._x*norm(obj._axis)
-            self._waitfor = True
+            self._waitfor = True # what compound and text and extrusion are looking for
         else:
             if 'pos' in evt:
                 pos = evt['pos']
@@ -3176,7 +3234,7 @@ class canvas(baseObj):
                 evt['ray'] = list_to_vec(ray)
                 self.mouse._ray = evt['ray']
             canvas.hasmouse = self  
-            if ev != 'update_canvas':   ## mouse events bound to functions
+            if ev != 'update_canvas':   ## mouse events bound to functions, and pause/waitfor
                 evt['canvas'] = self
                 self.mouse._alt = evt['alt']
                 self.mouse._shift = evt['shift']
@@ -3192,6 +3250,7 @@ class canvas(baseObj):
                         a = getargspec(fct)
                         if len(a.args) > 0: fct( evt1 ) 
                         else: fct()
+                self._waitfor = True # what pause and waitfor are looking for
             else:  ## user can change forward with spin, range/autoscale with zoom, up with touch gesture
                 if 'forward' in evt and self.userspin and not self._set_forward:
                     fwd = evt['forward']
@@ -3222,28 +3281,21 @@ class canvas(baseObj):
         for evt in evts:
             if evt in self._binds and whatnottodo in self._binds[evt]:
                 self._binds[evt].remove(whatnottodo)
-        self.addmethod('unbind', eventtype)
-        
-    def fwaitfor(self, event):
-        self._waitfor = True       
+        self.addmethod('unbind', eventtype)      
         
     def waitfor(self, eventtype):
         global _sent
         if 'textures' in eventtype: # textures are local; no need to wait
             eventtype = eventtype.replace('textures', '')
             if eventtype == '': return
-        evts = ['redraw', 'draw_complete']
+        evts = ['redraw', 'draw_complete'] # wait for a render
         if eventtype in evts:
             _sent = False
-            while not _sent: # set by commsend
+            while _sent is False:
                 rate(60)
         else:
-            self._waitfor = False    
-            self.bind(eventtype, self.fwaitfor)
-            while not self._waitfor:
-                rate(60)
-            scene.append_to_caption('\nafter',_sent)
-            self.unbind(eventtype, self.fwaitfor)
+            self.addmethod('waitfor', eventtype)
+            _wait(self)
         
     def pause(self,*s):
         if len(s) > 0:
@@ -3251,11 +3303,7 @@ class canvas(baseObj):
             self.addmethod('pause', s)
         else:
             self.addmethod('pause', '')
-        self._waitfor = False
-        self.bind('click', self.fwaitfor)
-        while self._waitfor is False:
-            rate(60)
-        self.unbind('click', self.fwaitfor)
+        _wait(self)
 
     def _on_forward_change(self):
         self.addattr('forward')
@@ -3650,8 +3698,7 @@ class extrusion(standardAttributes):
         
         self.canvas._waitfor = False
         self.canvas._compound = self # used by event handler to update pos and size
-        while self.canvas._waitfor is False:
-            rate(60)
+        _wait(self.canvas)
         if savesize is not None:
             self.size = savesize
         
@@ -3759,10 +3806,8 @@ class text(standardAttributes):
         super(text, self).setup(args)
         
         if cloning is None:
-            self.canvas._waitfor = False
             self.canvas._compound = self # used by event handler to update pos and size
-            while self.canvas._waitfor is False:
-                rate(60)
+            _wait(self.canvas)
             if savesize is not None:
                 self.size = savesize
         
@@ -4000,4 +4045,5 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
     s = s[:-1]
     return(s)
 
-trigger() # start the trigger ping-pong process
+if isnotebook:
+    trigger() # start the trigger ping-pong process
