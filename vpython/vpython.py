@@ -631,7 +631,10 @@ else: # not running in Jupyter notebook
             global GW
             if GW is None: GW = GlowWidget(None, None)
 
-        async def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
+        # For Python 3.5 and later, the newer syntax eliminates "@asyncio.coroutine"
+        # in favor of "async def onMessage...", and "yeild from" with "await".
+        @asyncio.coroutine
+        def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
             #WSserver.lock.acquire() # Do we need to lock this code?
             commsend()
             if len(WSserver.objdata) > 0:
@@ -644,7 +647,7 @@ else: # not running in Jupyter notebook
             for m in d:
                 msg = {'content':{'data':m}} # message format used by notebook
                 loop = asyncio.get_event_loop()
-                await loop.run_in_executor(None, GW.handle_msg, msg)
+                yield from loop.run_in_executor(None, GW.handle_msg, msg)
             #WSserver.lock.release()
 
         def onClose(self, wasClean, code, reason):
@@ -1303,13 +1306,15 @@ class standardAttributes(baseObj):
         else:
             rotaxis = axis
         if self._objName != 'text': # pos of text extrusion is not at text.pos
-            if origin == None:
-                origin = self.pos
-            newpos = origin+(self.pos-origin).rotate(angle, rotaxis)
             if isinstance(self, curve):
-                self.origin = newpos
+                if origin is None: origin = self.origin
+                pos = self.origin
             else:
-                self.pos = newpos
+                if origin is None: origin = self.pos
+                pos = self.pos
+            newpos = origin+(pos-origin).rotate(angle, rotaxis)
+            if isinstance(self, curve): self.origin = newpos
+            else: self.pos = newpos
         axis = self._axis
         
         self._adjustupaxis = False # temporarily remove linkage of axis and up
@@ -2165,17 +2170,7 @@ class curveMethods(standardAttributes):
         raise AttributeError('object does not have a "pos" attribute')
     @pos.setter
     def pos(self,val):
-        raise AttributeError('use object methods to change its shape')
-
-    def rotate(self, **args):
-        raise AttributeError('Currently curve and points rotate is broken')
-        angle = 0
-        axis = vector(0,0,1)
-        origin = self.origin
-        if 'angle' in args: angle = args['angle']
-        if 'axis' in args: axis = args['axis']
-        if 'origin' in args: origin = args['origin']
-        
+        raise AttributeError('use object methods to change its shape')        
      
     # def __del__(self):
         # pass
@@ -2228,11 +2223,13 @@ class points(curveMethods):
                 
     @property
     def origin(self):   
-        raise AttributeError('points object does not have an origin')
+        raise AttributeError('The points object does not have an origin')
     @origin.setter
     def origin(self,value):
-        raise AttributeError('points object does not have an origin')
-        
+        raise AttributeError('The points object does not have an origin')
+
+    def rotate(self, **args):
+        raise AttributeError('The points object has no rotate method.')        
         
 class gobj(baseObj):
     def setup(self, args):
