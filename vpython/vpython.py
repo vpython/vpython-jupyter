@@ -544,6 +544,7 @@ else: # not running in Jupyter notebook
               'js' :['application/javascript', serverlib],
               'css':['text/css', serverlib],
               'jpg':['image/jpg', serverdata],
+              'png':['image/png', serverlib],
               'otf':['application/x-font-otf', serverdata],
               'ttf':['application/x-font-ttf', serverdata],
               'ico':['image/x-icon', serverdata]}
@@ -561,7 +562,6 @@ else: # not running in Jupyter notebook
             
         def do_GET(self):
             global t0, GW
-            #serveHTTP.lock.acquire() # Do we need to lock this code?
             if GW is None: GW = GlowWidget(None, None)
             if self.path == "/":
                 self.path = sep+'glowcomm.html'
@@ -580,29 +580,6 @@ else: # not running in Jupyter notebook
                     self.end_headers()
                     self.wfile.write(fd.read())
                     fd.close()
-##                else: # handle event
-##                    self.send_response(200)
-##                    self.send_header('Content-type','text/plain')
-##                    self.end_headers()
-##                    jdata = json.dumps('ok', separators=(',', ':')).encode('utf_8')
-##                    self.wfile.write(jdata)
-##                    
-##                    # Restore spaces and braces to the string:
-##                    data = self.path[1:].replace('%22', '"')
-##                    data = data.replace('%7B', '{')
-##                    data = data.replace('%7D', '}')
-##                    data = bytes(data, 'utf_8') # json expects a binary string
-##                    
-##                    d = json.loads(data.decode("utf_8"))
-##                    msg = {'content':{'data':d}} # message format used by notebook
-##                    GW.handle_msg(msg)
-                #serveHTTP.lock.release()
-##                    if (clock()-rate.lasttime) > 0.3:
-##                        try:
-##                            interact_loop.run_forever()
-##                            interact_loop.stop()
-##                        except:
-##                            pass
             except IOError:
                     self.send_error(404,'File Not Found: {}'.format(self.path))
                         
@@ -635,7 +612,6 @@ else: # not running in Jupyter notebook
         # in favor of "async def onMessage...", and "yeild from" with "await".
         @asyncio.coroutine
         def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
-            #WSserver.lock.acquire() # Do we need to lock this code?
             commsend()
             if len(WSserver.objdata) > 0:
                 d = WSserver.objdata
@@ -646,9 +622,11 @@ else: # not running in Jupyter notebook
             d = json.loads(data.decode("utf_8")) # update_canvas info
             for m in d:
                 msg = {'content':{'data':m}} # message format used by notebook
-                loop = asyncio.get_event_loop()
-                yield from loop.run_in_executor(None, GW.handle_msg, msg)
-            #WSserver.lock.release()
+                if 'bind' in m: # will execute a function that may contain waitfor etc. statements
+                    loop = asyncio.get_event_loop()
+                    yield from loop.run_in_executor(None, GW.handle_msg, msg)
+                else:
+                    GW.handle_msg(msg)
 
         def onClose(self, wasClean, code, reason):
             #print("Server WebSocket connection closed: {0}".format(reason))
@@ -2929,8 +2907,8 @@ class canvas(baseObj):
         self._mouse = Mouse(self)
         self._binds = {'mousedown':[], 'mouseup':[], 'mousemove':[],'click':[],
                         'mouseenter':[], 'mouseleave':[], 'keydown':[], 'keyup':[],
-                        'redraw':[], 'draw_complete':[],
-                        '_compound':[]}
+                        'redraw':[], 'draw_complete':[]}
+                        #'_compound':[]}
             # no key events unless notebook command mode can be disabled
         self._camera = Camera(self)
         self.title_anchor = 1  ## used by buttons etc.

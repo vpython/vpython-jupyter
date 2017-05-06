@@ -50,7 +50,6 @@ var sliders = {}
 
 function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
     "use strict";
-	console.log('process', event)
 	var evt = {event:event.type}
     var idx = event.canvas['idx']
     evt.canvas = idx
@@ -73,14 +72,12 @@ var waitfor_options = null
 function process_waitfor(event) {
     "use strict";
     // come here on a pause or waitfor
-	console.log('process_waitfor', event)
 	waitfor_canvas.unbind(waitfor_options, process_waitfor)
 	process(event)
 }
 
 function process_pause(event) {
     "use strict";
-	console.log('process_pause', event)
     return // ignore return from pause; a regular click event will follow
 }
 
@@ -311,8 +308,8 @@ function handler(msg) {
         timer = setTimeout(update_canvas, dt)
         return
     }
-	console.log('\n\n**** '+data.length+' ******************************************')
-	for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
+	//console.log('\n\n**** '+data.length+' ******************************************')
+	//for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
 
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
@@ -382,12 +379,10 @@ function handler(msg) {
                         } else if (cmd.method === "follow") {
                             glowObjs[cmd.idx].camera.follow(glowObjs[cmd.val])
 						} else if (cmd.method === 'waitfor') {
-							console.log('waitfor', cmd.val)
 							waitfor_canvas = glowObjs[cmd.idx]
 							waitfor_options = cmd.val
 							waitfor_canvas.bind(waitfor_options, process_waitfor)
                         } else if (cmd.method === 'pause') {
-							console.log('pause ['+cmd.val+']')
 							waitfor_canvas = glowObjs[cmd.idx]
 							waitfor_options = 'click'
                             if (cmd.val.length > 0) {

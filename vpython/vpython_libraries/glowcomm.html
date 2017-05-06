@@ -1,5 +1,6 @@
 <head>
 <link type="text/css" href="ide.css" rel="stylesheet" />
+<link type="text/css" href="jquery-ui.custom.css" rel="stylesheet" />
 <script type="text/javascript" src="jquery.min.js"></script>
 <script type="text/javascript" src="jquery-ui.custom.min.js"></script>
 <script type="text/javascript" src="glow.min.js"></script>
@@ -48,15 +49,15 @@ function msclock() {
 
 var events = []
 
-function send() { // periodically send update_canvas to websocket and request object update
+function send() { // periodically send events and update_canvas to websocket and request object update
 	if (isopen) {
-		var data = update_canvas()
-		if (data === null && events.length > 0) data = events
-		else if (events.length > 0) data = data.concat(events)
+		var update = update_canvas()
+		if (update !== null) events = events.concat(update)
+		var msg
+		if (events.length > 0) msg = JSON.stringify(events)
+		else msg = 'trigger'
+		ws.send(msg)
 		events = []
-		if (data !== null) data = JSON.stringify(data)
-		else data = 'trigger' // trigger websocket to send updates on objects and attributes
-		ws.send(data)
 	}
 }
 
@@ -181,10 +182,12 @@ function send_compound(cvs, pos, size) {
 
 var waitfor_canvas = null
 var waitfor_options = null
+var binds = {'mousedown':0, 'mouseup':0, 'mousemove':0,'click':0, // count of functions bound to an event type
+			 'mouseenter':0, 'mouseleave':0, 'keydown':0, 'keyup':0,
+			 'redraw':0, 'draw_complete':0}
 
 function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
     "use strict";
-	console.log('process', event.type)
 	var evt = {event:event.type}
     var idx = event.canvas['idx']
     evt.canvas = idx
@@ -198,8 +201,13 @@ function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mous
 	evt.alt = event.canvas.mouse.alt
 	evt.ctrl = event.canvas.mouse.ctrl
 	evt.shift = event.canvas.mouse.shift
-	//send_to_server(evt, ok)
+	if ('bind' in event) evt.bind = true
 	events.push(evt)
+}
+
+function process_binding(event) { // event associated with a previous bind command
+	event.bind = true
+	process(event)
 }
 
 var sliders = {}
@@ -440,13 +448,23 @@ function handler(msg) {
                         } else if (cmd.method === 'add_to_trail') {
                             glowObjs[cmd.idx].pos = o2vec3(cmd.val)
                         } else if (cmd.method === 'bind') {
-                            glowObjs[cmd.idx].bind(cmd.val, process)
+							var evts = cmd.val.split(' ')
+							for (var evt in evts) {
+								var e = evts[evt]
+								if (e in binds) binds[e] += 1
+								else throw new Error('There is no error type "'+e+'"')
+							}
+                            glowObjs[cmd.idx].bind(cmd.val, process_binding)
                         } else if (cmd.method === 'unbind') {
-                            glowObjs[cmd.idx].unbind(cmd.val, process)
+							var evts = cmd.val.split(' ')
+							for (var evt in evts) {
+								var e = evts[evt]
+								if (e in binds) binds[e] -= 1
+								else throw new Error('There is no error type "'+e+'"')
+							}
                         } else if (cmd.method === "follow") {
                             glowObjs[cmd.idx].camera.follow(glowObjs[cmd.val])
 						} else if (cmd.method === 'waitfor') {
-							console.log('waitfor', cmd)
 							waitfor_canvas = cmd.idx
 							waitfor_options = cmd.val
 							glowObjs[cmd.idx].bind(waitfor_options, process_waitfor)
