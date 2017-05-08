@@ -521,6 +521,11 @@ else: # not running in Jupyter notebook
     # from client to server with response back to client takes a long time.
     # Here is a sequence of such round-trip times in milliseconds:
     # 276, 28, 288, 316, 16, 308, 249, 305, 63, 254, 52, 268, 303, 40
+
+    if not ispython3:
+        s = "The non-notebook version of vpython requires Python 3.4 or later."
+        s += "\nvpython does work on Python 2.7 in the Jupyter notebook environment."
+        raise Exception(s)
     
     from http.server import BaseHTTPRequestHandler, HTTPServer
     from os import sep
