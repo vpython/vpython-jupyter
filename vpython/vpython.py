@@ -179,14 +179,6 @@ class RateKeeper2(RateKeeper):
                 kernel.do_one_iteration()
                 kernel.set_parent(ident, parent)
         else:
-            #print('.', sep='', end='')
-            #server.handle_request() # one-shot running of http server
-            # stop + run_forever is how to implement running the websocket interact loop once
-##            try:
-##                interact_loop.stop()
-##                interact_loop.run_forever()
-##            except:
-##                pass
             self.lasttime = clock()
             
     def __call__(self, N): # rate(N) calls this function
@@ -275,10 +267,10 @@ def commsend():
     # Now there is no threading in Jupyter VPython. The function commsend(), which sends data to the
     # browser, is called from the trigger() function, which is called by a
     # canvas_update event sent to Python from the browser (glowcomm.js), currently
-    # every 30 milliseconds. When trigger() is called, it immediately signals
-    # the browser to set a timeout of 30 ms to send another signal to Python.
+    # every 33 milliseconds. When trigger() is called, it immediately signals
+    # the browser to set a timeout of 33 ms to send another signal to Python.
     # Note that a typical VPython program starts out by creating objects (constructors) and
-    # specifying their attributes. The 30 ms signal from the browser is adequate to ensure
+    # specifying their attributes. The 33 ms signal from the browser is adequate to ensure
     # prompt data transmissions to the browser.
 
     # The situation with non-notebook use is similar, but the http server is threaded,
@@ -590,6 +582,8 @@ else: # not running in Jupyter notebook
     # http://stackoverflow.com/questions/43551026/cors-enable-autobahn-asyncio-websocket-server
 
     from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
+
+    tstart = clock()
     
     class WSserver(WebSocketServerProtocol):
         # Data sent and received must be type "bytes", so use string.encode and string.decode
@@ -609,24 +603,26 @@ else: # not running in Jupyter notebook
             if GW is None: GW = GlowWidget(None, None)
 
         # For Python 3.5 and later, the newer syntax eliminates "@asyncio.coroutine"
-        # in favor of "async def onMessage...", and "yeild from" with "await".
+        # in favor of "async def onMessage...", and "yield from" with "await".
         @asyncio.coroutine
         def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
             commsend()
             if len(WSserver.objdata) > 0:
                 d = WSserver.objdata
                 jdata = json.dumps(d, separators=(',', ':')).encode('utf_8')
-                self.sendMessage(jdata, isBinary=False)
-            WSserver.objdata = []
-            if data == b'trigger': return # nothing but a trigger from the client, asking for updates
-            d = json.loads(data.decode("utf_8")) # update_canvas info
-            for m in d:
-                msg = {'content':{'data':m}} # message format used by notebook
-                if 'bind' in m: # will execute a function that may contain waitfor etc. statements
-                    loop = asyncio.get_event_loop()
-                    yield from loop.run_in_executor(None, GW.handle_msg, msg)
-                else:
-                    GW.handle_msg(msg)
+                WSserver.objdata = []
+            else:
+                jdata = b'trigger'
+            self.sendMessage(jdata, isBinary=False)
+            if data != b'trigger': # b'trigger' just asks for updates
+                d = json.loads(data.decode("utf_8")) # update_canvas info
+                for m in d:
+                    msg = {'content':{'data':m}} # message format used by notebook
+                    if 'bind' in m: # will execute a function that may contain waitfor etc. statements
+                        loop = asyncio.get_event_loop()
+                        yield from loop.run_in_executor(None, GW.handle_msg, msg)
+                    else:
+                        GW.handle_msg(msg)
 
         def onClose(self, wasClean, code, reason):
             #print("Server WebSocket connection closed: {0}".format(reason))

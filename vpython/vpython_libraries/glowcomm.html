@@ -11,25 +11,53 @@
 
 window.__context = { glowscript_container: $("#glowscript") }
 
-console.log('Start of glowcomm.html')
+console.log('START OF GLOWCOMM')
+
+function fontloading() { // trigger loading of fonts for 3D text
+	// override the fontloading url's in the GlowScript library
+	if (window.__font_sans === undefined) {
+		var fsans
+		fsans =  'Roboto-Medium.ttf' // a sans serif font
+		opentype_load(fsans, function(err, fontrefsans) {
+			if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
+			window.__font_sans = fontrefsans // an opentype.js Font object
+		})
+	}
+	if (window.__font_serif === undefined) {
+		var fserif
+		fserif = 'NimbusRomNo9L-Med.otf' // a serif font
+		opentype_load(fserif, function(err, fontrefserif) {
+			if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
+			window.__font_serif = fontrefserif // an opentype.js Font object
+		})
+	}
+}
+fontloading() // get the sans and serif font files used by 3D text
 
 var ws = null
 var isopen = false
 
 window.onload = function() {
-	console.log('window onload')
 
 	ws = new WebSocket("ws://localhost:9001")
 	ws.binaryType = "arraybuffer";
 
 	ws.onopen = function() {
-		isopen = true;
-		console.log('onopen')
+		isopen = true
 	}
 
 	ws.onmessage = function(e) {
-		var msg = JSON.parse(e.data)
-		if (msg != 'trigger') handler(msg)
+		if (timer !== null) clearTimeout(timer)
+		var t1 = msclock()
+		//if (timer !== null) clearTimeout(timer)
+		if (e.data != 'trigger') {
+			var data = decode(JSON.parse(e.data))
+			handler(data)
+		}
+		var t2 = msclock()
+		var dt = t1+interval-t2 // attempt to keep the time between renders constant
+		if (dt < 15) dt = 0     // becaause setTimeout is inaccurate for small dt's
+		timer = setTimeout(send, dt)
 	}
 
 	ws.onclose = function(e) {
@@ -42,12 +70,19 @@ window.onload = function() {
 	}
 }
 
+function awaitfonts() {
+	if (window.__font_sans === undefined || 
+			window.__font_serif === undefined || !isopen) setTimeout(awaitfonts, 0)
+	else ws.send('trigger') // ask server to send data
+}
+awaitfonts()
+
 function msclock() {
     if (performance.now) return performance.now()
     else return new Date().getTime()
 }
 
-var events = []
+var events = [] // collects all events prior to 33 ms (or more) after previous send to server
 
 function send() { // periodically send events and update_canvas to websocket and request object update
 	if (isopen) {
@@ -61,6 +96,7 @@ function send() { // periodically send events and update_canvas to websocket and
 	}
 }
 
+var timer = null
 var lastpos = vec(0,0,0)
 var lastray = vec(0,0,0)
 var lastforward = vec(0,0,0)
@@ -68,6 +104,7 @@ var lastup = vec(0,0,0)
 var lastrange = 1
 var lastautoscale = true
 var lastsliders = {}
+var interval = 33 // milliseconds
 
 function update_canvas() { // mouse location and other stuff
     "use strict";
@@ -121,31 +158,7 @@ function update_canvas() { // mouse location and other stuff
 	else return null
 }
 
-var timer = setInterval(send,33) // send to websocket 30 times per second
-
 window.Jupyter_VPython = '/' // prefix used by glow.min.js for textures
-
-function fontloading() { // trigger loading of fonts for 3D text
-	// override the fontloading url's in the GlowScript library
-	if (window.__font_sans === undefined) {
-		var fsans
-		fsans =  'Roboto-Medium.ttf' // a sans serif font
-		opentype_load(fsans, function(err, fontrefsans) {
-			if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
-			window.__font_sans = fontrefsans // an opentype.js Font object
-		})
-	}
-	if (window.__font_serif === undefined) {
-		var fserif
-		fserif = 'NimbusRomNo9L-Med.otf' // a serif font
-		opentype_load(fserif, function(err, fontrefserif) {
-			if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
-			window.__font_serif = fontrefserif // an opentype.js Font object
-		})
-	}
-}
-
-fontloading() // get the sans and serif font files used by 3D text
 
 /*
 var request = new XMLHttpRequest()
@@ -182,9 +195,9 @@ function send_compound(cvs, pos, size) {
 
 var waitfor_canvas = null
 var waitfor_options = null
-var binds = {'mousedown':0, 'mouseup':0, 'mousemove':0,'click':0, // count of functions bound to an event type
-			 'mouseenter':0, 'mouseleave':0, 'keydown':0, 'keyup':0,
-			 'redraw':0, 'draw_complete':0}
+ // possible event types to bind:
+var binds = ['mousedown', 'mouseup', 'mousemove', 'click', 'mouseenter', 'mouseleave',
+			 'keydown', 'keyup', 'redraw', 'draw_complete']
 
 function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
     "use strict";
@@ -379,13 +392,12 @@ function o2vec3(p) {
 }
 
 outcnt = 0
-function handler(msg) {
+function handler(data) {
     "use strict";
     //console.log('glow msg', msg, msg.content)
     //console.log('msg.length', msg.length)
-    var data = decode(msg)
-	//console.log('\n\n**** '+data.length+' ******************************************')
-	//for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
+	console.log('\n\n**** '+data.length+' ******************************************')
+	for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
     if (data.length > 0) {
         var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
         var triangle_quad, objects, cvsParams
@@ -393,7 +405,7 @@ function handler(msg) {
         triangle_quad = ['v0', 'v1', 'v2', 'v3']
         for (i = 0; i < len; i++) {
             cmd = data.shift()
-            //console.log('\n\n-------------------')
+            //console.log('\n-------------------')
             //console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
             if (cmd.cmd === undefined) { //  not a constructor
                 if (cmd.idx !== undefined) {
@@ -451,17 +463,18 @@ function handler(msg) {
 							var evts = cmd.val.split(' ')
 							for (var evt in evts) {
 								var e = evts[evt]
-								if (e in binds) binds[e] += 1
-								else throw new Error('There is no error type "'+e+'"')
+								if (binds.indexOf(e) == -1) 
+									throw new Error('There is no error type "'+e+'"')
 							}
                             glowObjs[cmd.idx].bind(cmd.val, process_binding)
                         } else if (cmd.method === 'unbind') {
 							var evts = cmd.val.split(' ')
 							for (var evt in evts) {
 								var e = evts[evt]
-								if (e in binds) binds[e] -= 1
-								else throw new Error('There is no error type "'+e+'"')
+								if (binds.indexOf(e) == -1) 
+									throw new Error('There is no error type "'+e+'"')
 							}
+                            glowObjs[cmd.idx].unbind(cmd.val, process_binding)
                         } else if (cmd.method === "follow") {
                             glowObjs[cmd.idx].camera.follow(glowObjs[cmd.val])
 						} else if (cmd.method === 'waitfor') {
@@ -751,7 +764,7 @@ function handler(msg) {
                 }
             }
         }
-    } 
+    }
 };
 console.log("END OF GLOWCOMM");
 
