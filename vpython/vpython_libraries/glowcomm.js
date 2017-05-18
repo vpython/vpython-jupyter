@@ -2,12 +2,12 @@ define(["nbextensions/vpython_libraries/jquery-ui.custom.min",
         "nbextensions/vpython_libraries/glow.min"], function() {
 
 comm = IPython.notebook.kernel.comm_manager.new_comm('glow')
-comm.on_msg(handler)
+comm.on_msg(onmessage)
 console.log("comm created for glow target", comm)
 
 //var datadir = '../vpython_data/'
 var datadir = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/'
-window.Jupyter_VPython = datadir
+window.Jupyter_VPython = datadir // prefix used by glow.min.js for textures
 
 function fontloading() {
     var fsans = datadir+'Roboto-Medium.ttf'
@@ -25,28 +25,147 @@ function fontloading() {
 }
 fontloading()
 
+function onmessage(msg) {
+		if (timer !== null) clearTimeout(timer)
+		var t1 = msclock()
+		data = msg.content.data
+		if (data != 'trigger') {
+			var msg = decode(data)
+			handler(msg)
+		}
+		var t2 = msclock()
+		var dt = Math.floor(t1+interval-t2) // attempt to keep the time between renders constant
+		if (dt < 15) dt = 0     // becaause setTimeout is inaccurate for small dt's
+		timer = setTimeout(send, dt)
+}
+
 // The following is necessary to be able to re-run programs.
 // Otherwise the repeated execution of update_canvas() causes problems after killing Python.
 if (timer !== undefined && timer !== null) clearTimeout(timer)
 
+
+// ***************************************************************************** //
+// THE REST OF THIS FILE IS IDENTICAL TO THE CORRESPONDING PART OF glowcomm.html //
+
+// Should eventually have glowcomm.html and glowcom.js both import this common component.
+
 function msclock() {
+    "use strict";
     if (performance.now) return performance.now()
     else return new Date().getTime()
 }
+
 var tstart = msclock()
 
-var glowObjs = []
+var events = [] // collects all events prior to 33 ms (or more) after previous send to server
 
-//scene.title.text("fps = frames/sec\n ")
-// Display frames per second and render time:
-//$("<div id='fps'/>").appendTo(scene.title)
-
-function o2vec3(p) {
+function send() { // periodically send events and update_canvas to websocket and request object update
     "use strict";
-    return vec(p[0], p[1], p[2])
+	var update = update_canvas()
+	if (update !== null) events = events.concat(update)
+	if (events.length === 0) events = [{event:'update_canvas', 'trigger':1}]
+	comm.send( events )
+	events = []
 }
 
-var sliders = {}
+var timer = null
+var lastpos = vec(0,0,0)
+var lastray = vec(0,0,0)
+var lastforward = vec(0,0,0)
+var lastup = vec(0,0,0)
+var lastrange = 1
+var lastautoscale = true
+var lastsliders = {}
+var interval = 33 // milliseconds
+
+function update_canvas() { // mouse location and other stuff
+    "use strict";
+	var dosend = false
+    if (canvas.hasmouse !== null && canvas.hasmouse !== undefined) {
+		var evt = {event:'update_canvas'}
+		var cvs = canvas.hasmouse  // only way to change these values is with mouse
+		var idx = cvs.idx
+		evt.canvas = idx
+		var pos = cvs.mouse.pos
+		if (!pos.equals(lastpos)) {evt.pos = [pos.x,pos.y,pos.z]; dosend=true}
+		lastpos = pos
+		var ray = cvs.mouse.ray 
+		if (!ray.equals(lastray)) {evt.ray = [ray.x,ray.y,ray.z]; dosend=true}
+		lastray = ray
+		// forward and range may be changed by user (and up with touch), and autoscale (by zoom)
+		if (cvs.userspin) {
+			var forward = cvs.forward
+			if (!forward.equals(lastforward)) {
+				evt.forward = [forward.x,forward.y,forward.z]
+				dosend=true
+			}
+			lastforward = forward
+			var up = cvs.up
+			if (!up.equals(lastup)) {evt.up = [up.x,up.y,up.z]; dosend=true}
+			lastup = up
+		}
+		if (cvs.userzoom) {
+			var range = cvs.range
+			if (range !== lastrange) {evt.range=range; dosend=true}
+			lastrange = range
+			var autoscale = cvs.autoscale
+			if (autoscale !== lastautoscale) {evt.autoscale = autoscale; dosend=true}
+			lastautoscale = autoscale
+		}
+		if (dosend) evt = [evt]
+	}
+	var output_sliders = []
+    for (var ss in sliders){
+		var ev = sliders[ss]
+		if (ss in lastsliders && ev.value !== lastsliders[ss].value)
+			output_sliders.push(ev) //avoid sending an unchnaged slider value
+		lastsliders[ss] = ev
+    }
+	if (output_sliders.length > 0) {
+		if (dosend) evt = evt.concat(output_sliders)
+		else evt = output_sliders
+		dosend = true
+	}
+    if (dosend) return evt
+	else return null
+}
+
+/*
+var request = new XMLHttpRequest()
+
+function send_to_server(data, callback) { // send to HTTP server
+	var data= JSON.stringify(data)
+	request.open('get', data, true)
+    request.responseType = 'json'
+	request.onload = function() {
+		if (request.status !== 200) {
+			return callback('Error in requesting data: '+request.statusText)
+		}
+		callback(request.response)
+	}
+	request.send()
+}
+
+function ok(req) { ; }
+*/
+
+function send_pick(cvs, p, seg) {
+    "use strict";
+    var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg}
+	events.push(evt)
+}
+
+function send_compound(cvs, pos, size) {
+    "use strict";
+    var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 'size': [size.x, size.y, size.z]}
+	events.push(evt)
+}
+
+var waitfor_canvas = null
+var waitfor_options = null
+ // possible event types to bind:
+var binds = ['mousedown', 'mouseup', 'mousemove', 'click', 'mouseenter', 'mouseleave',
+			 'keydown', 'keyup', 'redraw', 'draw_complete']
 
 function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
     "use strict";
@@ -63,31 +182,27 @@ function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mous
 	evt.alt = event.canvas.mouse.alt
 	evt.ctrl = event.canvas.mouse.ctrl
 	evt.shift = event.canvas.mouse.shift
-    comm.send( evt )
+	if ('bind' in event) evt.bind = true
+	events.push(evt)
 }
 
-var waitfor_canvas = null
-var waitfor_options = null
-
-function process_waitfor(event) {
+function process_binding(event) { // event associated with a previous bind command
     "use strict";
-    // come here on a pause or waitfor
-	waitfor_canvas.unbind(waitfor_options, process_waitfor)
+	event.bind = true
 	process(event)
 }
 
-function process_pause(event) {
-    "use strict";
-    return // ignore return from pause; a regular click event will follow
-}
+var sliders = {}
 
 function control_handler(obj) {  // button, menu, slider, radio, checkbox
     "use strict";
-    var evt = { idx: obj.idx}
+    var evt = {idx: obj.idx}
     if (obj.objName === 'button') {
         evt.value = 0 
         evt.widget = 'button'
     } else if (obj.objName === 'slider') {
+		// sliders are special; we want to transmit not all changes
+		//    but a sample taken at render times
         evt.value = obj.value
         evt.widget = 'slider'
         sliders[obj.idx] = evt
@@ -104,82 +219,25 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
     } else {
         console.log('unrecognized control', 'obj=', obj, obj.text)
     }
-    comm.send( evt )
+	//send_to_server(evt, ok)
+	events.push(evt)
 }
 
-var timer = null
-var lastpos = vec(0,0,0)
-var lastray = vec(0,0,0)
-var lastforward = vec(0,0,0)
-var lastup = vec(0,0,0)
-var lastrange = 1
-var lastautoscale = true
-var interval = 33 // milliseconds
-
-function update_canvas() { // mouse location and other stuff
+function process_waitfor(evt) {
     "use strict";
-    //var t = msclock()
-    //console.log(t-tstart)
-    //tstart = t
-    for (var ss in sliders){
-        comm.send( sliders[ss] )
-    }
-    sliders = {}
-    var dosend = false
-    var evt = {event:'update_canvas'}
-    if (canvas.hasmouse === null || canvas.hasmouse === undefined) {
-        comm.send( {event:'update_canvas', 'trigger':1} )
-        return
-    } 
-    var cvs = canvas.hasmouse  // only way to change these values is with mouse
-    var idx = cvs.idx
-    evt.canvas = idx
-    var pos = cvs.mouse.pos
-    if (!pos.equals(lastpos)) {evt.pos = [pos.x, pos.y, pos.z]; dosend=true}
-    lastpos = pos
-    var ray = cvs.mouse.ray 
-    if (!ray.equals(lastray)) {evt.ray = [ ray.x, ray.y, ray.z ]; dosend=true}
-    lastray = ray
-    // forward and range may be changed by user (and up with touch), and autoscale (by zoom)
-    if (cvs.userspin) {
-        var forward = cvs.forward
-        if (!forward.equals(lastforward)) {
-            evt.forward = [forward.x, forward.y, forward.z]
-            dosend=true
-        }
-        lastforward = forward
-        var up = cvs.up
-        if (!up.equals(lastup)) {evt.up = [up.x, up.y, up.z]; dosend=true}
-        lastup = up
-    }
-    if (cvs.userzoom) {
-        var range = cvs.range
-        if (range !== lastrange) {evt.range = range; dosend=true}
-        lastrange = range
-        var autoscale = cvs.autoscale
-        if (autoscale !== lastautoscale) {evt.autoscale = autoscale; dosend=true}
-        lastautoscale = autoscale
-    }
-    if (dosend) comm.send( evt )
-    else comm.send( {event:'update_canvas', 'trigger':1} )
-}
-
-function send_pick(cvs, p, seg) {
-    "use strict";
-    var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg}
-    comm.send( evt ) 
-}
-
-function send_compound(cvs, pos, size) {
-    "use strict";
-    var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 'size': [size.x, size.y, size.z]}
-    comm.send( evt )
+    // come here on a pause or waitfor
+	glowObjs[waitfor_canvas].unbind(waitfor_options, process_waitfor)
+	if (evt === null) evt = {} // event is null if pause rather than waitfor
+	evt.event = 'waitfor'
+	evt.canvas = waitfor_canvas
+	//send_to_server(evt, ok)
+	events.push(evt)
 }
 
 // attrs are X in {'a': '23X....'}
 var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: +-, 
          'e':'ambient', 'f':'axis', 'g':'size', 'h':'origin', 'i':'textcolor',
-         'j':'direction', 'k':'linecolor', 'l':'bumpaxis', 'm':'dotcolor',
+         'j':'direction', 'k':'linecolor', 'l':'bumpaxis', 'm':'dot_color',
          'n':'foreground', 'o':'background', 'p':'ray', 'E':'center', '#':'forward',
          
          // scalar attributes
@@ -209,15 +267,14 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid'}
 
 // methods are X in {'m': '23X....'}
-var methods = {'a':'select', 'c':'start', 'd':'stop', 'f':'clear', // unused bsxyCDFghzAB
-           'i':'append', 'j':'npoints', 'k':'pop', 'l':'shift', 'm':'unshift',
-           'n':'slice', 'o':'splice', 'p':'modify', 'q':'plot', 's':'add_to_trail',
-           't':'follow', 'u':'append_to_caption', 'v':'append_to_title', 'w':'clear_trail',
-           'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
-		   'M':'delete'}
+var methods = {'a':'select', 'c':'start', 'd':'stop', 'f':'clear', // unused beghijklmnopuvxyzCDFAB
+			   'q':'plot', 's':'add_to_trail',
+               't':'follow', 'w':'clear_trail',
+               'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
+		       'M':'delete'}
          
 var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 'textcolor',
-                'direction', 'linecolor', 'bumpaxis', 'dotcolor', 'ambient', 'add_to_trail',
+                'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail',
                 'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
                 
 var textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected',
@@ -228,56 +285,55 @@ var patt = /(\d+)(.)(.*)/
 var vpatt = /([^,]*),([^,]*),(.*)/
 var plotpatt = /([^,]*),([^,]*)/
 
-function decode(data) { // [ [{'a': '3c0.0,1.0,1.0'}], .....] or can be a method 'm'
+function decode(data) { 
     "use strict";
-    var output = [], s, m, idx, attr, val, datatype, out
-    for (var i in data) { // step through the list of dictionaries
-        var d = data[i]
-        // constructor or appendcmd not currently compressed; complex methods or attributes:
-        if (d['_pass'] !== undefined) {
-            delete d['_pass']
-            output.push(d)
-            continue
-        } else if (d['a'] !== undefined) { // attribute setter (attrs)
-            s = d['a']
-            datatype = 'attr'
-        } else if (d['b'] !== undefined) { // attribute setter (attrsb)
-            s = d['b']
-            datatype = 'attr'
-        } else if (d['m'] !== undefined) { // method
-            s = d['m']
-            datatype = 'method'
-        }
-        m = s.match(patt)
-        idx = Number(m[1])
-        if (datatype == 'attr') {
-            if (d['a'] !== undefined) attr = attrs[m[2]]
-            else attr = attrsb[m[2]]
-        } else attr = methods[m[2]]
-        if (vecattrs.indexOf(attr) > -1) {
-            val = m[3].match(vpatt)
-            val = [Number(val[1]), Number(val[2]), Number(val[3])]
-        } else if (textattrs.indexOf(attr) > -1) {
-            val = m[3]
-        } else if (attr == 'plot' || attr == 'data') {
-            val = []
-            var start = m[1].length+1 // start of arguments
-            while (true) {
-                m = s.slice(start).match(plotpatt)
-                val.push([ Number(m[1]), Number(m[2]) ])
-                start += m[1].length+m[2].length+2
-                if (start > s.length) break
-            }
-		} else if (attr == 'waitfor' || attr == 'pause' || attr == 'delete') {
-			val = m[3]
-        } else val = Number(m[3])
-        out = {'idx':idx, 'val':val}
-        out[datatype] = attr
-        //console.log('---- out ----')
-        //for (var a in out) console.log(a, out[a])
-        output.push(out)
-    }
-    return output
+	// data is {'cmds':list of constructors, 'objs': list of attributes and (time-ordered) methods
+	// Attribute and method lists: [ 'XiK0.0,1.0,1.0', .....] X is a or b (attributes) or m (methods)
+	// i is object index, K is a key to an attribute or method in the dictionaries above
+    var output = [], s, m, idx, attr, val, datatype, out, i, as, ms
+	var as = []
+	var ms = []
+	
+	if ('objs' in data) {
+		var c = data['objs']
+		for (i in c) { // step through the encoded attributes and methods
+			var d = c[i]
+			// constructor or appendcmd not currently compressed
+			var whichlist = d[0] // 'a' or 'b' or 'm'
+			var datatype = (whichlist == 'm') ? 'method' : 'attr'
+			s = d.slice(1)
+			m = s.match(patt)
+			idx = Number(m[1])
+			if (datatype == 'attr') {
+				if (whichlist == 'a') attr = attrs[m[2]]
+				else attr = attrsb[m[2]]
+			} else attr = methods[m[2]]
+			if (vecattrs.indexOf(attr) > -1) {
+				val = m[3].match(vpatt)
+				val = vec(Number(val[1]), Number(val[2]), Number(val[3]))
+			} else if (textattrs.indexOf(attr) > -1) {
+				val = m[3]
+			} else if (attr == 'plot' || attr == 'data') {
+				val = []
+				var start = m[1].length+1 // start of arguments
+				while (true) {
+					m = s.slice(start).match(plotpatt)
+					val.push([ Number(m[1]), Number(m[2]) ])
+					start += m[1].length+m[2].length+2
+					if (start > s.length) break
+				}
+			} else if (attr == 'waitfor' || attr == 'pause' || attr == 'delete') {
+				val = m[3]
+			} else val = Number(m[3])
+			out = {'idx':idx, 'attr':attr, 'val':val}
+			if (datatype == 'attr') as.push(out)
+			else ms.push(out)
+		}
+	}
+	if (as.length > 0) data['objs'] = as
+	else data['objs'] = []
+	if (ms.length > 0) data['methods'] = ms
+	return data
 }
 
 function fix_location(cfgx) {
@@ -291,384 +347,414 @@ function fix_location(cfgx) {
     return cfgx
 }
 
-function handler(msg) {
+var glowObjs = []
+
+//scene.title.text("fps = frames/sec\n ")
+// Display frames per second and render time:
+//$("<div id='fps'/>").appendTo(scene.title)
+
+function o2vec3(p) {
     "use strict";
-    var data = msg.content.data
-    //console.log('glow msg', msg, msg.content)
-    //console.log('glow', data, data.length)
-    //console.log(data)
-    data = decode(data)
-    if (data[0]['trigger'] !== undefined) {
-		// This timer is what drives the Python program to update the data.
-        if (timer !== null) clearTimeout(timer)
-		var t = msclock()
-		var dt = tstart+interval-t // attempt to keep the time between renders constant
-		if (dt < 0) dt = 1
-		tstart = t+dt
-        timer = setTimeout(update_canvas, dt)
-        return
-    }
-	//console.log('\n\n**** '+data.length+' ******************************************')
-	//for (var i=0; i<data.length; i++) console.log(JSON.stringify(data[i]))
+    return vec(p[0], p[1], p[2])
+}
 
-    if (data.length > 0) {
-        var i, j, k, cmd, attr, cfg, cfg2, vertdata, len2, len3, attr2, elems, elen, len4, S, b, vlst
-        var triangle_quad, objects, cvsParams
-        var len = data.length
-        triangle_quad = ['v0', 'v1', 'v2', 'v3']
-        for (i = 0; i < len; i++) {
-            cmd = data.shift()
-            //console.log('\n\n-------------------')
-            //console.log('glowwidget0', cmd.idx, cmd.attr, cmd.val, cmd.cmd, cmd.method)
-            if (cmd.cmd === undefined) { //  not a constructor
-                if (cmd.idx !== undefined) {
-                    if (cmd.attr !== undefined) {      
-//  vector attrs in attach_arrow have arbitrary names, so check for length 3 array instead
-                        if (cmd.val instanceof Array && cmd.val.length === 3) {
-                            if (cmd.attr === 'pos' && (cmd.cmd === 'points' || cmd.cmd === 'curve')) {
-                                var ptlist = []
-                                for (var kk = 0; kk < cmd.val.length; kk++) {
-                                    ptlist.push( o2vec3(cmd.val[kk]) )
-                                }
-                                glowObjs[cmd.idx][cmd.attr] = ptlist                                
-                            } else {
-                                var v = o2vec3(cmd.val)
-                                // VPython interactions between axis and size are dealt with in vpython.py
-                                if (cmd.attr === 'axis') {
-                                    if (glowObjs[cmd.idx] instanceof arrow) {
-                                        glowObjs[cmd.idx]['axis_and_length'] = v
-                                    } else {
-                                        glowObjs[cmd.idx][cmd.attr] = v
-                                    }
-                                } else if (cmd.attr === 'size') {
-                                    glowObjs[cmd.idx][cmd.attr] = v
-                                } else {
-                                    glowObjs[cmd.idx][cmd.attr] = v
-                                }
-                            }
-                        } else if (cmd.attr == 'lights') {
-                            if (cmd.val == 'empty_list') cmd.val = []
-                            glowObjs[cmd.idx][cmd.attr] = cmd.val
-                        } else {
-                            if (triangle_quad.indexOf(cmd.attr) !== -1) {
-                                glowObjs[cmd.idx][cmd.attr] = glowObjs[cmd.val]
-                            } else { 
-                                glowObjs[cmd.idx][cmd.attr] = cmd.val
-                            }
-                        }
-                    }
-                    if (cmd.method !== undefined) {
-                        //console.log('cmd.method', cmd.idx, cmd.method, cmd.val)
-                        var parametric = ['splice', 'modify']
-                        var val = cmd.val
-                        if (cmd.method == 'GSprint') {
-                            GSprint(cmd.val)
-                        } else if (val === 'None') {
-                            if (cmd.method == 'delete') glowObjs[cmd.idx]['remove']()
-                            else glowObjs[cmd.idx][cmd.method]()
-                        } else if ((cmd.method === 'title' || cmd.method === 'caption') && glowObjs[cmd.idx] instanceof canvas) {
-                            glowObjs[cmd.idx][cmd.method] = cmd.val
-                        } else if ((cmd.method === 'append_to_title' || cmd.method === 'append_to_caption') && glowObjs[cmd.idx] instanceof canvas) {
-                            glowObjs[cmd.idx][cmd.method](cmd.val)
-                        } else if (cmd.method === 'add_to_trail') {
-                            glowObjs[cmd.idx].pos = o2vec3(cmd.val)
-                        } else if (cmd.method === 'bind') {
-                            glowObjs[cmd.idx].bind(cmd.val, process)
-                        } else if (cmd.method === 'unbind') {
-                            glowObjs[cmd.idx].unbind(cmd.val, process)                     
-                        } else if (cmd.method === "follow") {
-                            glowObjs[cmd.idx].camera.follow(glowObjs[cmd.val])
-						} else if (cmd.method === 'waitfor') {
-							waitfor_canvas = glowObjs[cmd.idx]
-							waitfor_options = cmd.val
-							waitfor_canvas.bind(waitfor_options, process_waitfor)
-                        } else if (cmd.method === 'pause') {
-							waitfor_canvas = glowObjs[cmd.idx]
-							waitfor_options = 'click'
-                            if (cmd.val.length > 0) {
-                               waitfor_canvas.pause(cmd.val, process_pause) 
-                            } else {
-                               waitfor_canvas.pause(process_pause) 
-                            }
-							waitfor_canvas.bind(waitfor_options, process_waitfor)
-                        } else if (cmd.method === 'pick') {
-                            var p = glowObjs[cmd.val].mouse.pick()   // wait for pick render; cmd.val is canvas
-                            var seg = null
-                            if (p !== null) {
-                                if (p instanceof curve) seg = p.segment
-                                p = p.idx                                
-                            }
-                            send_pick(cmd.val, p, seg)
-                        } else {
-                            var npargs = 0
-                            var info
-                            if (parametric.indexOf(cmd.method) > -1) {
-                                npargs = val.length - 1
-                                info = val[npargs]  // a list of dictionaries
-                            } else {
-                                info = val
-                            }
-                            for (var j=0; j < info.length; j++) {
-                                var d = info[j]
-                                for (var a in d) {
-                                    if (d[a] instanceof Array) d[a] = o2vec3(d[a])
-                                } 
-                            }
-                            if ( npargs === 0 ) {
-                                glowObjs[cmd.idx][cmd.method](info)
-                            } else if ( cmd.method === 'modify' ) { // 1 parameter
-                                glowObjs[cmd.idx][cmd.method](val[0], info[0])
-                            } else if ( cmd.method === 'splice' ) {  // 2 parameters
-                                glowObjs[cmd.idx][cmd.method](val[0], val[1], info)
-                            } else {
-                                throw new Error('Too many parameters in '+cmd.method)
-                            }
-                        }                         
-                    }
-                }
-            } else { // processing a constructor           
-                /*
-                if (cmd.cmd !== 'heartbeat') {
-                    console.log('glow', data, data.length)
-                    console.log('JSON ' + JSON.stringify(data))
-                }
-                */
-                //assembling cfg
-//                console.log('assembling cfg', cmd.cmd, typeof cmd.attrs, cmd.attrs) //**************
-//                for (var i in cmd.attrs) { console.log(cmd.attrs[i]) }
-                if (cmd.attrs !== undefined) {
-                     vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
-                             'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'textcolor',
-                             'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color']
-                    if ((cmd.cmd != 'gcurve') && ( cmd.cmd != 'gdots' ) ) {
-                        vlst.push( 'size' )
-                    }
+function handler(data) {
+    "use strict";
 
-                    len2 = cmd.attrs.length
-                    cfg = {}
-                    objects = []
-                    for (j = 0; j < len2; j++) {
-                        attr = cmd.attrs.shift()
-                        if (attr.attr === "size") {
-                            if ( (cmd.cmd == 'gcurve') || ( cmd.cmd == 'gdots' ) ) {
-                                cfg[attr.attr] = attr.value   // size is a scalar
-                            } else {
-                               cfg[attr.attr] = o2vec3(attr.value)
-                            }                            
-                        } else if ( (attr.attr == 'pos' && (cmd.cmd == 'curve' || cmd.cmd == 'points')) ||
-                                    (attr.attr == 'path' && cmd.cmd == 'extrusion') ) {
-                            var ptlist = []
-                            for (var kk = 0; kk < attr.value.length; kk++) {
-                                ptlist.push( o2vec3(attr.value[kk]) )
-                            }
-                            cfg[attr.attr] = ptlist                          
-                        } else if (attr.attr === "axis" && cmd.cmd == 'arrow') {
-                            cfg['axis_and_length'] = o2vec3(attr.value) 
-                        } else if (vlst.indexOf(attr.attr) !== -1) {
-                            cfg[attr.attr] = o2vec3(attr.value)
-                        } else if (triangle_quad.indexOf(attr.attr) !== -1) {
-                            cfg[attr.attr] = glowObjs[attr.value]
-                        } else if (attr.attr === "canvas" ) {
-                            cfg[attr.attr] = glowObjs[attr.value]
-                        } else if (attr.attr === "graph" ) {
-                            cfg[attr.attr] = glowObjs[attr.value]
-                        } else if (attr.attr === "obj_idxs") {
-                            len4 = attr.value.length
-                            if (len4 > 0) {
-                                for (k = 0; k < len4; k++) {
-                                    objects[k] = glowObjs[attr.value[k]]
-                                }
-                            }
-                        } else if (attr.attr == "lights") {
-                            if (attr.value == 'empty_list') attr.value = []
-                            cfg[attr.attr] = attr.value
-                        } else {
-                            cfg[attr.attr] = attr.value
-                            // console.log(attr.attr, attr.value)
-                        }
-                    }
-                    //making the objects
-                    if (cmd.idx !== undefined) {
-                        cfg.idx = cmd.idx
-                        if (cmd.cmd === 'box') {
-                            glowObjs[cmd.idx] = box(cfg)
-                        } else if (cmd.cmd === 'sphere') {
-                            glowObjs[cmd.idx] = sphere(cfg)
-                        } else if (cmd.cmd === 'arrow') {
-                            glowObjs[cmd.idx] = arrow(cfg)
-                        } else if (cmd.cmd === 'cone') {
-                            glowObjs[cmd.idx] = cone(cfg)
-                        } else if (cmd.cmd === 'cylinder') {
-                            glowObjs[cmd.idx] = cylinder(cfg)
-                        } else if (cmd.cmd === 'helix') {
-                            glowObjs[cmd.idx] = helix(cfg)
-                        } else if (cmd.cmd === 'pyramid') {
-                            glowObjs[cmd.idx] = pyramid(cfg)
-                        } else if (cmd.cmd === 'ring') {
-                            glowObjs[cmd.idx] = ring(cfg)
-						} else if  (cmd.cmd === 'gcurve') {
-                            delete cfg.idx // currently gcurve give an error for non-fundamental arguments
-							glowObjs[cmd.idx] = gcurve(cfg)
-						} else if  (cmd.cmd === 'gdots') {
-                            delete cfg.idx // currently gdots give an error for non-fundamental arguments
-							glowObjs[cmd.idx] = gdots(cfg)
-						} else if  (cmd.cmd === 'gvbars') {
-                            delete cfg.idx // currently gvbars give an error for non-fundamental arguments
-							glowObjs[cmd.idx] = gvbars(cfg)
-						} else if  (cmd.cmd === 'ghbars') {
-                            delete cfg.idx // currently ghbars give an error for non-fundamental arguments
-							glowObjs[cmd.idx] = ghbars(cfg)
-                        } else if (cmd.cmd == 'graph') {
-                            delete cfg.idx // currently graph give an error for non-fundamental arguments
-                            glowObjs[cmd.idx] = vp_graph(cfg)
-                            //glowObjs[cmd.idx]['idx'] = cmd.idx // should handle this in a more principled way
-                        } else if (cmd.cmd === 'curve') {
-                            glowObjs[cmd.idx] = curve(cfg)
-                            glowObjs[cmd.idx]['idx'] = cmd.idx // should handle this in a more principled way
-                        } else if (cmd.cmd === 'points') {
-                            glowObjs[cmd.idx] = points(cfg)
-                            glowObjs[cmd.idx]['idx'] = cmd.idx // should handle this in a more principled way
-                        } else if (cmd.cmd === 'vertex') {
-                            glowObjs[cmd.idx] = vertex(cfg)
-                        } else if (cmd.cmd === 'triangle') {
-                            glowObjs[cmd.idx] = triangle(cfg)
-                        } else if (cmd.cmd === 'quad') {
-                            glowObjs[cmd.idx] = quad(cfg)
-                        } else if (cmd.cmd === 'push') {
-                            glowObjs[cmd.idx].push(cfg)
-                        } else if (cmd.cmd === 'label') {
-                            glowObjs[cmd.idx] = label(cfg)
-                        } else if (cmd.cmd === 'ellipsoid') {
-                            glowObjs[cmd.idx] = sphere(cfg)
-                        } else if (cmd.cmd === 'compound') {
-                            if (cfg._cloneid !== undefined) {
-                                var idoriginal = cfg._cloneid
-                                delete cfg._cloneid
-                                glowObjs[cmd.idx] = glowObjs[idoriginal].clone(cfg)
-							} else {
-								var obj = glowObjs[cmd.idx] = compound(objects, cfg)
-								// Return computed compound pos and size to Python
-								send_compound(obj.canvas['idx'], obj.pos, obj.size)
-							}
-                        } else if (cmd.cmd === 'extrusion') {
-                            var obj = glowObjs[cmd.idx] = extrusion(cfg)
-                            // Return computed compound pos and size to Python
-                            send_compound(obj.canvas['idx'], obj.pos, obj.size)
-                        } else if (cmd.cmd === 'text') {
-                            if (cfg._cloneid !== undefined) {
-                                var idoriginal = cfg._cloneid
-                                delete cfg._cloneid
-                                glowObjs[cmd.idx] = glowObjs[idoriginal].clone(cfg)
-                            } else {
-								// Return text parameters to Python
-                                var obj = glowObjs[cmd.idx] = text(cfg)
-                                send_compound(obj.canvas['idx'], vec(obj.length, obj.descender, 0), vec(0,0,0))
-                            }
-                        } else if (cmd.cmd === 'rotate') {
-                            glowObjs[cmd.idx].rotate(cfg)
-                        } else if (cmd.cmd === 'local_light') {
-                            glowObjs[cmd.idx] = local_light(cfg)
-                        } else if (cmd.cmd === 'distant_light') {
-                            glowObjs[cmd.idx] = distant_light(cfg)
-                        } else if (cmd.cmd === 'canvas') {
-                            glowObjs[cmd.idx] = canvas(cfg)
-                            glowObjs[cmd.idx]['idx'] = cmd.idx
-                                // Display frames per second and render time:
-                                //$("<div id='fps'/>").appendTo(glowObjs[cmd.idx].title)
-                        } else if (cmd.cmd === 'attach_arrow') {
-                            var obj = glowObjs[cfg['_obj']]
-                            delete cfg['_obj']
-                            var attr = cfg['_attr']
-                            delete cfg['_attr']
-                            glowObjs[cmd.idx] = attach_arrow( obj, attr, cfg )
-                        } else if (cmd.cmd === 'attach_trail') {
-                            if ( typeof cfg['_obj'] === 'string' ) {
-                                var obj = cfg['_obj']
-                            } else {
-                                var obj = glowObjs[cfg['_obj']]
-                            }
-                            delete cfg['_obj'] 
-                            glowObjs[cmd.idx] = attach_trail(obj, cfg)
-                        } else if (cmd.cmd === 'checkbox') {
-                            cfg.objName = cmd.cmd
-                            cfg.bind = control_handler
-                            cfg = fix_location(cfg)
-                            glowObjs[cmd.idx] = checkbox(cfg)
-                        } else if (cmd.cmd === 'radio') {
-                            cfg.objName = cmd.cmd
-                            cfg.bind = control_handler
-                            cfg = fix_location(cfg)
-                            glowObjs[cmd.idx] = radio(cfg)
-                        } else if (cmd.cmd === 'button') {
-                            cfg.objName = cmd.cmd
-                            cfg.bind = control_handler
-                            cfg = fix_location(cfg)
-                            glowObjs[cmd.idx] = button(cfg) 
-                        } else if (cmd.cmd === 'menu') {
-                            cfg.objName = cmd.cmd
-                            cfg.bind = control_handler
-                            cfg = fix_location(cfg)
-                            if (cfg['selected'] === 'None') {
-                                cfg['selected'] = null                              
-                            } 
-                            glowObjs[cmd.idx] = menu(cfg)
-                        } else if (cmd.cmd === 'slider') {
-                            cfg.objName = cmd.cmd
-                            cfg.bind = control_handler
-                            cfg = fix_location(cfg)
-                            glowObjs[cmd.idx] = slider(cfg)
+	/*
+	console.log('\n***** handler *****************************************')
+	for (var d in data) {
+		console.log(d)
+		for (var i in data[d]) console.log(i, JSON.stringify(data[d][i]))
+	}
+	*/
+	
+	if (data.cmds != []) handle_cmds(data.cmds)
+	if (data.objs != []) handle_objs(data.objs)
+	if (data.methods != []) handle_methods(data.methods)
 
-                        } else {
-                            console.log("Unrecognized Object")
-                        }
-                    } else {
-                        console.log("Unable to create object, idx attribute is not provided")
-                    }
-                }
-                if (cmd.cmd === 'redisplay') {
-                    var c = document.getElementById(cmd.sceneId)
-                    if (c !== null) {
-                        var scn = "#" + cmd.sceneId
-                        glowObjs[cmd.idx].sceneclone = $(scn).clone(true,true)
-                        //document.getElementById('glowscript2').appendChild(c)
-                        //document.getElementById('glowscript2').replaceWith(c)
-                        $('#glowscript2').replaceWith(c)
-                        c = document.getElementById(cmd.sceneId)
-                        var cont = scn + " .glowscript"
-                        window.__context = { glowscript_container:    $(cont) }
-                    } else {
-                        window.__context = { glowscript_container: $("#glowscript").removeAttr("id") }                    
-                        var newcnvs = canvas()
-                        for (var obj in glowObjs[cmd.idx].objects) {
-                            var o = glowObjs[cmd.idx].objects[obj]
-                            if ((o.constructor.name !== 'curve') && (o.constructor.name !== 'points')) {
-                                glowObjs[o.gidx] = o.clone({canvas: newcnvs})
-                                var olen = newcnvs.objects.length
-                                if (olen > 0) {
-                                    newcnvs.objects[olen - 1].gidx = o.gidx
-                                }
-                            }
-                        }
-                        glowObjs[cmd.idx] = newcnvs
-                        $("#glowscript2").attr("id",cmd.sceneId)
-                    }
-                } else if (cmd.cmd === 'delete') {
-                    b = glowObjs[cmd.idx]
-                    //console.log("delete : ",cmd.idx)
-                    if ((b !== null) || (b.visible !== undefined)) {
-                        b.visible = false
-                    }
-                    glowObjs[cmd.idx] = null
-                } else if (cmd.cmd === 'heartbeat') {
-                    //console.log("heartbeat")
-                } else if (cmd.cmd === 'debug') {
-                    console.log("debug : ", cmd)
-                }
-            }
-        }
-    }
-    if (timer === null) update_canvas()
-};
+} // end of handler
+
+function handle_cmds(dcmds) {
+    "use strict";
+	for (var icmds in dcmds) { // constructors, and special operations such as curve.modify
+		var cmd = dcmds[icmds]
+		var obj = cmd.cmd
+		var idx = cmd.idx
+		delete cmd.cmd
+		delete cmd.idx
+		var construct = (obj !== undefined)
+		var method = null
+		if ('method' in cmd) {
+			method = cmd['method']
+			delete cmd['method']
+		}
+		var triangle_quad = ['v0', 'v1', 'v2', 'v3']
+
+		//assembling cfg
+		var vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
+				 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'textcolor',
+				 'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color']
+		if ((obj != 'gcurve') && ( obj != 'gdots' ) ) vlst.push( 'size' )
+		var cfg = {}
+		var objects = []
+		var attr
+		for (attr in cmd) {
+			val = cmd[attr]
+			if (attr === "size") {
+				if ( (obj == 'gcurve') || ( obj == 'gdots' ) ) {
+					cfg[attr] = cmd[attr]   // size is a scalar
+				} else {
+				   cfg[attr] = o2vec3(val)
+				}                            
+			} else if ( (attr == 'pos' && (obj == 'curve' || obj == 'points')) ||
+						(attr == 'path' && obj == 'extrusion') ) { // only occurs in constructor
+				var ptlist = []
+				for (var kk = 0; kk < val.length; kk++) {
+					ptlist.push( o2vec3(val[kk]) )
+				}
+				cfg[attr] = ptlist
+			} else if (attr === "axis" && obj == 'arrow') {
+				cfg['axis_and_length'] = o2vec3(val) 
+			} else if (vlst.indexOf(attr) !== -1) {
+				cfg[attr] = o2vec3(val)
+			} else if (triangle_quad.indexOf(attr) !== -1) {
+				cfg[attr] = glowObjs[val]
+			} else if (attr === "canvas" ) {
+				cfg[attr] = glowObjs[val]
+			} else if (attr === "graph" ) {
+				cfg[attr] = glowObjs[val]
+			} else if (attr === "obj_idxs") {
+				var len4 = val.length
+				if (len4 > 0) {
+					for (var k = 0; k < len4; k++) {
+						objects[k] = glowObjs[val[k]]
+					}
+				}
+			} else if (attr == "lights") {
+				if (val == 'empty_list') val = []
+				cfg[attr] = val
+			} else {
+				cfg[attr] = val
+				// console.log(attr.attr, attr.value)
+			}
+		}
+		if (!construct) { // commands such as "center" (for a canvas)
+			var parametric = ['splice', 'modify']
+			var val = cfg[attr]
+			if (attr == 'append_to_caption' || attr == 'append_to_title' ) glowObjs[idx][attr](val)
+			else if (method !== null) {
+				var npargs = 0
+				var info
+				if (parametric.indexOf(method) > -1) {
+					npargs = val.length - 1
+					info = val[npargs]  // a list of dictionaries
+				} else {
+					info = val
+				}
+				for (var j=0; j < info.length; j++) {
+					var dj = info[j]
+					for (var a in dj) {
+						if (dj[a] instanceof Array) dj[a] = o2vec3(dj[a])
+					} 
+				}
+				if ( npargs === 0 ) {
+					glowObjs[idx][method](info)
+				} else if ( method === 'modify' ) { // 1 parameter
+					glowObjs[idx][method](val[0], info[0])
+				} else if ( method === 'splice' ) {  // 2 parameters
+					glowObjs[idx][method](val[0], val[1], info)
+				} else {
+					throw new Error('Too many parameters in '+method)
+				}
+			} else glowObjs[idx][attr] = val
+			continue
+		}
+		// creating the objects
+		cfg.idx = idx // reinsert idx, having looped thru all other attributes
+		switch (obj) {
+			case 'box':       {glowObjs[idx] = box(cfg); break}
+			case 'sphere':    {glowObjs[idx] = sphere(cfg); break}
+			case 'arrow':     {glowObjs[idx] = arrow(cfg); break}
+			case 'cone':      {glowObjs[idx] = cone(cfg); break}
+			case 'cylinder':  {glowObjs[idx] = cylinder(cfg); break}
+			case 'helix':     {glowObjs[idx] = helix(cfg); break}
+			case 'pyramid':   {glowObjs[idx] = pyramid(cfg); break}
+			case 'ring':      {glowObjs[idx] = ring(cfg); break}
+			case 'curve':     {glowObjs[idx] = curve(cfg); break}
+			case 'points':    {glowObjs[idx] = points(cfg); break}
+			case 'vertex':    {glowObjs[idx] = vertex(cfg); break}
+			case 'triangle':  {glowObjs[idx] = triangle(cfg); break}
+			case 'quad':      {glowObjs[idx] = quad(cfg); break}
+			case 'label':     {glowObjs[idx] = label(cfg); break}
+			case 'ellipsoid': {glowObjs[idx] = sphere(cfg); break}
+			case 'graph':     { // currently graph give an error for non-fundamental arguments
+				delete cfg.idx
+				glowObjs[idx] = vp_graph(cfg)
+				break
+			}
+			case 'gcurve':    { // currently gcurve give an error for non-fundamental arguments
+				delete cfg.idx
+				glowObjs[idx] = gcurve(cfg)
+				break
+			}
+			case 'gdots':     { // currently gdots give an error for non-fundamental arguments
+				delete cfg.idx
+				glowObjs[idx] = gdots(cfg)
+				break
+			}
+			case 'gvbars':    { // currently gvbars give an error for non-fundamental arguments
+				delete cfg.idx
+				glowObjs[idx] = gvbars(cfg)
+				break
+			}
+			case 'ghbars':    { // currently ghbars give an error for non-fundamental arguments
+				delete cfg.idx
+				glowObjs[idx] = ghbars(cfg)
+				break
+			}
+			case 'compound': {
+				if (cfg._cloneid !== undefined) {
+					var idoriginal = cfg._cloneid
+					delete cfg._cloneid
+					glowObjs[idx] = glowObjs[idoriginal].clone(cfg)
+				} else {
+					var obj = glowObjs[idx] = compound(objects, cfg)
+					// Return computed compound pos and size to Python
+					send_compound(obj.canvas['idx'], obj.pos, obj.size)
+				}
+				break
+			}
+			case 'extrusion': {
+				var obj = glowObjs[idx] = extrusion(cfg)
+				// Return computed compound pos and size to Python
+				send_compound(obj.canvas['idx'], obj.pos, obj.size)
+				break
+			}
+			case 'text':     {
+				if (cfg._cloneid !== undefined) {
+					var idoriginal = cfg._cloneid
+					delete cfg._cloneid
+					glowObjs[idx] = glowObjs[idoriginal].clone(cfg)
+				} else {
+					// Return text parameters to Python
+					var obj = glowObjs[idx] = text(cfg)
+					send_compound(obj.canvas['idx'], vec(obj.length, obj.descender, 0), vec(0,0,0))
+				}
+				break
+			}
+			case 'local_light':   {glowObjs[idx] = local_light(cfg); break}
+			case 'distant_light': {glowObjs[idx] = distant_light(cfg); break}
+			case 'canvas':        {
+				glowObjs[idx] = canvas(cfg)
+				glowObjs[idx]['idx'] = idx
+				break
+					// Display frames per second and render time:
+					//$("<div id='fps'/>").appendTo(glowObjs[idx].title)
+			}
+			case 'attach_arrow':  {
+				var o = glowObjs[cfg['_obj']]
+				delete cfg['_o']
+				var attr = cfg['_attr']
+				delete cfg['_attr']
+				glowObjs[idx] = attach_arrow( o, attr, cfg )
+				break
+			}
+			case 'attach_trail': {
+				if ( typeof cfg['_obj'] === 'string' ) {
+					var o = cfg['_obj']
+				} else {
+					var o = glowObjs[cfg['_obj']]
+				}
+				delete cfg['_obj'] 
+				glowObjs[idx] = attach_trail(o, cfg)
+				break
+			}
+			case 'checkbox': {
+				cfg.objName = obj
+				cfg.bind = control_handler
+				cfg = fix_location(cfg)
+				glowObjs[idx] = checkbox(cfg)
+				break
+			}
+			case 'radio': {
+				cfg.objName = obj
+				cfg.bind = control_handler
+				cfg = fix_location(cfg)
+				glowObjs[idx] = radio(cfg)
+				break
+			}
+			case 'button': {
+				cfg.objName = obj
+				cfg.bind = control_handler
+				cfg = fix_location(cfg)
+				glowObjs[idx] = button(cfg)
+				break
+			}
+			case 'slider': {
+				cfg.objName = obj
+				cfg.bind = control_handler
+				cfg = fix_location(cfg)
+				glowObjs[idx] = slider(cfg)
+				break
+			}
+			case 'menu': {
+				cfg.objName = obj
+				cfg.bind = control_handler
+				cfg = fix_location(cfg)
+				glowObjs[idx] = menu(cfg)
+				if (cfg['selected'] === 'None') {
+					cfg['selected'] = null                              
+				} 
+				break
+			}
+			default:
+				console.log("Unable to create object")
+		}
+		
+		/*
+		if (obj === 'redisplay') {
+			var c = document.getElementById(cmd.sceneId)
+			if (c !== null) {
+				var scn = "#" + cmd.sceneId
+				glowObjs[idx].sceneclone = $(scn).clone(true,true)
+				//document.getElementById('glowscript2').appendChild(c)
+				//document.getElementById('glowscript2').replaceWith(c)
+				$('#glowscript2').replaceWith(c)
+				c = document.getElementById(cmd.sceneId)
+				var cont = scn + " .glowscript"
+				window.__context = { glowscript_container:    $(cont) }
+			} else {
+				window.__context = { glowscript_container: $("#glowscript").removeAttr("id") }                    
+				var newcnvs = canvas()
+				for (var obj in glowObjs[idx].objects) {
+					var o = glowObjs[idx].objects[obj]
+					if ((o.constructor.name !== 'curve') && (o.constructor.name !== 'points')) {
+						glowObjs[o.gidx] = o.clone({canvas: newcnvs})
+						var olen = newcnvs.objects.length
+						if (olen > 0) {
+							newcnvs.objects[olen - 1].gidx = o.gidx
+						}
+					}
+				}
+				glowObjs[idx] = newcnvs
+				$("#glowscript2").attr("id",cmd.sceneId)
+			}
+		} else if (obj === 'delete') {
+			b = glowObjs[idx]
+			//console.log("delete : ",idx)
+			if ((b !== null) || (b.visible !== undefined)) {
+				b.visible = false
+			}
+			glowObjs[idx] = null
+		} else if (obj === 'heartbeat') {
+			//console.log("heartbeat")
+		} else if (obj === 'debug') {
+			console.log("debug : ", cmd)
+		}
+		*/
+	} // end of cmds (constructors and special data)
+}
+
+function handle_objs(dobjs) {
+    "use strict";
+	for (var idobjs in dobjs) { // attributes; cmd is ['idx':idx, 'attr':attr, 'val':val]
+		var cmd = dobjs[idobjs]
+		var idx = cmd.idx
+		var obj = glowObjs[idx]
+		var attr = cmd['attr']
+		var val = cmd['val']
+		var triangle_quad = ['v0', 'v1', 'v2', 'v3']
+		// vector attrs in attach_arrow have arbitrary names, so check for length 3 array instead
+		if (val instanceof vec) {
+			if (attr === 'pos' && (obj instanceof points || obj instanceof curve)) {
+				var ptlist = []
+				for (var kk = 0; kk < val.length; kk++) {
+					ptlist.push( val[kk] )
+				}
+				obj[attr] = ptlist                                
+			} else {
+				// VPython interactions between axis and size are dealt with in vpython.py
+				if (attr === 'axis') {
+					if (obj instanceof arrow) {
+						obj['axis_and_length'] = val
+					} else {
+						obj[attr] = val
+					}
+				} else {
+					obj[attr] = val
+				}
+			}
+		} else if (attr == 'lights') {
+			if (val == 'empty_list') val = []
+			obj[attr] = val
+		} else {
+			if (triangle_quad.indexOf(attr) !== -1) {
+				obj[attr] = glowObjs[val]
+			} else {
+				obj[attr] = val
+			}
+		}
+	} // end of attributes
+}
+
+function handle_methods(dmeth) {
+    "use strict";
+	for (var idmeth in dmeth) { // methods; cmd is ['idx':idx, 'attr':method, 'val':val]
+		var cmd = dmeth[idmeth]
+		var idx = cmd.idx
+		var method = cmd.attr
+		var val = cmd.val
+		var obj = glowObjs[idx]
+
+		if (method == 'GSprint') {
+			GSprint(val)
+		} else if (val == 'None') {
+			if (method == 'delete') obj['remove']()
+			else obj[method]()
+		} else if (method === 'add_to_trail') {
+			obj.pos = val
+		} else if (method === 'bind') {
+			var evts = val.split(' ')
+			for (var evt in evts) {
+				var e = evts[evt]
+				if (binds.indexOf(e) == -1) 
+					throw new Error('There is no error type "'+e+'"')
+			}
+			obj.bind(val, process_binding)
+		} else if (method === 'unbind') {
+			var evts = val.split(' ')
+			for (var evt in evts) {
+				var e = evts[evt]
+				if (binds.indexOf(e) == -1) 
+					throw new Error('There is no error type "'+e+'"')
+			}
+			obj.unbind(val, process_binding)
+		} else if (method === "follow") {
+			obj.camera.follow(glowObjs[val])
+		} else if (method === 'waitfor') {
+			waitfor_canvas = idx
+			waitfor_options = val
+			obj.bind(waitfor_options, process_waitfor)
+		} else if (method === 'pause') {
+			waitfor_canvas = idx
+			waitfor_options = 'click'
+			if (val.length > 0) {
+			   obj.pause(val, process_waitfor) 
+			} else {
+			   obj.pause(process_waitfor) 
+			}
+		} else if (method === 'pick') {
+			var p = glowObjs[val].mouse.pick()   // wait for pick render; val is canvas
+			var seg = null
+			if (p !== null) {
+				if (p instanceof curve) seg = p.segment
+				p = p.idx                                
+			}
+			send_pick(val, p, seg)
+		} else obj[method](val)
+	}
+}
 console.log("END OF GLOWCOMM");
 
 });

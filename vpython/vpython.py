@@ -10,16 +10,16 @@ except:
     from .vector import *
 from .shapespaths import *
 
-import time
 import math
 import inspect
 from time import clock
 import os
-import collections
 import copy
 import sys
 
-def checkisnotebook(): # returns True if running in Jupyter notebook
+vec = vector # synonyms in GlowScript
+
+def __checkisnotebook(): # returns True if running in Jupyter notebook
     try:
         shell = get_ipython().__class__.__name__
         if shell == 'ZMQInteractiveShell':  # Jupyter notebook or qtconsole?
@@ -30,13 +30,13 @@ def checkisnotebook(): # returns True if running in Jupyter notebook
             return False  # Other type (?)
     except NameError:
         return False      # Probably standard Python interpreter
-isnotebook = checkisnotebook()
+isnotebook = __checkisnotebook()
 
 from . import __version__, __gs_version__
 
 import platform
-ispython3 = platform.python_version()[0] == '3'
-if ispython3:
+_ispython3 = platform.python_version()[0] == '3'
+if _ispython3:
     from inspect import signature # Python 3; needed to allow zero arguments in a bound function
 else:
     from inspect import getargspec # Python 2; needed to allow zero arguments in a bound function
@@ -49,8 +49,11 @@ GSversion = [__gs_version__, 'glowscript']
 #    print(.....)
 #    sys.stdout.flush()
 
-def eprint(*args, **kwargs): # this may output when ordinary print won't
-    print(*args, file=sys.stderr, **kwargs)
+##def eprint(*args, **kwargs): # this may output when ordinary print won't
+##    print(*args, file=sys.stderr, **kwargs)
+##    
+##def jprint(s): # prints to terminal, for debugging purposes
+##    os.write(1, json.dumps(s, separators=(',', ':')).encode('utf_8')+ b'\n')
 
 # scalar attribute:  { <'a' or 'b'>: string }
 # string is str(idx)+attrs[<attributename>]+str(attributevalue) 
@@ -64,9 +67,9 @@ def eprint(*args, **kwargs): # this may output when ordinary print won't
 # method:  {'m': str(idx)+methods[<methodname>]+<value(s) as above>}
 
 # attrs are X in {'a': '23X....'}
-attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: +-,
+__attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: +-,
          'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h', 'textcolor':'i',
-         'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 'dotcolor':'m',
+         'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 'dot_color':'m',
          'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 
          
          # scalar attributes
@@ -90,84 +93,75 @@ attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single
          'font':'?', 'texture':'/'}
          
 # attrsb are X in {'b': '23X....'}; ran out of easily typable one-character codes
-attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':'e',
+__attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':'e',
           'normal':'f', 'data':'g', 'checked':'h', 'disabled':'i', 'selected':'j',
           'vertical':'k', 'min':'l', 'max':'m', 'step':'n', 'value':'o', 'left':'p',
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t'}
 
 # methods are X in {'m': '23X....'}
-methods = {'select':'a', 'start':'c', 'stop':'d', 'clear':'f', # unused bexyCDFghzAB
-           'pop':'k', 'shift':'l', 'unshift':'m',
-           'slice':'n', 'splice':'o', 'modify':'p', 'plot':'q', 'add_to_trail':'s',
-           'follow':'t', 'append_to_caption':'u', 'append_to_title':'v', 'clear_trail':'w',
+__methods = {'select':'a', 'start':'c', 'stop':'d', 'clear':'f', # unused beghijklmnopuvxyzCDFAB           
+           'plot':'q', 'add_to_trail':'s',
+           'follow':'t', 'clear_trail':'w',
            'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L',
            'delete':'M'}
 
-vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
-            'direction', 'linecolor', 'bumpaxis', 'dotcolor', 'add_to_trail', 'textcolor',
+__vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
+            'direction', 'linecolor', 'bumpaxis', 'dot_color', 'add_to_trail', 'textcolor',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
                 
-textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected',
+__textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected',
                  'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
-def encode_attr(L): # L is a list of dictionaries
-    # For each dictionary, convert {'attr': 'opacity', 'val': 0.5, 'idx': 3} => {'a':'(idx)X(value)'}
+def _encode_attr2(sendval, val, ismethods):
+    s = ''
+    if sendval in __vecattrs: # it would be good to do some kind of compression of doubles
+        s += "{:.16G},{:.16G},{:.16G}".format(val[0], val[1], val[2])
+    elif sendval in __textattrs:
+        s += val
+    elif sendval == 'plot' or sendval == 'data':
+        for p in val:
+            s += "{:.16G},{:.16G},".format(p[0], p[1])
+        s =s[:-1]
+    elif ismethods:
+        #if sendval in ['follow', 'waitfor', 'delete']: val = str(val) # scene.camera.follow(object idx)
+        s += str(val)
+    else:
+        s += "{:.16G}".format(val)
+    return s
+
+def _encode_attr(D, ismethods): # ismethods is True if a list of method operations
+    # If ismethods is True,  D is [ [idx, method, data], [idx, method, data], etc. ]
+    # If ismethods is False: D is {idx:{'pos':vec, etc.}, idx:{'pos':vec, etc.}, etc.}
+    # For 'objs', convert {'opacity': 0.5, 'idx': 3} to 'a(idx)X(value)' or 'b(idx)X(value)'
     # where (idx) is a number, X is the attribute code in attrs, (value) is a number or x,y,z or a string
-    # For a method, we have {'method':'add_to_trail', 'val':[x,y,z], 'idx':3} to be converted to
-    # {'m':'(idx)X(value)'
-    output = []
-    for d in L:
-        if 'attr' in d:
-            sendval = d['attr']
-            if sendval in attrs:
-                sendtype = 'a'
-                s = str(d['idx'])+attrs[sendval]
-            else:
-                sendtype = 'b'
-                s = str(d['idx'])+attrsb[sendval]
-        elif 'method' in d:
-            sendtype = 'm'
-            sendval = d['method']
-            s = str(d['idx'])+methods[sendval]
-        else:
-            output.append(d) # can be a constructor
-            continue
-        val = d['val']
-        if sendval in vecattrs: # it would be good to do some kind of compression of doubles
-            s += "{:.16G},{:.16G},{:.16G}".format(val[0], val[1], val[2])
-        elif sendval in textattrs:
-            s += val
-        elif sendval == 'append':
-            for p in val:
-                s += "{:.16G},{:.16G},{:.16G},".format(p[0], p[1], p[2])
-            s =s[:-1]
-        elif sendval == 'plot' or sendval == 'data':
-            for p in val:
-                s += "{:.16G},{:.16G},".format(p[0], p[1])
-            s =s[:-1]
-        elif sendtype == 'm':
-            if sendval in ['follow', 'waitfor', 'delete']: val = str(val) # scene.camera.follow(object idx)
-            s += val
-        else:
-            s += "{:.16G}".format(val)
-        output.append({sendtype:s})
-    return output
+    # For a method, we have {idx, method, value} to be converted to 'm(idx)X(value)'
+    out = []
+    if ismethods: # methods; a list
+        for d in D:
+            s = 'm'+str(d[0])+__methods[d[1]]
+            s += _encode_attr2(d[1], d[2], True)
+            out.append(s)
+    else: # attributes, a dictionary
+        for idx,d in D.items():
+            for sendval,val in d.items():
+                if sendval in __attrs:
+                    s = 'a'+str(idx)+__attrs[sendval]
+                else:
+                    s = 'b'+str(idx)+__attrsb[sendval]
+                s += _encode_attr2(sendval, val, False)
+                out.append(s)
+    return out
 
-object_registry = {}    ## idx -> instance
-attach_arrows = []
-attach_trails = []  ## needed only for functions
-_sent = True  ## set to True when commsend completes; needed for canvas.waitfor(...)
-
-class RateKeeper2(RateKeeper):
+class _RateKeeper2(RateKeeper):
     
     def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
         self.rval = 30
         self.tocall = None
         self.lasttime = 0
-        super(RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
+        super(_RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
 
     def sendtofrontend(self):
-        # This is called by the rate() function, through rate_control RateKeeper callInteract().
+        # This is called by the rate() function, through rate_control _RateKeeper callInteract().
         # See the function commsend() for details of how the browser is updated.
         
         # Check if events to process from front end
@@ -182,36 +176,43 @@ class RateKeeper2(RateKeeper):
             self.lasttime = clock()
             
     def __call__(self, N): # rate(N) calls this function
-##        if (not self.active) or (N != self.rval):
-##            self.count = 0 # new rate statement or change in rate value
         self.rval = N          
         if self.rval < 1: raise ValueError("rate value must be greater than or equal to 1")
-        super(RateKeeper2, self).__call__(self.rval) ## calls __call__ in rate_control.py
+        super(_RateKeeper2, self).__call__(self.rval) ## calls __call__ in rate_control.py
 
 if sys.version > '3':
     long = int
 
-ifunc = simulateDelay(delayAvg = 0.001)
-rate = RateKeeper2(interactFunc = ifunc)
+# The rate function:
+rate = _RateKeeper2(interactFunc = simulateDelay(delayAvg = 0.001))
 
 def list_to_vec(L):
     return vector(L[0], L[1], L[2])
 
 class baseObj(object):
-    txtime = 0.0
-    idx = 1
-    qSize = 500
     glow = None
-    cmds = []
-    updtobjs = collections.deque()
     objCnt = 0
     
+    # 'cmds': list of constructors,
+    # 'objs': {idx:{'pos':vec, etc.}, idx:{'pos':vec, etc.}, etc.},
+    # 'methods': [ [idx, method, date], [idx, method, date], etc. ]
+    updates = {'cmds':[], 'objs':{}, 'methods':[]}
+    object_registry = {}    ## idx -> instance
+    attach_arrows = []
+    attach_trails = []  ## needed only for functions
+
+    @classmethod
+    def initialize(cls):
+        baseObj.updates = {'cmds':[], 'objs':{}, 'methods':[]}
+            
+    @classmethod
+    def empty(cls):
+        b = baseObj.updates
+        return b['cmds'] == [] and b['objs'] == {} and b['methods'] == []
+    
     def __init__(self, **kwargs):
-        idx = baseObj.objCnt   ## an integer
-        object_registry[idx] = self 
-        object.__setattr__(self, 'idx', idx)
-        object.__setattr__(self, 'attrsupdt', collections.deque())
-        object.__setattr__(self, 'methodsupdt', [] )  ## list -- must be done in order
+        self.idx = baseObj.objCnt   ## an integer
+        self.object_registry[self.idx] = self        
         if kwargs is not None:
             for key, value in kwargs.items():
                 object.__setattr__(self, key, value)
@@ -228,16 +229,47 @@ class baseObj(object):
 
     def appendcmd(self,cmd):
         # The following code makes sure that constructors are sent to the front end first.
-        cmd['_pass'] = 1 # indicate that this should be ignored by glowcomm/decode()
-        baseObj.cmds.append(cmd)
+        cmd['idx'] = self.idx
+        baseObj.updates['cmds'].append(cmd)
     
-    def addattr(self, attr):
-        self.attrsupdt.append(attr)
-        baseObj.updtobjs.append(self.idx)
+    def addattr(self, attr, val):
+        # Guard against reinitialization of baseObj.updates by websocket machinery
+        while True:
+            try:
+                if self.idx not in baseObj.updates['objs']:
+                    baseObj.updates['objs'][self.idx] = {attr:val}
+                else:
+                    baseObj.updates['objs'][self.idx][attr] = val
+                break
+            except:
+                pass
         
     def addmethod(self, method, data):
-        self.methodsupdt.append( [method, data] )
-        baseObj.updtobjs.append(self.idx)
+        baseObj.updates['methods'].append([self.idx, method, data])
+
+    @classmethod
+    def package(cls, objdata): # package up the data to send to the browser
+        if objdata['cmds'] == []: del objdata['cmds']
+        if objdata['objs'] != {}: objdata['objs'] = _encode_attr(objdata['objs'], False)
+        else: del objdata['objs']
+        if objdata['methods'] != []:
+            m = _encode_attr(objdata['methods'], True)
+            if 'objs' in objdata:
+                objdata['objs'] += m
+            else:
+                objdata['objs'] = m
+        del objdata['methods']
+        return objdata
+
+    @classmethod
+    def trigger(cls): # isnotebook; called by a canvas update event from browser, coming from GlowWidget.handle_msg
+        if baseObj.empty():
+            objdata = 'trigger' # handshake with browser
+        else:
+            objdata = cls.package(baseObj.updates)
+        _handle_attach()
+        sender(objdata)
+        baseObj.initialize()
             
     @classmethod
     def incrObjCnt(cls):
@@ -254,137 +286,52 @@ class baseObj(object):
         else:
             self.appendcmd(cmd)
 
-commcmds = []
-for i in range(2*baseObj.qSize):
-    commcmds.append({"idx": -1, "attr": 'dummy', "val": 0})
-
-def commsend():
-    # Jupyter does not immediately transmit data to the browser from a thread,
-    # which made for an awkward thread in early versions of Jupyter VPython, and
-    # even caused display mistakes due to losing portions of data sent to the browser
-    # from within a thread.
+def _handle_attach(): # called when about to send data to the browser
+    ## update every attach_arrow if relevant vector has changed
+    for aa in baseObj.attach_arrows:
+        ob = baseObj.object_registry[aa._obj]
+        vval = getattr(ob, aa._attr)
+        if not isinstance(vval, vector):
+            continue
+        if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
+            continue
+        ob.addattr(aa._attr, vval.value)
+        aa._last_val = vval
+        
+    ## update every attach_trail that depends on a function
+    for aa in baseObj.attach_trails:
+        if aa._obj == '_funcvalue':
+            fval = aa._func()
+            aa._funcvalue = fval
+        else:
+            fval = getattr(aa, aa._obj)
+        if not isinstance(fval, vector):
+            continue
+        if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
+            continue                
+        aa.addattr(aa._obj, fval.value)
+        aa._last_val = fval
     
-    # Now there is no threading in Jupyter VPython. The function commsend(), which sends data to the
-    # browser, is called from the trigger() function, which is called by a
-    # canvas_update event sent to Python from the browser (glowcomm.js), currently
-    # every 33 milliseconds. When trigger() is called, it immediately signals
-    # the browser to set a timeout of 33 ms to send another signal to Python.
-    # Note that a typical VPython program starts out by creating objects (constructors) and
-    # specifying their attributes. The 33 ms signal from the browser is adequate to ensure
-    # prompt data transmissions to the browser.
+# Jupyter does not immediately transmit data to the browser from a thread,
+# which made for an awkward thread in early versions of Jupyter VPython, and
+# even caused display mistakes due to losing portions of data sent to the browser
+# from within a thread.
 
-    # The situation with non-notebook use is similar, but the http server is threaded,
-    # in order to serve glowcomm.html, jpg texture files, and font files.
-    
-    global commcmds, _sent
-    _sent = False
-    try:
-        if len(baseObj.cmds) > 0:
-            sender(baseObj.cmds)
-            baseObj.cmds = []
+# Now there is no threading in Jupyter VPython. Data is sent to the
+# browser from the trigger() function, which is called by a
+# canvas_update event sent to Python from the browser (glowcomm.js), currently
+# every 33 milliseconds. When trigger() is called, it immediately signals
+# the browser to set a timeout of 33 ms to send another signal to Python.
+# Note that a typical VPython program starts out by creating objects (constructors) and
+# specifying their attributes. The 33 ms signal from the browser is adequate to ensure
+# prompt data transmissions to the browser.
 
-        ## update every attach_arrow if relevant vector has changed    
-        for aa in attach_arrows:
-            ob = object_registry[aa._obj]
-            vval = getattr(ob, aa._attr)
-            if not isinstance(vval, vector):
-                continue
-            if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
-                continue
-            ob.addattr(aa._attr)
-            aa._last_val = vval
-            
-        ## update every attach_trail that depends on a function
-        for aa in attach_trails:
-            if aa._obj == '_funcvalue':
-                fval = aa._func()
-                aa._funcvalue = fval
-            else:
-                fval = getattr(aa, aa._obj)
-            if not isinstance(fval, vector):
-                continue
-            if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
-                continue                
-            aa.addattr(aa._obj)
-            aa._last_val = fval
-                    
-        L = 0
-        attr_set = set()
-        while baseObj.updtobjs: # a collection.deque
-            try:
-                idx = baseObj.updtobjs.popleft() # strangely, this sometimes gives an error
-            except:
-                break
-            ob = object_registry[idx]
-            if  (ob is not None) and (hasattr(ob,'attrsupdt')) and (len(ob.attrsupdt) > 0 ):
-                attr_set.clear()
-                while ob.attrsupdt:
-                    try:
-                        attr = ob.attrsupdt.popleft() # strangely, this sometimes gives an error
-                    except:
-                        break
-                    if attr is not None:
-                        attr_set.add(attr)
-                while attr_set:
-                    if 'method' in commcmds[L]: del commcmds[L]['method'] # if left over from previous use of slot
-                    attr = attr_set.pop()
-                    if attr is not None:
-                        attrval = getattr(ob,attr)
-                        if attrval is not None:
-                            if attr == 'pos' and isinstance(attrval, list):  ## curve or points
-                                poslist = []
-                                for aa in attrval:
-                                    poslist.append(aa.value)
-                                commcmds[L]['idx'] = ob.idx
-                                commcmds[L]['attr'] = attr
-                                commcmds[L]['val'] = poslist                                                
-                            elif isinstance(getattr(ob,attr), vector):  ## include attach_arrow attribute
-                                attrvalues = attrval.value
-                                if attrvalues is not None:
-                                    commcmds[L]['idx'] = ob.idx
-                                    commcmds[L]['attr'] = attr
-                                    commcmds[L]['val'] = attrvalues
-                            elif attr in ['v0', 'v1', 'v2', 'v3']:
-                                commcmds[L]['idx'] = ob.idx
-                                commcmds[L]['attr'] = attr
-                                commcmds[L]['val'] = attrval.idx
-                            else:
-                                commcmds[L]['idx'] = ob.idx
-                                commcmds[L]['attr'] = attr
-                                commcmds[L]['val'] = attrval
-                            L += 1
-                            if L > baseObj.qSize:
-                                sender(encode_attr(commcmds[:L])) # send attributes and methods to glowcomm
-                                L = 0
-                           
-            if (ob is not None) and (hasattr(ob,'methodsupdt')) and (len(ob.methodsupdt) > 0 ):
-                for m in ob.methodsupdt: # a list
-                    if 'attr' in commcmds[L]: del commcmds[L]['attr'] # if left over from previous use of slot
-                    method = m[0]
-                    data = m[1]
-                    commcmds[L]['idx'] = ob.idx
-                    commcmds[L]['method'] = method
-                    if method == 'add_to_trail': data = data.value
-                    commcmds[L]['val'] = data
-                    L += 1
-                    if L > baseObj.qSize:
-                        sender(encode_attr(commcmds[:L])) # send attributes and methods to glowcomm
-                        L = 0
-                ob.methodsupdt = []
-                
-            if L > baseObj.qSize:
-                sender(encode_attr(commcmds[:L]))  # Send attributes and methods to glowcomm
-                L = 0
-                
-        if L > 0:
-            sender(encode_attr(commcmds[:L]))  # Send attributes and methods to glowcomm
+# The situation with non-notebook use is similar, but the http server is threaded,
+# in order to serve glowcomm.html, jpg texture files, and font files, and the
+# websocket is also threaded.
 
-    finally:
-        _sent = True
-
-def trigger(): # called by a canvas update event from browser, coming from GlowWidget.handle_msg
-    sender([{'trigger':1, '_pass':1}]) # handshake with glowcomm.js
-    commsend()
+# In both the notebook and non-notebook cases output is buffered in baseObj.updates
+# and sent as a block to the browser at render times.
 
 class GlowWidget(object):    
     def __init__(self, comm, msg): # msg is passed but not used in notebook case
@@ -396,37 +343,38 @@ class GlowWidget(object):
             sender = comm.send
             self.show = True
 
-    ## object_registry = {}
+    ## baseObj.object_registry = {}
     ## idx -> instance
     def handle_msg(self, msg):
-        evt = msg['content']['data']
-        if 'widget' in evt:
-            obj = object_registry[evt['idx']]
-            if evt['widget'] == 'button':
-                pass
-            elif evt['widget'] == 'slider':
-                obj._value = evt['value']
-            elif evt['widget'] == 'menu':
-                obj._selected = obj._choices[evt['value']]
-            elif evt['widget'] == 'checkbox':
-                obj._checked = evt['value']
-            elif evt['widget'] == 'radio':
-                obj._checked = evt['value']
-            # inspect the bound function and see what it's expecting
-            if ispython3: # Python 3
-                a = signature(obj._bind)
-                if str(a) != '()': obj._bind( obj )
-                else: obj._bind()
-            else: # Python 2
-                a = getargspec(obj._bind)
-                if len(a.args) > 0: obj._bind( obj ) 
-                else: obj._bind()
-        else:   ## a canvas event
-            if 'trigger' not in evt:
-                cvs = object_registry[evt['canvas']]
-                cvs.handle_event(evt)
+        events = msg['content']['data'] # this is a list of time-ordered events
+        for evt in events:
+            if 'widget' in evt:
+                obj = baseObj.object_registry[evt['idx']]
+                if evt['widget'] == 'button':
+                    pass
+                elif evt['widget'] == 'slider':
+                    obj._value = evt['value']
+                elif evt['widget'] == 'menu':
+                    obj._selected = obj._choices[evt['value']]
+                elif evt['widget'] == 'checkbox':
+                    obj._checked = evt['value']
+                elif evt['widget'] == 'radio':
+                    obj._checked = evt['value']
+                # inspect the bound function and see what it's expecting
+                if _ispython3: # Python 3
+                    a = signature(obj._bind)
+                    if str(a) != '()': obj._bind( obj )
+                    else: obj._bind()
+                else: # Python 2
+                    a = getargspec(obj._bind)
+                    if len(a.args) > 0: obj._bind( obj ) 
+                    else: obj._bind()
+            else:   ## a canvas event
+                if 'trigger' not in evt:
+                    cvs = baseObj.object_registry[evt['canvas']]
+                    cvs.handle_event(evt)
             if isnotebook:
-                trigger()
+                baseObj.trigger()
 
     def handle_close(self, data):
         print ("comm closed")
@@ -470,7 +418,7 @@ if isnotebook:
             v = open(nbdir+'/vpython_version.txt').read()
             transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
 
-    #transfer = True ### use when testing, so that changes are active
+    transfer = True ### use when testing, so that changes are active
     if transfer:
         if IPython.__version__ >= '4.0.0' :
             notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
@@ -517,48 +465,39 @@ if isnotebook:
     ########################################################################################
     
 else: # not running in Jupyter notebook
-    # Not using websockets seems doomed, because the roundtrip from sending a message
-    # from client to server with response back to client takes a long time.
-    # Here is a sequence of such round-trip times in milliseconds:
-    # 276, 28, 288, 316, 16, 308, 249, 305, 63, 254, 52, 268, 303, 40
 
-    if not ispython3:
+    if not _ispython3:
         s = "The non-notebook version of vpython requires Python 3.4 or later."
         s += "\nvpython does work on Python 2.7 in the Jupyter notebook environment."
         raise Exception(s)
     
     from http.server import BaseHTTPRequestHandler, HTTPServer
     from os import sep
-    import webbrowser
-    import asyncio
-    import json
     import threading
+    import json
+    import webbrowser as _webbrowser
+    import asyncio
+    from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
 
-    HTTP_PORT = 9000
-    serverlib = __file__.replace('vpython.py','vpython_libraries')
-    serverdata = __file__.replace('vpython.py','vpython_data')
-    mimes = {'html':['text/html', serverlib],
-              'js' :['application/javascript', serverlib],
-              'css':['text/css', serverlib],
-              'jpg':['image/jpg', serverdata],
-              'png':['image/png', serverlib],
-              'otf':['application/x-font-otf', serverdata],
-              'ttf':['application/x-font-ttf', serverdata],
-              'ico':['image/x-icon', serverdata]}
-
-    # Requests from client can be the following:
+    # Requests from client to http server can be the following:
     #    get glowcomm.html, library .js files, images, or font files
-    #    trigger event; return data (constructors, attributes, methods)
-    #    other event; process, pick, compound
 
     GW = None
 
-    t0 = clock()
     class serveHTTP(BaseHTTPRequestHandler):
-        lock = threading.Lock()
+        serverlib = __file__.replace('vpython.py','vpython_libraries')
+        serverdata = __file__.replace('vpython.py','vpython_data')
+        mimes = {'html':['text/html', serverlib],
+                  'js' :['application/javascript', serverlib],
+                  'css':['text/css', serverlib],
+                  'jpg':['image/jpg', serverdata],
+                  'png':['image/png', serverlib],
+                  'otf':['application/x-font-otf', serverdata],
+                  'ttf':['application/x-font-ttf', serverdata],
+                  'ico':['image/x-icon', serverdata]}
             
         def do_GET(self):
-            global t0, GW
+            global GW
             if GW is None: GW = GlowWidget(None, None)
             if self.path == "/":
                 self.path = sep+'glowcomm.html'
@@ -568,8 +507,8 @@ else: # not running in Jupyter notebook
             fext = None
             if f > 0: fext = self.path[f+1:]
             try:
-                if fext in mimes:
-                    mime = mimes[fext]
+                if fext in self.mimes:
+                    mime = self.mimes[fext]
                     loc = mime[1] + self.path
                     fd = open(loc, 'rb') 
                     self.send_response(200)
@@ -583,22 +522,13 @@ else: # not running in Jupyter notebook
         def log_message(self, format, *args): # this overrides server stderr output
             return
 
-    SOCKET_PORT = 9001
-    # http://stackoverflow.com/questions/43551026/cors-enable-autobahn-asyncio-websocket-server
-
-    from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
-
-    tstart = clock()
+    # Requests from client to websocket server can be the following:
+    # trigger event; return data (constructors, attributes, methods)
+    # other event; pause, waitfor, pick, compound
     
     class WSserver(WebSocketServerProtocol):
         # Data sent and received must be type "bytes", so use string.encode and string.decode
         connection = None
-        objdata = []
-        lock = threading.Lock()
-
-        @staticmethod
-        def bufferdata(d): # store data to be sent to client
-            WSserver.objdata.extend(d)
 
         def onConnect(self, request):
             self.connection = self
@@ -611,18 +541,25 @@ else: # not running in Jupyter notebook
         # in favor of "async def onMessage...", and "yield from" with "await".
         @asyncio.coroutine
         def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
-            commsend()
-            if len(WSserver.objdata) > 0:
-                d = WSserver.objdata
-                jdata = json.dumps(d, separators=(',', ':')).encode('utf_8')
-                WSserver.objdata = []
-            else:
-                jdata = b'trigger'
+            global _sent
+            _sent = False
+            _handle_attach() # attach arrow and attach trail
+            while True:
+                try:
+                    objdata = copy.deepcopy(baseObj.updates)
+                    baseObj.initialize() # reinitialize baseObj.updates
+                    break
+                except:
+                    pass
+            objdata = baseObj.package(objdata)
+            jdata = json.dumps(objdata, separators=(',', ':')).encode('utf_8')
             self.sendMessage(jdata, isBinary=False)
+            _sent = True
             if data != b'trigger': # b'trigger' just asks for updates
                 d = json.loads(data.decode("utf_8")) # update_canvas info
                 for m in d:
-                    msg = {'content':{'data':m}} # message format used by notebook
+                    # Must sent events one at a time to GW.handle_msg because bound events need the loop code:
+                    msg = {'content':{'data':[m]}} # message format used by notebook=
                     if 'bind' in m: # will execute a function that may contain waitfor etc. statements
                         loop = asyncio.get_event_loop()
                         yield from loop.run_in_executor(None, GW.handle_msg, msg)
@@ -633,27 +570,29 @@ else: # not running in Jupyter notebook
             #print("Server WebSocket connection closed: {0}".format(reason))
             self.connection = None
 
-    factory = WebSocketServerFactory(u"ws://localhost:{}/".format(SOCKET_PORT))
-    factory.protocol = WSserver
-    interact_loop = asyncio.get_event_loop()
-    coro = interact_loop.create_server(factory, '0.0.0.0', SOCKET_PORT)
-    interact_loop.run_until_complete(coro)
-    sender = WSserver.bufferdata
+    __SOCKET_PORT = 9001
+    __factory = WebSocketServerFactory(u"ws://localhost:{}/".format(__SOCKET_PORT))
+    __factory.protocol = WSserver
+    __interact_loop = asyncio.get_event_loop()
+    __coro = __interact_loop.create_server(__factory, '0.0.0.0', __SOCKET_PORT)
+    __interact_loop.run_until_complete(__coro)
     #interact_loop.stop()
     #interact_loop.run_forever()
     # Need to put interact loop inside a thread in order to get a display
     # in the absence of a loop containing a rate statement.
-    t = threading.Thread(target=interact_loop.run_forever)
-    t.start()
+    __t = threading.Thread(target=__interact_loop.run_forever)
+    __t.start()
 
-    server = HTTPServer(('', HTTP_PORT), serveHTTP)
-    webbrowser.open('http://localhost:{}'.format(HTTP_PORT)) # or webbrowser.open_new_tab()
-    w = threading.Thread(target=server.serve_forever)
-    w.start()
+    __HTTP_PORT = 9000
+    __server = HTTPServer(('', __HTTP_PORT), serveHTTP)
+    _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT)) # or webbrowser.open_new_tab()
+    __w = threading.Thread(target=__server.serve_forever)
+    __w.start()
     # server.handle_request() is a single-shot interaction
 
 def _wait(cvs): # wait for an event
     cvs._waitfor = False
+    if isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
     while cvs._waitfor is False:
         rate(30)
 
@@ -691,8 +630,6 @@ class color(object):
     def rgb_to_grayscale(cls,v):
       luminance = 0.21*v.x + 0.71*v.y + 0.07*v.z
       return vector(luminance, luminance, luminance)
-
-vec = vector # synonyms in GlowScript
   
 class textures(object):
     flower = ":flower_texture.jpg"
@@ -893,7 +830,6 @@ class standardAttributes(baseObj):
                 del args[a]
 
         if defaultSize is not None:
-##        if objName != 'points' and objName != 'label': # these objects have no size
             if 'size' not in argsToSend:  ## always send size because Python size differs from JS size
                 argsToSend.append('size')
             self._trail_radius = 0.1 * self._size.y  ## default depends on size
@@ -925,7 +861,7 @@ class standardAttributes(baseObj):
         for key, value in args.items(): # Assign all other properties
             setattr(self, key, value)
         
-        cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
+        cmd = {"cmd": objName, "idx": self.idx}
 
     # now put all args to send into cmd
         nosize = ['compound', 'extrusion', 'text'] # size will be computed by the constuctor
@@ -936,16 +872,20 @@ class standardAttributes(baseObj):
             elif isinstance(aval, vertex):
                 aval = aval.idx
             if objName in nosize and a == 'size': continue # do not send superfluous size
-            cmd["attrs"].append({"attr":a, "value": aval})
+            #cmd["attrs"].append({"attr":a, "value": aval})
+            cmd[a] = aval
+            
             
     # set canvas  
         if self.canvas == None:  ## not specified in constructor
             self.canvas = canvas.get_selected()
-        cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
+        #cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
+        cmd['canvas'] = self.canvas.idx
         self.canvas.objz(self,'add')
                    
         self._constructing = False  ## from now on any setter call will not be from constructor
-        if cloning is not None: cmd["attrs"].append({"attr":"_cloneid", "value":cloning})
+        #if cloning is not None: cmd["attrs"].append({"attr":"_cloneid", "value":cloning})
+        if cloning is not None: cmd["_cloneid"] = cloning
         self.appendcmd(cmd)
        
         # if ('frame' in args and args['frame'] != None):
@@ -1020,9 +960,9 @@ class standardAttributes(baseObj):
         self._pos.value = value
         if not self._constructing:
             if self._make_trail and self._interval > 0:
-                self.addmethod('add_to_trail', value)
+                self.addmethod('add_to_trail', value.value)
             else:
-                self.addattr('pos')
+                self.addattr('pos', value.value)
             
     @property
     def up(self):
@@ -1032,7 +972,7 @@ class standardAttributes(baseObj):
         oldup = norm(self._up)
         self._up.value = value
         if not self._constructing:
-            self.addattr('up')
+            self.addattr('up', value.value)
         if self._adjustupaxis: self.adjust_axis(oldup, self.up) # not in object.rotate
             
     @property
@@ -1042,7 +982,7 @@ class standardAttributes(baseObj):
     def size(self,value):
         self._size.value = value
         if not self._constructing:
-            self.addattr('size')
+            self.addattr('size', value.value)
         if self._objName != 'text':
             a = self._axis.norm() * value.x
             if mag(self._axis) == 0:
@@ -1051,7 +991,7 @@ class standardAttributes(baseObj):
             if not v.equals(a):
                 self._axis.value = a
                 if not self._constructing:
-                    self.addattr('axis')
+                    self.addattr('axis', value.value)
 
     @property
     def axis(self):
@@ -1061,13 +1001,13 @@ class standardAttributes(baseObj):
         oldaxis = norm(self._axis)
         self._axis.value = value
         if not self._constructing:
-            self.addattr('axis')
+            self.addattr('axis', value.value)
         if self._objName != 'text':
             m = value.mag
             if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
                 self._size._x = m
                 if not self._constructing:
-                    self.addattr('size')
+                    self.addattr('size', self._size.value)
         if self._adjustupaxis: self.adjust_up(oldaxis, self.axis) # not in object.rotate
             
     @property
@@ -1078,8 +1018,8 @@ class standardAttributes(baseObj):
         self._axis = self._axis.norm() * value
         self._size._x = value
         if not self._constructing:
-            self.addattr('axis')
-            self.addattr('size')
+            self.addattr('axis', self._axis.value)
+            self.addattr('size', self._size.value)
 
     @property
     def height(self): 
@@ -1088,7 +1028,7 @@ class standardAttributes(baseObj):
     def height(self,value):
         self._size._y = value
         if not self._constructing:
-            self.addattr('size')
+            self.addattr('size', self._size.value)
 
     @property
     def width(self): 
@@ -1097,7 +1037,7 @@ class standardAttributes(baseObj):
     def width(self,value):
         self._size._z = value
         if not self._constructing:
-            self.addattr('size')
+            self.addattr('size', self._size.value)
         
     @property    
     def color(self):
@@ -1106,7 +1046,7 @@ class standardAttributes(baseObj):
     def color(self,value):
         self._color.value = value
         if not self._constructing:
-            self.addattr('color')
+            self.addattr('color', value.value)
 
     @property
     def red(self):
@@ -1115,7 +1055,7 @@ class standardAttributes(baseObj):
     def red(self,value):
         self._color = (value,self.green,self.blue)
         if not self._constructing:
-            self.addattr('color')
+            self.addattr('color', self._color.value)
 
     @property
     def green(self):
@@ -1124,7 +1064,7 @@ class standardAttributes(baseObj):
     def green(self,value):
         self._color = (self.red,value,self.blue)
         if not self._constructing:
-            self.addattr('color')
+            self.addattr('color', self._color.value)
 
     @property
     def blue(self):
@@ -1133,7 +1073,7 @@ class standardAttributes(baseObj):
     def blue(self,value):
         self._color = (self.red,self.green,value)
         if not self._constructing:
-            self.addattr('color')
+            self.addattr('color', self._color.value)
 
     @property
     def visible(self):
@@ -1142,7 +1082,7 @@ class standardAttributes(baseObj):
     def visible(self,value):
         self._visible = value
         if not self._constructing:
-            self.addattr('visible')
+            self.addattr('visible', value)
 
     @property
     def pickable(self):
@@ -1151,7 +1091,7 @@ class standardAttributes(baseObj):
     def pickable(self,value):
         self._pickable = value
         if not self._constructing:
-            self.addattr('pickable')
+            self.addattr('pickable', value)
 
     @property
     def canvas(self):
@@ -1169,7 +1109,7 @@ class standardAttributes(baseObj):
     def opacity(self,value):
         self._opacity = value
         if not self._constructing:
-            self.addattr('opacity')
+            self.addattr('opacity', value)
 
     @property
     def emissive(self):
@@ -1178,7 +1118,7 @@ class standardAttributes(baseObj):
     def emissive(self,value):
         self._emissive = value
         if not self._constructing:
-            self.addattr('emissive')
+            self.addattr('emissive', value)
 
     @property
     def texture(self):
@@ -1187,7 +1127,7 @@ class standardAttributes(baseObj):
     def texture(self,value):
         self._texture = value
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"texture","idx":self.idx})
+            self.appendcmd({"texture":value})
 
     @property
     def shininess(self):
@@ -1196,7 +1136,7 @@ class standardAttributes(baseObj):
     def shininess(self,value):
         self._shininess = value
         if not self._constructing:
-            self.addattr('shininess')
+            self.addattr('shininess', value)
             
     @property
     def make_trail(self):
@@ -1205,19 +1145,18 @@ class standardAttributes(baseObj):
     def make_trail(self,value):
         self._make_trail = value
         if not self._constructing:
-            self.addattr('make_trail')
+            self.addattr('make_trail', value)
 
     @property
     def trail_type(self):
         return self._trail_type    
     @trail_type.setter
     def trail_type(self,value):
-##        if not self._constructing: raise AttributeError('"trail_type" cannot be modified')
         if (value not in ['curve', 'points']):
             raise Exception("ArgumentError: trail_type must be 'curve' or 'points'")
         self._trail_type = value   
         if not self._constructing:
-            self.addattr('trail_type')
+            self.addattr('trail_type', value)
         
     @property
     def trail_color(self):
@@ -1229,27 +1168,25 @@ class standardAttributes(baseObj):
         else:
             raise TypeError('trail_color must be a vector')
         if not self._constructing: 
-            self.addattr('trail_color')
+            self.addattr('trail_color', value.value)
 
     @property
     def interval(self):
         return self._interval    
     @interval.setter
     def interval(self,value):
-##        if not self._constructing: raise AttributeError('"interval" cannot be modified')
         self._interval = value
         if not self._constructing:
-            self.addattr('interval')
+            self.addattr('interval', value)
 
     @property
     def retain(self):
         return self._retain    
     @retain.setter
     def retain(self,value):
-##        if not self._constructing: raise AttributeError('"retain" cannot be modified')
         self._retain = value
         if not self._constructing:
-            self.addattr('retain')
+            self.addattr('retain', value)
 
     @property
     def trail_radius(self):
@@ -1258,17 +1195,16 @@ class standardAttributes(baseObj):
     def trail_radius(self,value):
         self._trail_radius = value
         if not self._constructing:
-            self.addattr('trail_radius')
+            self.addattr('trail_radius', value)
         
     @property
     def pps(self):
         return self._pps
     @pps.setter
     def pps(self, value):
-##        if not self._constructing: raise AttributeError('"pps" cannot be modified')
         self._pps = value
         if not self._constructing:
-            self.addattr('pps')
+            self.addattr('pps', value)
 
     @property
     def frame(self):
@@ -1309,18 +1245,18 @@ class standardAttributes(baseObj):
         
     def _on_size_change(self): # the vector class calls this when there's a change in x, y, or z
         self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
-        self.addattr('size')
+        self.addattr('size', self._axis.value)
 
     def _on_pos_change(self): # the vector class calls this when there's a change in x, y, or z
-        self.addattr('pos')
+        self.addattr('pos', self._pos.value)
 
     def _on_axis_change(self): # the vector class calls this when there's a change in x, y, or z
         if self._objName != 'text':
             self._size.x = self._axis.mag
-        self.addattr('axis')
+        self.addattr('axis', self._axis.value)
 
     def _on_up_change(self): # the vector class calls this when there's a change in x, y, or z
-        self.addattr('up')        
+        self.addattr('up', self._up.value)        
         
     def clear_trail(self):
         self.addmethod('clear_trail', 'None')
@@ -1371,7 +1307,7 @@ class standardAttributes(baseObj):
         for k, v in args.items():   # overrides and user attrs
             newargs[k] = v
         # wait for cloning objects to exist
-        while len(baseObj.cmds) > 0 or len(baseObj.updtobjs) > 0:
+        while not baseObj.empty():
             rate(60)
         if objName[:8] == 'compound' or objName == 'extrusion':
             return compound([], **newargs)
@@ -1409,7 +1345,7 @@ class sphere(standardAttributes):
     def axis(self,value): # changing a sphere axis should not affect size
         self._axis.value = value
         if not self._constructing:
-            self.addattr('axis')
+            self.addattr('axis', value.value)
         
 class cylinder(standardAttributes):
     def __init__(self, **args):
@@ -1474,7 +1410,7 @@ class ring(standardAttributes):
         self._size.x = 2*value
         self._size.y = self._size.z = 2*(R1+value)
         if not self._constructing:
-            self.addattr('size')
+            self.addattr('size', self._size.value)
         
     @property
     def radius(self):
@@ -1484,7 +1420,7 @@ class ring(standardAttributes):
         R2 = self.thickness
         self._size.y = self._size.z = 2*(value+R2)
         if not self._constructing:
-            self.addattr('size')
+            self.addattr('size', self._size.value)
     
     @property        ## override methods of parent class
     def axis(self):
@@ -1494,7 +1430,7 @@ class ring(standardAttributes):
         if not isinstance(value, vector): raise TypeError('axis must be a vector')
         self._axis = value
         if not self._constructing:
-            self.addattr('axis')
+            self.addattr('axis', value.value)
  
     @property        ## override methods of parent class
     def size(self):
@@ -1504,7 +1440,7 @@ class ring(standardAttributes):
         if not isinstance(value, vector): raise TypeError('axis must be a vector')
         self._size = value
         if not self._constructing:
-            self.addattr('size') 
+            self.addattr('size', value.value) 
         
 class arrow(standardAttributes): 
     def __init__(self, **args):
@@ -1523,7 +1459,7 @@ class arrow(standardAttributes):
     def shaftwidth(self,value):
         self._shaftwidth = value
         if not self._constructing:
-            self.addattr('shaftwidth')
+            self.addattr('shaftwidth', value)
         
     @property
     def headwidth(self): 
@@ -1532,7 +1468,7 @@ class arrow(standardAttributes):
     def headwidth(self,value):
         self._headwidth =value
         if not self._constructing:
-            self.addattr('headwidth')
+            self.addattr('headwidth', value)
         
     @property
     def headlength(self): 
@@ -1541,11 +1477,10 @@ class arrow(standardAttributes):
     def headlength(self,value):
         self._headlength =value
         if not self._constructing:
-            self.addattr('headlength')
+            self.addattr('headlength', value)
             
 class attach_arrow(standardAttributes):
     def __init__(self, obj, attr, **args):
-        global attach_arrows
         args['_default_size'] = None
         self._obj = obj.idx
         args['_obj'] = self._obj
@@ -1556,7 +1491,7 @@ class attach_arrow(standardAttributes):
         self._scale = 1
         self._shaftwidth = 0
         super(attach_arrow, self).setup(args)
-        attach_arrows.append(self)
+        baseObj.attach_arrows.append(self)
         
     @property
     def scale(self):
@@ -1565,7 +1500,7 @@ class attach_arrow(standardAttributes):
     def scale(self, value):
         self._scale = value
         if not self._constructing:
-            self.addattr("scale")
+            self.addattr("scale", value)
     
     @property 
     def shaftwidth(self):
@@ -1574,7 +1509,7 @@ class attach_arrow(standardAttributes):
     def shaftwidth(self, value):
         self._shaftwidth = value
         if not self._constructing:
-            self.addattr("shaftwidth")
+            self.addattr("shaftwidth", value)
             
     def stop(self):
         self.addmethod('stop', 'None')
@@ -1584,16 +1519,15 @@ class attach_arrow(standardAttributes):
         
 class attach_trail(standardAttributes):
     def __init__(self, obj, **args):
-        global attach_trails
         args['_default_size'] = None
         args['_objName'] = "attach_trail"
         self._radius = 0
         if callable(obj): # true if obj is a function
-            attach_trails.append(self)
+            baseObj.attach_trails.append(self)
             self._obj = "_funcvalue"
             self._func = obj
         elif isinstance(obj, str):
-            attach_trails.append(self)
+            baseObj.attach_trails.append(self)
             self._obj = obj
             setattr(self, obj, None)
         else:
@@ -1614,7 +1548,7 @@ class attach_trail(standardAttributes):
     def radius(self, value):
         self._radius = value
         if not self._constructing:
-            self.addattr('radius')
+            self.addattr('radius', value)
             
     @property
     def retain(self):
@@ -1623,7 +1557,7 @@ class attach_trail(standardAttributes):
     def retain(self, value):
         self._retain = value
         if not self._constructing:
-            self.addattr("retain")
+            self.addattr("retain", value)
             
     @property
     def pps(self):
@@ -1632,7 +1566,7 @@ class attach_trail(standardAttributes):
     def pps(self, value):
         self._pps = value
         if not self._constructing:
-            self.addattr("pps")
+            self.addattr("pps", value)
             
     @property
     def type(self):
@@ -1641,7 +1575,7 @@ class attach_trail(standardAttributes):
     def type(self, value):
         self._type = value
         if not self._constructing:
-            self.addattr("type")
+            self.addattr("type", value)
             
     def stop(self):
         self.addmethod('stop', 'None')
@@ -1667,9 +1601,9 @@ class helix(standardAttributes):
         return self._thickness
     @thickness.setter
     def thickness(self,value):
-        self._thickness =value
+        self._thickness = value
         if not self._constructing:
-            self.addattr('thickness')
+            self.addattr('thickness', value)
             
     @property
     def coils(self): 
@@ -1678,7 +1612,7 @@ class helix(standardAttributes):
     def coils(self,value):
         self._coils =value
         if not self._constructing:
-            self.addattr('coils')   
+            self.addattr('coils', value)   
             
     @property
     def radius(self):
@@ -1687,16 +1621,15 @@ class helix(standardAttributes):
     def radius(self,value):
         d = 2*value
         self.size = vector(self._size.x,d,d) # size will call addattr if appropriate
-
-compound_idx = 0 # same numbering scheme as in GlowScript
         
 class compound(standardAttributes):
+    compound_idx = 0 # same numbering scheme as in GlowScript
+    
     def __init__(self, objList, **args):
-        global compound_idx
         self._obj_idxs = None
         idxlist = []
         # wait for compounding or cloning objects to exist
-        while len(baseObj.cmds) > 0 or len(baseObj.updtobjs) > 0:
+        while not baseObj.empty():
             rate(60)            
         ineligible = [label, curve, helix, points]  ## type objects
         cloning =  None
@@ -1717,8 +1650,8 @@ class compound(standardAttributes):
             savesize = args['size']
             del args['size']
         
-        compound_idx += 1
-        args['_objName'] = 'compound'+str(compound_idx)
+        self.compound_idx += 1
+        args['_objName'] = 'compound'+str(self.compound_idx)
         super(compound, self).setup(args)
         
         for obj in objList:
@@ -1729,7 +1662,7 @@ class compound(standardAttributes):
             self.canvas._compound = self # used by event handler to update pos and size
             _wait(self.canvas)
         if savesize is not None:
-            self.size = savesize
+            self._size = savesize
 
     @property
     def obj_idxs(self):
@@ -1801,9 +1734,9 @@ class vertex(standardAttributes):
     def normal(self, value):
         if not isinstance(value, vector):
             raise AttributeError('normal must be a vector')
-        self._normal = value
+        self._normal = vector(value)
         if not self._constructing:
-            self.addattr('normal')
+            self.addattr('normal', value.value)
             
     @property
     def bumpaxis(self):
@@ -1812,9 +1745,9 @@ class vertex(standardAttributes):
     def bumpaxis(self, value):
         if not isinstance(value, vector):
             raise AttributeError('bumpaxis must be a vector')
-        self._bumpaxis = value
+        self._bumpaxis = vector(value)
         if not self._constructing:
-            self.addattr('bumpaxis')
+            self.addattr('bumpaxis', value.value)
             
     @property
     def texpos(self):
@@ -1827,13 +1760,13 @@ class vertex(standardAttributes):
             raise AttributeError('the z component of texpos must currently be zero')
         self._texpos = value
         if not self._constructing:
-            self.addattr('texpos')
+            self.addattr('texpos', value.value)
             
     def _on_normal_change(self):
-        self.addattr('normal')
+        self.addattr('normal', self._normal.value)
         
     def _on_bumpaxis_change(self):
-        self.addattr('bumpaxis')
+        self.addattr('bumpaxis', self._bumpaxis.value)
 
             
 class triangle(standardAttributes):   
@@ -1860,11 +1793,11 @@ class triangle(standardAttributes):
     def v0(self):
         return self._v0
     @v0.setter
-    def v0(self, value):    
+    def v0(self, value):
+        self._v0 = value    
         if not self._constructing:
             self._v0.decrementTriangleCount()  ## current v0 now used less
-            self.addattr('v0')
-        self._v0 = value
+            self.addattr('v0', value.value)
         self._v0.incrementTriangleCount()   ## new v0 now used more
         
     @property
@@ -1872,10 +1805,10 @@ class triangle(standardAttributes):
         return self._v1
     @v1.setter
     def v1(self, value):
+        self._v1 = value
         if not self._constructing:
             self._v1.decrementTriangleCount()  ## current v1 now used less
-            self.addattr('v1')
-        self._v1 = value
+            self.addattr('v1', value.value)
         self._v1.incrementTriangleCount()   ## new v1 now used more
         
     @property
@@ -1883,10 +1816,10 @@ class triangle(standardAttributes):
         return self._v2
     @v2.setter
     def v2(self, value):
+        self._v2 = value
         if not self._constructing:
             self._v2.decrementTriangleCount()  ## current v2 now used less
-            self.addattr('v2')
-        self._v2 = value
+            self.addattr('v2', value.value)
         self._v2.incrementTriangleCount()   ## new v2 now used more
        
     @property
@@ -1931,10 +1864,10 @@ class quad(triangle):
         return self._v3
     @v3.setter
     def v3(self, value):
+        self._v3 = value
         if not self._constructing:
             self._v3.decrementTriangleCount()  ## current v3 now used less
-            self.addattr('v3')
-        self._v3 = value
+            self.addattr('v3', value.value)
         self._v3.incrementTriangleCount()   ## new v3 now used more
         
     @property
@@ -2036,7 +1969,7 @@ class curveMethods(standardAttributes):
         self.appendcmd({"val":cps[:],"method":"append","idx":self.idx})
     
     def _on_origin_change(self):
-        self.addattr('origin')
+        self.addattr('origin', self._origin.value)
 
     @property
     def npoints(self):
@@ -2052,7 +1985,7 @@ class curveMethods(standardAttributes):
     def radius(self,value):
         self._radius = value
         if not self._constructing:
-            self.addattr('radius')   
+            self.addattr('radius', value)   
                              
     def pop(self):
         if len(self._pts) == 0: return None
@@ -2142,7 +2075,7 @@ class curveMethods(standardAttributes):
     def origin(self,value):
         self._origin.value = value
         if not self._constructing:
-            self.addattr('origin')
+            self.addattr('origin', value.value)
 
     @property
     def pos(self):
@@ -2177,7 +2110,7 @@ class curve(curveMethods):
             self.append(*args1)
 
     def _on_origin_change(self): 
-        self.addattr('origin')
+        self.addattr('origin', self._origin.value)
             
             
 class points(curveMethods):
@@ -2248,16 +2181,16 @@ class gobj(baseObj):
                 val = val.idx
             setattr(self, '_'+a, val)
                
-        cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
+        cmd = {"cmd": objName, "idx": self.idx}
            
         for a in argsToSend:
             aval = getattr(self,a)
             if isinstance(aval, vector):
                 aval = aval.value
-            cmd["attrs"].append({"attr":a, "value": aval})
+            cmd[a] = aval
             
         self._constructing = False
-        self.appendcmd(cmd)        
+        self.appendcmd(cmd)   
          
     @property
     def color(self): return self._color
@@ -2265,7 +2198,7 @@ class gobj(baseObj):
     def color(self,val): 
         if not isinstance(val, vector): raise TypeError('color must be a vector')
         self._color = val
-        self.addattr('color')
+        self.addattr('color', val.value)
         
     @property
     def graph(self): return self._graph
@@ -2281,7 +2214,7 @@ class gobj(baseObj):
     @interval.setter
     def size(self,val): 
         self._interval = val
-        self.addattr('interval')
+        self.addattr('interval', val)
 
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
@@ -2338,7 +2271,7 @@ class gobj(baseObj):
     @data.setter
     def data(self,val): 
         self._data = val
-        self.addattr('data')
+        self.addattr('data', val)
 
     def _ipython_display_(self): # don't print something when making an (anonymous) graph object
         pass
@@ -2358,29 +2291,29 @@ class gcurve(gobj):
     @width.setter
     def width(self,val): 
         self._width = val
-        self.addattr('width')
+        self.addattr('width', val)
 
     @property
     def size(self): return self._size
     @size.setter
     def size(self,val): 
         self._size = val
-        self.addattr('size')
+        self.addattr('size', val)
         
     @property
     def dot(self): return self._dot
     @dot.setter
     def dot(self,val): 
         self._dot = val
-        self.addattr('dot')
+        self.addattr('dot', val)
         
     @property
     def dot_color(self): return self._dot_color
     @dot_color.setter
     def dot_color(self,val): 
         if not isinstance(val, vector): raise TypeError('dot_color must be a vector')
-        self._dot_color = val
-        self.addattr('dot_color')
+        self._dot_color = vector(value)
+        self.addattr('dot_color', val.value)
         
 class gdots(gobj):
     def __init__(self, **args):
@@ -2393,7 +2326,7 @@ class gdots(gobj):
     @size.setter
     def size(self,val): 
         self._size = val
-        self.addattr('size')
+        self.addattr('size', val)
         
 class gvbars(gobj):
     def __init__(self, **args):
@@ -2406,7 +2339,7 @@ class gvbars(gobj):
     @delta.setter
     def delta(self,val): 
         self._delta = val
-        self.addattr('delta')
+        self.addattr('delta', val)
 
 class ghbars(gvbars):
     def __init__(self, **args):
@@ -2415,7 +2348,7 @@ class ghbars(gvbars):
         super(ghbars, self).setup(args)
 
 
-class graph(baseObj):  
+class graph(baseObj):
     def __init__(self, **args):
         objName = 'graph'
         super(graph,self).__init__()
@@ -2454,14 +2387,14 @@ class graph(baseObj):
         for a in args:
             setattr(self, '_'+a, args[a])
 
-        cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
+        cmd = {"cmd": objName, "idx": self.idx}
         
         ## send only args specified in constructor
         for a in argsToSend:
             aval = getattr(self,a)
             if isinstance(aval, vector):
                 aval = aval.value
-            cmd["attrs"].append({"attr":a, "value": aval})
+            cmd[a] = aval
             
         self.appendcmd(cmd)                
         
@@ -2470,14 +2403,14 @@ class graph(baseObj):
     @width.setter
     def width(self,val): 
         self._width = val
-        self.addattr('width')
+        self.addattr('width', val)
 
     @property
     def height(self): return self._height
     @height.setter
     def height(self,val): 
         self._height = val
-        self.addattr('height')
+        self.addattr('height', val)
 
     @property
     def align(self): return self._align
@@ -2486,7 +2419,7 @@ class graph(baseObj):
         if not (val == 'left' or val == 'right' or val == 'none'):
             raise NameError("align must be 'left', 'right', or 'none' (the default).")
         self._align = val
-        self.addattr('align')
+        self.addattr('align', val)
 
     @property
     def title(self): 
@@ -2494,65 +2427,66 @@ class graph(baseObj):
     @title.setter
     def title(self,val): 
         self._title = val
-        self.addattr('title')              
+        #self.appendcmd({attr='title', 'idx'=self.idx})
+        self.addattr('title', val)
 
     @property
     def xtitle(self): return self._xtitle
     @xtitle.setter
     def xtitle(self,val): 
         self._xtitle = val
-        self.addattr('xtitle')
+        self.addattr('xtitle', val)
 
     @property
     def ytitle(self): return self._ytitle
     @ytitle.setter
     def ytitle(self,val): 
         self._ytitle = val
-        self.addattr('ytitle')
+        self.addattr('ytitle', val)
 
     @property
     def foreground(self): return self._foreground
     @foreground.setter
     def foreground(self,val): 
         if not isinstance(val, vector): raise TypeError('foreground must be a vector')
-        self._foreground.value = val
-        self.addattr('foreground')
+        self._foreground = vector(value)
+        self.addattr('foreground', val.value)
 
     @property
     def background(self): return self._background
     @background.setter
     def background(self,val):
         if not isinstance(val,vector): raise TypeError('background must be a vector')
-        self._background.value = val
-        self.addattr('background')
+        self._background = vector(value)
+        self.addattr('background', value.val)
         
     @property
     def xmin(self): return self._xmin
     @xmin.setter
     def xmin(self,val): 
         self._xmin = val
-        self.addattr('xmin')
+        self.addattr('xmin', val)
         
     @property
     def xmax(self): return self._xmax
     @xmax.setter
     def xmax(self,val): 
         self._xmax = val
-        self.addattr('xmax')
+        self.addattr('xmax', val)
         
     @property
     def ymin(self): return self._ymin
     @ymin.setter
     def ymin(self,val): 
         self._ymin = val
-        self.addattr('ymin')
+        self.addattr('ymin', val)
         
     @property
     def ymax(self): return self._ymax
     @ymax.setter
     def ymax(self,val): 
         self._ymax = val
-        self.addattr('ymax')
+        self.addattr('ymax', val)
 
     def delete(self):
         self.addmethod('delete','None')
@@ -2597,7 +2531,7 @@ class label(standardAttributes):
     def xoffset(self,value):
         self._xoffset = value
         if not self._constructing:
-            self.addattr('xoffset')
+            self.addattr('xoffset', value)
 
     @property
     def yoffset(self):
@@ -2606,7 +2540,7 @@ class label(standardAttributes):
     def yoffset(self,value):
         self._yoffset = value
         if not self._constructing:
-            self.addattr('yoffset')
+            self.addattr('yoffset', value)
 
     @property
     def text(self):
@@ -2615,7 +2549,7 @@ class label(standardAttributes):
     def text(self,value):
         self._text = print_to_string(value)
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"text","idx":self.idx})
+            self.addattr("text", self._text)
 
     @property
     def align(self):
@@ -2624,7 +2558,7 @@ class label(standardAttributes):
     def align(self,value):
         self._align = value
         if not self._constructing:
-            self.addattr('align')
+            self.addattr('align', value)
 
     @property
     def font(self):
@@ -2633,7 +2567,7 @@ class label(standardAttributes):
     def font(self,value):
         self._font = value
         if not self._constructing:
-            self.addattr('font')
+            self.addattr('font', value)
 
     @property
     def height(self):
@@ -2642,7 +2576,7 @@ class label(standardAttributes):
     def height(self,value):
         self._height = value
         if not self._constructing:
-            self.addattr('height')
+            self.addattr('height', value)
 
     @property
     def background(self):
@@ -2654,7 +2588,7 @@ class label(standardAttributes):
         else:
             raise TypeError('background must be a vector')
         if not self._constructing:
-            self.addattr('background')
+            self.addattr('background', value.value)
 
     @property
     def border(self):
@@ -2663,7 +2597,7 @@ class label(standardAttributes):
     def border(self,value):
         self._border = value
         if not self._constructing:
-            self.addattr('border')
+            self.addattr('border', value)
 
     @property
     def box(self):
@@ -2672,7 +2606,7 @@ class label(standardAttributes):
     def box(self,value):
         self._box = value
         if not self._constructing:
-            self.addattr('box')
+            self.addattr('box', value)
 
     @property
     def line(self):
@@ -2681,7 +2615,7 @@ class label(standardAttributes):
     def line(self,value):
         self._line = value
         if not self._constructing:
-            self.addattr('line')
+            self.addattr('line', value)
 
     @property
     def linewidth(self):
@@ -2690,7 +2624,7 @@ class label(standardAttributes):
     def linewidth(self,value):
         self._linewidth = value
         if not self._constructing:
-            self.addattr('linewidth')
+            self.addattr('linewidth', value)
 
     @property
     def linecolor(self):
@@ -2698,11 +2632,11 @@ class label(standardAttributes):
     @linecolor.setter
     def linecolor(self,value):
         if isinstance(value, vector):
-            self._linecolor.value = value
+            self._linecolor = vector(value)
         else:
             raise TypeError('linecolor must be a vector')
         if not self._constructing:
-            self.addattr('linecolor')
+            self.addattr('linecolor', value.value)
 
     @property
     def space(self):
@@ -2711,7 +2645,7 @@ class label(standardAttributes):
     def space(self,value):
         self._space = value
         if not self._constructing:
-            self.addattr('space')
+            self.addattr('space', value)
 
     @property
     def pixel_pos(self):
@@ -2720,9 +2654,8 @@ class label(standardAttributes):
     def pixel_pos(self,value):
         self._pixel_pos = value
         if not self._constructing:
-            self.addattr('pixel_pos')  
+            self.addattr('pixel_pos', value)  
 
-             
 class frame(object):
     def __init__(self, **args):
         raise NameError('frame is not yet implemented')
@@ -2738,7 +2671,7 @@ class Mouse(baseObj):
         self._canvas = canvas
         self._pick = None
         
-        super(Mouse, self).__init__()   ## get guid, idx, attrsupdt, oid
+        super(Mouse, self).__init__()
         
     @property
     def pos(self):
@@ -2751,6 +2684,8 @@ class Mouse(baseObj):
         
     @property
     def ray(self):
+        if self._ray is None: # can be none if mouse has never been inside canvas
+            self._ray = vector(0,0,-1)
         return self._ray
     @ray.setter
     def ray(self,value):
@@ -2779,7 +2714,8 @@ class Mouse(baseObj):
        
     @property
     def pick(self):
-        self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1, '_pass':1 })
+        #self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1 })
+        self.addmethod('pick', self._canvas.idx)
         _wait(self._canvas) # wait for render to finish and call setpick
         return self._pick            
     @pick.setter
@@ -2789,7 +2725,7 @@ class Mouse(baseObj):
     def setpick(self, value):  # value is the entire event
         p = value['pick']
         if p is not None:
-            po = object_registry[p]
+            po = baseObj.object_registry[p]
             if 'segment' in value:
                  po.segment = value['segment']
             self._pick = po
@@ -2914,7 +2850,7 @@ class canvas(baseObj):
         self._camera = Camera(self)
         self.title_anchor = 1  ## used by buttons etc.
         self.caption_anchor = 2
-        cmd = {"cmd": "canvas", "idx": self.idx, "attrs":[]}
+        cmd = {"cmd": "canvas", "idx": self.idx}
         
     # send only nondefault values to GlowScript
         
@@ -2926,7 +2862,7 @@ class canvas(baseObj):
             if a in args:
                 if args[a] != None:
                     setattr(self, '_'+a, args[a])
-                    cmd["attrs"].append({"attr":a, "value": args[a]})
+                    cmd[a]= args[a]
                 del args[a]
                 
         for a in canvasVecAttrs:
@@ -2935,7 +2871,7 @@ class canvas(baseObj):
                 if not isinstance(aval, vector):
                     raise TypeError(a, 'must be a vector')
                 setattr(self, '_'+a, vector(aval))
-                cmd["attrs"].append({"attr":a, "value": aval.value})
+                cmd[a] = aval.value
                 del args[a]
                 
     # set values of user-defined attributes
@@ -2971,9 +2907,8 @@ class canvas(baseObj):
     @title.setter
     def title(self,value):
         self._title = value
-        #self.addmethod('title',value)
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"title","idx":self.idx})
+            self.appendcmd({'title':value})
 
     @property
     def caption(self):
@@ -2981,21 +2916,20 @@ class canvas(baseObj):
     @caption.setter
     def caption(self,value):
         self._caption = value
-        #self.addmethod('caption', value)
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"caption","idx":self.idx})
+            self.appendcmd({'caption':value})
             
     def append_to_title(self, *args):
         t = print_to_string(*args)
         self._title += t
         if not self._constructing:
-            self.appendcmd({"val":t,"method":"append_to_title","idx":self.idx})
+            self.appendcmd({'append_to_title':t})
         
     def append_to_caption(self, *args):
         t = print_to_string(*args)
         self._caption += t
         if not self._constructing:
-            self.appendcmd({"val":t,"method":"append_to_caption","idx":self.idx})
+            self.appendcmd({'append_to_caption':t})
 
     @property
     def mouse(self):
@@ -3018,7 +2952,7 @@ class canvas(baseObj):
     def visible(self,value):
         self._visible = value
         if not self._constructing:
-            self.addattr('visible')
+            self.addattr('visible', value)
 
     @property
     def background(self):
@@ -3027,16 +2961,16 @@ class canvas(baseObj):
     def background(self,value):
         self._background = value
         if not self._constructing:
-            self.appendcmd({"val":value.value,"attr":"background","idx":self.idx})
+            self.appendcmd({"background":value.value})
 
     @property
     def ambient(self):
         return self._ambient    
     @ambient.setter
     def ambient(self,value):
-        self._ambient = value
+        self._ambient = vector(value)
         if not self._constructing:
-            self.addattr('ambient')
+            self.addattr('ambient', value.value)
 
     @property
     def width(self):
@@ -3045,7 +2979,7 @@ class canvas(baseObj):
     def width(self,value):
         self._width = value
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"width","idx":self.idx})
+            self.appendcmd({"width":value})
 
     @property
     def height(self):
@@ -3054,7 +2988,7 @@ class canvas(baseObj):
     def height(self,value):
         self._height = value
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"height","idx":self.idx})
+            self.appendcmd({"height":value})
 
     @property
     def align(self): return self._align
@@ -3063,7 +2997,7 @@ class canvas(baseObj):
         if not (val == 'left' or val == 'right' or val == 'none'):
             raise NameError("align must be 'left', 'right', or 'none' (the default).")
         self._align = val
-        self.appendcmd({"val":val,"attr":"align","idx":self.idx})
+        self.appendcmd({"align":val})
 
     @property
     def center(self):
@@ -3071,9 +3005,9 @@ class canvas(baseObj):
     @center.setter
     def center(self,value):
         if isinstance(value, vector):
-            self._center = value
+            self._center = vector(value)
             if not self._constructing:
-                self.appendcmd({"val":value.value,"attr":"center","idx":self.idx})
+                self.appendcmd({"center":value.value})
         else:
             raise TypeError('center must be a vector')
 
@@ -3082,9 +3016,9 @@ class canvas(baseObj):
         return self._forward    
     @forward.setter
     def forward(self,value):
-        self._forward = self._set_forward = value
+        self._forward = self._set_forward = vector(value)
         if not self._constructing:
-            self.appendcmd({"val":value.value,"attr":"forward","idx":self.idx})
+            self.appendcmd({"forward":value.value})
 
     @property
     def range(self):
@@ -3093,7 +3027,7 @@ class canvas(baseObj):
     def range(self,value):
         self._range = self._set_range = value
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"range","idx":self.idx})
+            self.appendcmd({"range":value})
 
     @property
     def up(self):
@@ -3102,7 +3036,7 @@ class canvas(baseObj):
     def up(self,value):
         self._up = self._set_up = value
         if not self._constructing: 
-            self.appendcmd({"val":value.value,"attr":"up","idx":self.idx})
+            self.appendcmd({"up":value.value})
 
     @property
     def autoscale(self):
@@ -3111,7 +3045,7 @@ class canvas(baseObj):
     def autoscale(self,value):
         self._autoscale = self._set_autoscale = value
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"autoscale","idx":self.idx})
+            self.appendcmd({"autoscale":value})
 
     @property
     def fov(self):
@@ -3120,7 +3054,7 @@ class canvas(baseObj):
     def fov(self,value):
         self._fov = value
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"fov","idx":self.idx})
+            self.appendcmd({"fov":value})
 
     @property
     def userzoom(self):
@@ -3129,7 +3063,7 @@ class canvas(baseObj):
     def userzoom(self,value):
         self._userzoom = value
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"userzoom","idx":self.idx})
+            self.appendcmd({"userzoom":value})
 
     @property
     def userspin(self):
@@ -3138,7 +3072,7 @@ class canvas(baseObj):
     def userspin(self,value):
         self._userspin = value
         if not self._constructing:
-            self.appendcmd({"val":value,"attr":"userspin","idx":self.idx})
+            self.appendcmd({"userspin":value})
             
     @property
     def lights(self):
@@ -3150,7 +3084,7 @@ class canvas(baseObj):
             s = self._lights
             if len(s) == 0:
                 s = 'empty_list' # JSON doesn't like an empty list
-            self.appendcmd({"val":s,"attr":"lights","idx":self.idx}) # don't encode this unusual statement
+            self.appendcmd({"lights":s}) # don't encode this unusual statement
             
     @property
     def pixel_to_world(self):
@@ -3188,17 +3122,19 @@ class canvas(baseObj):
             self._waitfor = True # what pick is looking for
         elif ev == 'waitfor':
             self._waitfor = True # what pause/waitfor is looking for
-        elif ev == '_compound':
+        elif ev == '_compound': # compound, text, extrusion
             obj = self._compound
             p = evt['pos']
             if obj._objName == 'text':
                 obj._size._x = p[0]
                 obj._descender = p[1]
             else:
-                obj.pos = list_to_vec(p)
+                # Set attribute_vector.value, which avoids nullifying the
+                # on_change functions that detect changes in e.g. obj.pos.y
+                obj._pos.value = list_to_vec(p)
                 s = evt['size']
-                obj._size = list_to_vec(s)
-                obj._axis = obj._size._x*norm(obj._axis)
+                obj._size.value = list_to_vec(s)
+                obj._axis.value = obj._size._x*norm(obj._axis)
             self._waitfor = True # what compound and text and extrusion are looking for
         else:
             if 'pos' in evt:
@@ -3218,7 +3154,7 @@ class canvas(baseObj):
                 evt1 = event_return(evt)  ## turn it into an object
                 for fct in self._binds[ev]:
                     # inspect the bound function and see what it's expecting
-                    if ispython3: # Python 3
+                    if _ispython3: # Python 3
                         a = signature(fct)
                         if str(a) != '()': fct( evt1 )
                         else: fct()
@@ -3282,13 +3218,13 @@ class canvas(baseObj):
         _wait(self)
 
     def _on_forward_change(self):
-        self.addattr('forward')
+        self.addattr('forward', self._forward.value)
         
     def _on_up_change(self):
-        self.addattr('up')
+        self.addattr('up', self._up.value)
         
     def _on_center_change(self):
-        self.addattr('center')
+        self.addattr('center', self._center.value)
 
     def _ipython_display_(self): # don't print something when making an (anonymous) canvas
         pass
@@ -3326,12 +3262,12 @@ class distant_light(standardAttributes):
         return self._direction
     @direction.setter
     def direction(self,value):
-        self._direction = value
+        self._direction = vector(value)
         if not self._constructing:
-            self.addattr('direction')
+            self.addattr('direction', value.value)
    
-print_anchor = 3  ## problematic -- intended to point at print area
 ## title_anchor = 1 and caption_anchor = 2 are attributes of canvas
+print_anchor = 3  ## problematic -- intended to point at print area
 
 class controls(baseObj):
     attrlists = { 'button': ['text', 'textcolor', 'background', 'disabled'],
@@ -3380,15 +3316,15 @@ class controls(baseObj):
                 setattr(self, '_'+a, val)
             else:
                 setattr(self, a, val)
-        cmd = {"cmd": objName, "idx": self.idx, "attrs":[]}
-        cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})        
+        cmd = {"cmd": objName, "idx": self.idx}
+        cmd["canvas"] = self.canvas.idx
                 
         ## send only args specified in constructor
         for a in argsToSend:  ## all shared attributes are scalars
             aval = getattr(self,a)
             if isinstance(aval, vector):
                 aval = aval.value
-            cmd["attrs"].append({"attr":a, "value": aval})
+            cmd[a] = aval
             
         self.appendcmd(cmd)                     
         self._constructing = False
@@ -3403,6 +3339,9 @@ class controls(baseObj):
     @property
     def pos(self):
         return None
+
+    def _ipython_display_(self): # don't print something when making an (anonymous) object
+        pass
         
 class button(controls):
     def __init__(self, **args):
@@ -3420,25 +3359,25 @@ class button(controls):
     def text(self, value):
         self._text = value
         if not self._constructing:
-            self.addattr('text')   
+            self.addattr('text', value)   
 
     @property
     def textcolor(self):
         return self._textcolor
     @textcolor.setter
     def textcolor(self, value):
-        self._textcolor = value
+        self._textcolor = vector(value)
         if not self._constructing:
-            self.addattr('textcolor')
+            self.addattr('textcolor', value.value)
     
     @property
     def background(self):
         return self._background
     @background.setter
     def background(self, value):
-        self._background = value
+        self._background = vector(value)
         if not self._constructing:
-            self.addattr('background')
+            self.addattr('background', value.value)
             
     @property
     def disabled(self):
@@ -3447,7 +3386,7 @@ class button(controls):
     def disabled(self, value):
         self._disabled = value
         if not self._constructing:
-            self.addattr('disabled')
+            self.addattr('disabled', value)
 
 class checkbox(controls): 
     def __init__(self, **args):
@@ -3463,7 +3402,7 @@ class checkbox(controls):
     def text(self, value):
         self._text = value
         if not self._constructing:
-            self.addattr('text')
+            self.addattr('text', value)
             
     @property
     def checked(self):
@@ -3472,7 +3411,7 @@ class checkbox(controls):
     def checked(self, value):
         self._checked = value
         if not self._constructing:
-            self.addattr('checked')
+            self.addattr('checked', value)
             
 class radio(controls):
     def __init__(self, **args):
@@ -3488,7 +3427,7 @@ class radio(controls):
     def text(self, value):
         self._text = value
         if not self._constructing:
-            self.addattr('text')
+            self.addattr('text', value)
             
     @property
     def checked(self):
@@ -3497,7 +3436,7 @@ class radio(controls):
     def checked(self, value):
         self._checked = value
         if not self._constructing:
-            self.addattr('checked')
+            self.addattr('checked', value)
             
 class menu(controls):
     def __init__(self, **args):
@@ -3538,7 +3477,7 @@ class menu(controls):
             value = "None"
         self._selected = value
         if not self._constructing:
-            self.addattr('selected')
+            self.addattr('selected', value)
             
 class slider(controls):
     def __init__(self, **args): 
@@ -3598,7 +3537,7 @@ class slider(controls):
     def value(self, val):
         self._value = val
         if not self._constructing:
-            self.addattr('value')
+            self.addattr('value', val)
             
     @property
     def length(self):
@@ -3651,7 +3590,6 @@ class slider(controls):
         
 class extrusion(standardAttributes):
     def __init__(self, **args):
-        #raise NameError("The extrusion object is not yet available in Jupyter VPython.")
         args['_default_size'] = vector(1,1,1) # to keep standardAttributes happy
         args['_objName'] = "extrusion"
         savesize = None
@@ -3672,11 +3610,10 @@ class extrusion(standardAttributes):
 
         super(extrusion, self).setup(args)
         
-        self.canvas._waitfor = False
         self.canvas._compound = self # used by event handler to update pos and size
         _wait(self.canvas)
         if savesize is not None:
-            self.size = savesize
+            self._size = savesize
         
     @property
     def path(self):
@@ -3785,7 +3722,7 @@ class text(standardAttributes):
             self.canvas._compound = self # used by event handler to update pos and size
             _wait(self.canvas)
             if savesize is not None:
-                self.size = savesize
+                self._size = savesize
         
     @property
     def height(self):
@@ -3800,7 +3737,7 @@ class text(standardAttributes):
             self._size.y *= m
             self._descender *= m
             self._height = val
-            self.addattr('size')
+            self.addattr('size', self._size.val)
         
     @property
     def length(self):
@@ -3811,7 +3748,7 @@ class text(standardAttributes):
             raise AttributeError("text length can't be set when creating a text object")
         else:
             self._size.x = val
-            self.addattr('size')
+            self.addattr('size', val.value)
         
     @property
     def depth(self):
@@ -3827,8 +3764,8 @@ class text(standardAttributes):
             self._size.z *= abs(value)
             self._pos.z = val/2
             self._depth = val
-            self.addattr('pos')
-            self.addattr('size')
+            self.addattr('pos', self._pos.value)
+            self.addattr('size', self._size.value)
         
     @property
     def align(self):
@@ -3837,7 +3774,7 @@ class text(standardAttributes):
     def align(self,val):
         self._align = val
         if not self._constructing:
-            self.addattr('align')
+            self.addattr('align', val)
             
     @property
     def font(self):
@@ -3848,7 +3785,7 @@ class text(standardAttributes):
             raise AttributeError("text font must be either 'sans' or 'serif' ")
         self._font = val
         if not self._constructing:
-            self.addattr('font')
+            self.addattr('font', val)
             
     @property
     def text(self):
@@ -3857,7 +3794,7 @@ class text(standardAttributes):
     def text(self, val):
         self._text = val
         if not self._constructing:
-            self.addattr('text')
+            self.addattr('text', val)
             
     @property
     def billboard(self):
@@ -4022,4 +3959,4 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
     return(s)
 
 if isnotebook:
-    trigger() # start the trigger ping-pong process
+    baseObj.trigger() # start the trigger ping-pong process
