@@ -16,6 +16,7 @@ from time import clock
 import os
 import copy
 import sys
+from . import __version__, __gs_version__
 
 vec = vector # synonyms in GlowScript
 
@@ -30,12 +31,27 @@ def __checkisnotebook(): # returns True if running in Jupyter notebook
             return False  # Other type (?)
     except NameError:
         return False      # Probably standard Python interpreter
-isnotebook = __checkisnotebook()
+_isnotebook = __checkisnotebook()
 
-from . import __version__, __gs_version__
+if _isnotebook:
+    #### Imports for Jupyter VPython
+    import IPython
+    if IPython.__version__ >= '4.0.0' :
+        import ipykernel
+        import notebook
+    else:
+        import IPython.html.nbextensions
+    from IPython.display import HTML
+    from IPython.display import display
+    from IPython.display import Javascript
+    from IPython.core.getipython import get_ipython
+    from jupyter_core.paths import jupyter_data_dir
+    from . import __version__, __gs_version__
 
 import platform
-_ispython3 = platform.python_version()[0] == '3'
+__p = platform.python_version()
+_ispython3 = (__p[0] == '3')
+
 if _ispython3:
     from inspect import signature # Python 3; needed to allow zero arguments in a bound function
 else:
@@ -165,7 +181,7 @@ class _RateKeeper2(RateKeeper):
         # See the function commsend() for details of how the browser is updated.
         
         # Check if events to process from front end
-        if isnotebook:
+        if _isnotebook:
             if IPython.__version__ >= '3.0.0' :
                 kernel = get_ipython().kernel
                 parent = kernel._parent_header
@@ -209,6 +225,33 @@ class baseObj(object):
     def empty(cls):
         b = baseObj.updates
         return b['cmds'] == [] and b['objs'] == {} and b['methods'] == []
+
+    @classmethod
+    def handle_attach(self): # called when about to send data to the browser
+        ## update every attach_arrow if relevant vector has changed
+        for aa in self.attach_arrows:
+            ob = self.object_registry[aa._obj]
+            vval = getattr(ob, aa._attr)
+            if not isinstance(vval, vector):
+                continue
+            if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
+                continue
+            ob.addattr(aa._attr, vval.value)
+            aa._last_val = vval
+        
+        ## update every attach_trail that depends on a function
+        for aa in self.attach_trails:
+            if aa._obj == '_funcvalue':
+                fval = aa._func()
+                aa._funcvalue = fval
+            else:
+                fval = getattr(aa, aa._obj)
+            if not isinstance(fval, vector):
+                continue
+            if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
+                continue                
+            aa.addattr(aa._obj, fval.value)
+            aa._last_val = fval
     
     def __init__(self, **kwargs):
         self.idx = baseObj.objCnt   ## an integer
@@ -267,7 +310,7 @@ class baseObj(object):
             objdata = 'trigger' # handshake with browser
         else:
             objdata = cls.package(baseObj.updates)
-        _handle_attach()
+        baseObj.handle_attach()
         sender(objdata)
         baseObj.initialize()
             
@@ -285,32 +328,6 @@ class baseObj(object):
             sender([cmd])
         else:
             self.appendcmd(cmd)
-
-def _handle_attach(): # called when about to send data to the browser
-    ## update every attach_arrow if relevant vector has changed
-    for aa in baseObj.attach_arrows:
-        ob = baseObj.object_registry[aa._obj]
-        vval = getattr(ob, aa._attr)
-        if not isinstance(vval, vector):
-            continue
-        if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
-            continue
-        ob.addattr(aa._attr, vval.value)
-        aa._last_val = vval
-        
-    ## update every attach_trail that depends on a function
-    for aa in baseObj.attach_trails:
-        if aa._obj == '_funcvalue':
-            fval = aa._func()
-            aa._funcvalue = fval
-        else:
-            fval = getattr(aa, aa._obj)
-        if not isinstance(fval, vector):
-            continue
-        if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
-            continue                
-        aa.addattr(aa._obj, fval.value)
-        aa._last_val = fval
     
 # Jupyter does not immediately transmit data to the browser from a thread,
 # which made for an awkward thread in early versions of Jupyter VPython, and
@@ -337,7 +354,7 @@ class GlowWidget(object):
     def __init__(self, comm, msg): # msg is passed but not used in notebook case
         global sender
         baseObj.glow = self
-        if isnotebook:
+        if _isnotebook:
             comm.on_msg(self.handle_msg)
             comm.on_close(self.handle_close)
             sender = comm.send
@@ -373,226 +390,15 @@ class GlowWidget(object):
                 if 'trigger' not in evt:
                     cvs = baseObj.object_registry[evt['canvas']]
                     cvs.handle_event(evt)
-            if isnotebook:
+            if _isnotebook:
                 baseObj.trigger()
 
     def handle_close(self, data):
         print ("comm closed")
 
-if isnotebook:
-    ########################################################################################
-    #### Imports for Jupyter VPython
-
-    import IPython
-    if IPython.__version__ >= '4.0.0' :
-        import ipykernel
-        import notebook
-    else:
-        import IPython.html.nbextensions
-    from IPython.display import HTML
-    from IPython.display import display
-    from IPython.display import Javascript
-    from IPython.core.getipython import get_ipython
-    from jupyter_core.paths import jupyter_data_dir
-
-    ########################################################################################
-            
-    ########################################################################################
-    #### Setup for Jupyter VPython
-
-    # The following file operations check whether nbextensions already has the correct files.
-    package_dir = os.path.dirname(__file__) # The location in site-packages of the vpython module
-    datacnt = len(os.listdir(package_dir+"/vpython_data"))     # the number of files in the site-packages vpython data folder
-    libcnt = len(os.listdir(package_dir+"/vpython_libraries")) # the number of files in the site-packages vpython libraries folder
-    jd = jupyter_data_dir()
-    nbdir = jd+'/nbextensions/'
-    nbdata = nbdir+'vpython_data'
-    nblib = nbdir+'vpython_libraries'
-    transfer = True # need to transfer files from site-packages to nbextensions
-
-    if 'nbextensions' in os.listdir(jd):
-        ldir = os.listdir(nbdir)
-        if ('vpython_data' in ldir and len(os.listdir(nbdata)) == datacnt and
-           'vpython_libraries' in ldir and len(os.listdir(nblib)) == libcnt and
-            'vpython_version.txt' in ldir):
-            v = open(nbdir+'/vpython_version.txt').read()
-            transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
-
-    #transfer = True ### use when testing, so that changes are active
-    if transfer:
-        if IPython.__version__ >= '4.0.0' :
-            notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-            notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-        elif IPython.__version__ >= '3.0.0' :
-            IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-            IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-        else:
-            IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_data", package_dir+"/vpython_libraries"],overwrite=True,verbose=0)
-
-        # Wait for files to be transferred to nbextensions:
-        libready = False
-        dataready = False
-        while True:
-            nb = os.listdir(nbdir)
-            for f in nb:
-                if f == 'vpython_data':
-                    if len(os.listdir(nbdata)) == datacnt:
-                        dataready = True
-                if f == 'vpython_libraries':
-                    if len(os.listdir(nblib)) == libcnt:
-                        libready = True
-            if libready and dataready: break
-        # Mark with the version number that the files have been transferred successfully:
-        fd = open(nbdir+'/vpython_version.txt', 'w')
-        fd.write(__version__)    
-        fd.close()
-
-    if IPython.__version__ >= '3.0.0' :
-        get_ipython().kernel.comm_manager.register_target('glow', GlowWidget)
-    else:
-        get_ipython().comm_manager.register_target('glow', GlowWidget) 
-
-    display(Javascript("""require.undef("nbextensions/vpython_libraries/glow.min");"""))
-    display(Javascript("""require.undef("nbextensions/vpython_libraries/glowcomm");"""))
-    display(Javascript("""require.undef("nbextensions/vpython_libraries/jquery-ui.custom.min");"""))
-
-    display(Javascript("""require(["nbextensions/vpython_libraries/glow.min"], function(){console.log("GLOW LOADED");})"""))
-    display(Javascript("""require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");})"""))
-    display(Javascript("""require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
-                
-    get_ipython().kernel.do_one_iteration()
-
-    ########################################################################################
-    
-else: # not running in Jupyter notebook
-
-    if not _ispython3:
-        s = "The non-notebook version of vpython requires Python 3.4 or later."
-        s += "\nvpython does work on Python 2.7 in the Jupyter notebook environment."
-        raise Exception(s)
-    
-    from http.server import BaseHTTPRequestHandler, HTTPServer
-    from os import sep
-    import threading
-    import json
-    import webbrowser as _webbrowser
-    import asyncio
-    from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
-
-    # Requests from client to http server can be the following:
-    #    get glowcomm.html, library .js files, images, or font files
-
-    GW = None
-
-    class serveHTTP(BaseHTTPRequestHandler):
-        serverlib = __file__.replace('vpython.py','vpython_libraries')
-        serverdata = __file__.replace('vpython.py','vpython_data')
-        mimes = {'html':['text/html', serverlib],
-                  'js' :['application/javascript', serverlib],
-                  'css':['text/css', serverlib],
-                  'jpg':['image/jpg', serverdata],
-                  'png':['image/png', serverlib],
-                  'otf':['application/x-font-otf', serverdata],
-                  'ttf':['application/x-font-ttf', serverdata],
-                  'ico':['image/x-icon', serverdata]}
-            
-        def do_GET(self):
-            global GW
-            if GW is None: GW = GlowWidget(None, None)
-            if self.path == "/":
-                self.path = sep+'glowcomm.html'
-            elif self.path[0] == "/":
-                self.path = sep+self.path[1:]
-            f = self.path.rfind('.')
-            fext = None
-            if f > 0: fext = self.path[f+1:]
-            try:
-                if fext in self.mimes:
-                    mime = self.mimes[fext]
-                    loc = mime[1] + self.path
-                    fd = open(loc, 'rb') 
-                    self.send_response(200)
-                    self.send_header('Content-type', mime[0])
-                    self.end_headers()
-                    self.wfile.write(fd.read())
-                    fd.close()
-            except IOError:
-                    self.send_error(404,'File Not Found: {}'.format(self.path))
-                        
-        def log_message(self, format, *args): # this overrides server stderr output
-            return
-
-    # Requests from client to websocket server can be the following:
-    # trigger event; return data (constructors, attributes, methods)
-    # other event; pause, waitfor, pick, compound
-    
-    class WSserver(WebSocketServerProtocol):
-        # Data sent and received must be type "bytes", so use string.encode and string.decode
-        connection = None
-
-        def onConnect(self, request):
-            self.connection = self
-
-        def onOpen(self):
-            global GW
-            if GW is None: GW = GlowWidget(None, None)
-
-        # For Python 3.5 and later, the newer syntax eliminates "@asyncio.coroutine"
-        # in favor of "async def onMessage...", and "yield from" with "await".
-        @asyncio.coroutine
-        def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
-            global _sent
-            _sent = False
-            _handle_attach() # attach arrow and attach trail
-            while True:
-                try:
-                    objdata = copy.deepcopy(baseObj.updates)
-                    baseObj.initialize() # reinitialize baseObj.updates
-                    break
-                except:
-                    pass
-            objdata = baseObj.package(objdata)
-            jdata = json.dumps(objdata, separators=(',', ':')).encode('utf_8')
-            self.sendMessage(jdata, isBinary=False)
-            _sent = True
-            if data != b'trigger': # b'trigger' just asks for updates
-                d = json.loads(data.decode("utf_8")) # update_canvas info
-                for m in d:
-                    # Must sent events one at a time to GW.handle_msg because bound events need the loop code:
-                    msg = {'content':{'data':[m]}} # message format used by notebook=
-                    if 'bind' in m: # will execute a function that may contain waitfor etc. statements
-                        loop = asyncio.get_event_loop()
-                        yield from loop.run_in_executor(None, GW.handle_msg, msg)
-                    else:
-                        GW.handle_msg(msg)
-
-        def onClose(self, wasClean, code, reason):
-            #print("Server WebSocket connection closed: {0}".format(reason))
-            self.connection = None
-
-    __SOCKET_PORT = 9001
-    __factory = WebSocketServerFactory(u"ws://localhost:{}/".format(__SOCKET_PORT))
-    __factory.protocol = WSserver
-    __interact_loop = asyncio.get_event_loop()
-    __coro = __interact_loop.create_server(__factory, '0.0.0.0', __SOCKET_PORT)
-    __interact_loop.run_until_complete(__coro)
-    #interact_loop.stop()
-    #interact_loop.run_forever()
-    # Need to put interact loop inside a thread in order to get a display
-    # in the absence of a loop containing a rate statement.
-    __t = threading.Thread(target=__interact_loop.run_forever)
-    __t.start()
-
-    __HTTP_PORT = 9000
-    __server = HTTPServer(('', __HTTP_PORT), serveHTTP)
-    _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT)) # or webbrowser.open_new_tab()
-    __w = threading.Thread(target=__server.serve_forever)
-    __w.start()
-    # server.handle_request() is a single-shot interaction
-
 def _wait(cvs): # wait for an event
     cvs._waitfor = False
-    if isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
+    if _isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
     while cvs._waitfor is False:
         rate(30)
 
@@ -2804,7 +2610,7 @@ class canvas(baseObj):
     maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
     
     def __init__(self, **args):
-        if isnotebook:
+        if _isnotebook:
             display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
             display(Javascript("""window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
 
@@ -3928,35 +3734,3 @@ def sleep(dt): # don't use time.sleep because it delays output queued up before 
     
 radians = math.radians
 degrees = math.degrees
-
-while baseObj.glow is None: # try to make sure setup is complete
-    rate(60)
-
-scene = canvas()
-
-# This must come after creating a canvas
-class MISC(baseObj):
-    def __init__(self):
-        super(MISC, self).__init__() 
-    
-    def print(self, s):
-        self.addmethod('GSprint', s)
-
-__misc = MISC()
-
-def GSprint(*args):
-    s = ''
-    for a in args:
-        s += str(a)+' '
-    s = s[:-1]
-    __misc.print(s)
-
-def print_to_string(*args): # treatment of <br> vs. \n not quite right here
-    s = ''
-    for a in args:
-        s += str(a)+' '
-    s = s[:-1]
-    return(s)
-
-if isnotebook:
-    baseObj.trigger() # start the trigger ping-pong process
