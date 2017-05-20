@@ -46,7 +46,7 @@ script:
     # This will fail if the package does not actually exist
     - ls $CONDA_PACKAGE
     - if [ $TRAVIS_EVENT_TYPE == "cron" ]; then
-        conda install -c astropy extruder;
+        conda install -c astropy -c conda-forge extruder;
         copy_packages vp_copy.yaml vpython;
       fi
 
