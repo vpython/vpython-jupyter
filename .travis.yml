@@ -45,10 +45,11 @@ script:
     - echo $WHEEL_PACKAGE
     # This will fail if the package does not actually exist
     - ls $CONDA_PACKAGE
-    # And try making a wheel
-    # - source activate wheel-build
-    # - python setup.py bdist_wheel
-    # - source deactivate
+    - if [ $TRAVIS_EVENT_TYPE == "cron" ]; then
+        conda install -c astropy extruder;
+        copy_packages vp_copy.yaml vpython;
+      fi
+
 
 after_success:
     - echo $TRAVIS_TAG
