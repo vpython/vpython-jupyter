@@ -1,0 +1,5 @@
+# List the packages and versions (or null if the latest available
+# version is fine) that should be copied from conda-forge to the vpython
+# channel. This should include all dependencies of vpython that are
+# not in the defaults channel.
+{autobahn: null, six: null, txaio: null}
