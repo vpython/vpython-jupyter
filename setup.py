@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+import sys
+
 try:
     from setuptools import setup  # try first in case it's already there.
 except ImportError:
@@ -17,6 +19,11 @@ except ImportError:
     extensions = [Extension('vpython.cyvector', ['vpython/cyvector.c'])]
 
 import versioneer
+
+if sys.version_info.major == 3 and sys.version_info.minor >= 5:
+    install_requires = ['jupyter', 'vpnotebook', 'autobahn']
+else:
+    install_requires = ['jupyter', 'vpnotebook']
 
 setup(
     name='vpython',
@@ -42,6 +49,6 @@ setup(
           'Topic :: Scientific/Engineering :: Visualization',
     ],
     ext_modules=extensions,
-    install_requires=['jupyter', 'vpnotebook'],
+    install_requires=install_requires,
     package_data={'vpython': ['vpython_data/*', 'vpython_libraries/*']},
 )
