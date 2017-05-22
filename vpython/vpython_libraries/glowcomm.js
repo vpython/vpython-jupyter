@@ -267,7 +267,7 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid'}
 
 // methods are X in {'m': '23X....'}
-var methods = {'a':'select', 'c':'start', 'd':'stop', 'f':'clear', // unused beghijklmnopuvxyzCDFAB
+var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopuvxyzCDFAB
 			   'q':'plot', 's':'add_to_trail',
                't':'follow', 'w':'clear_trail',
                'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
@@ -360,11 +360,10 @@ function o2vec3(p) {
 
 function handler(data) {
     "use strict";
-
+	
 	/*
-	console.log('\n***** handler *****************************************')
+	console.log('---------------')
 	for (var d in data) {
-		console.log(d)
 		for (var i in data[d]) console.log(i, JSON.stringify(data[d][i]))
 	}
 	*/
@@ -372,11 +371,11 @@ function handler(data) {
 	if (data.cmds != []) handle_cmds(data.cmds)
 	if (data.objs != []) handle_objs(data.objs)
 	if (data.methods != []) handle_methods(data.methods)
-
 } // end of handler
 
 function handle_cmds(dcmds) {
     "use strict";
+	//console.log('CMDS')
 	for (var icmds in dcmds) { // constructors, and special operations such as curve.modify
 		var cmd = dcmds[icmds]
 		var obj = cmd.cmd
@@ -562,7 +561,7 @@ function handle_cmds(dcmds) {
 			}
 			case 'attach_trail': {
 				if ( typeof cfg['_obj'] === 'string' ) {
-					var o = cfg['_obj']
+					var o = cfg['_obj'] // the string '_func'
 				} else {
 					var o = glowObjs[cfg['_obj']]
 				}
@@ -658,6 +657,7 @@ function handle_cmds(dcmds) {
 
 function handle_objs(dobjs) {
     "use strict";
+	//console.log('OBJECTS')
 	for (var idobjs in dobjs) { // attributes; cmd is ['idx':idx, 'attr':attr, 'val':val]
 		var cmd = dobjs[idobjs]
 		var idx = cmd.idx
@@ -700,6 +700,7 @@ function handle_objs(dobjs) {
 
 function handle_methods(dmeth) {
     "use strict";
+	//console.log('METHODS')
 	for (var idmeth in dmeth) { // methods; cmd is ['idx':idx, 'attr':method, 'val':val]
 		var cmd = dmeth[idmeth]
 		var idx = cmd.idx
@@ -712,8 +713,10 @@ function handle_methods(dmeth) {
 		} else if (val == 'None') {
 			if (method == 'delete') obj['remove']()
 			else obj[method]()
+		} else if (method === 'pos') {
+			glowObjs[idx]['pos'] = val
 		} else if (method === 'add_to_trail') {
-			obj.pos = val
+			obj['_func'] = val
 		} else if (method === 'bind') {
 			var evts = val.split(' ')
 			for (var evt in evts) {
@@ -755,6 +758,6 @@ function handle_methods(dmeth) {
 		} else obj[method](val)
 	}
 }
-console.log("END OF GLOWCOMM");
+console.log("END OF GLOWCOMM")
 
 });

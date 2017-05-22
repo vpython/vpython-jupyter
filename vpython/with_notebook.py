@@ -87,11 +87,4 @@ def GSprint(*args):
     s = s[:-1]
     __misc.print(s)
 
-def print_to_string(*args): # treatment of <br> vs. \n not quite right here
-    s = ''
-    for a in args:
-        s += str(a)+' '
-    s = s[:-1]
-    return(s)
-
 baseObj.trigger() # start the trigger ping-pong process

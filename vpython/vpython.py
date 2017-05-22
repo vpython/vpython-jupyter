@@ -11,6 +11,7 @@ except:
 from .shapespaths import *
 
 import math
+from math import *
 import inspect
 from time import clock
 import os
@@ -115,7 +116,8 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t'}
 
 # methods are X in {'m': '23X....'}
-__methods = {'select':'a', 'start':'c', 'stop':'d', 'clear':'f', # unused beghijklmnopuvxyzCDFAB           
+# pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
+__methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused eghijklmnopuvxyzCDFAB           
            'plot':'q', 'add_to_trail':'s',
            'follow':'t', 'clear_trail':'w',
            'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L',
@@ -208,6 +210,7 @@ def list_to_vec(L):
 class baseObj(object):
     glow = None
     objCnt = 0
+    sent = False # set to True by a render
     
     # 'cmds': list of constructors,
     # 'objs': {idx:{'pos':vec, etc.}, idx:{'pos':vec, etc.}, etc.},
@@ -219,38 +222,37 @@ class baseObj(object):
 
     @classmethod
     def initialize(cls):
-        baseObj.updates = {'cmds':[], 'objs':{}, 'methods':[]}
+        cls.updates = {'cmds':[], 'objs':{}, 'methods':[]}
             
     @classmethod
     def empty(cls):
-        b = baseObj.updates
+        b = cls.updates
         return b['cmds'] == [] and b['objs'] == {} and b['methods'] == []
 
     @classmethod
-    def handle_attach(self): # called when about to send data to the browser
+    def handle_attach(cls): # called when about to send data to the browser
         ## update every attach_arrow if relevant vector has changed
-        for aa in self.attach_arrows:
-            ob = self.object_registry[aa._obj]
-            vval = getattr(ob, aa._attr)
+        for aa in cls.attach_arrows:
+            ob = cls.object_registry[aa._obj]
+            vval = getattr(ob, aa._realattr) # could be 'velocity', for example
             if not isinstance(vval, vector):
                 continue
             if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
                 continue
-            ob.addattr(aa._attr, vval.value)
+            ob.addattr('up', vval.value) # pretend that the attribute is 'up'
             aa._last_val = vval
         
         ## update every attach_trail that depends on a function
-        for aa in self.attach_trails:
-            if aa._obj == '_funcvalue':
+        for aa in cls.attach_trails:
+            if aa._obj == '_func':
                 fval = aa._func()
-                aa._funcvalue = fval
+                if not isinstance(fval, vector):
+                    raise AttributeError('attach_trail value must be a vector')
+                aa.addmethod('add_to_trail', fval.value)
             else:
-                fval = getattr(aa, aa._obj)
-            if not isinstance(fval, vector):
-                continue
+                fval = cls.object_registry[aa._obj].pos
             if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
-                continue                
-            aa.addattr(aa._obj, fval.value)
+                continue
             aa._last_val = fval
     
     def __init__(self, **kwargs):
@@ -306,13 +308,14 @@ class baseObj(object):
 
     @classmethod
     def trigger(cls): # isnotebook; called by a canvas update event from browser, coming from GlowWidget.handle_msg
-        if baseObj.empty():
+        if cls.empty():
             objdata = 'trigger' # handshake with browser
         else:
             objdata = cls.package(baseObj.updates)
-        baseObj.handle_attach()
+        cls.handle_attach()
         sender(objdata)
-        baseObj.initialize()
+        cls.initialize()
+        baseObj.sent = True
             
     @classmethod
     def incrObjCnt(cls):
@@ -327,7 +330,7 @@ class baseObj(object):
         if (baseObj.glow is not None):
             sender([cmd])
         else:
-            self.appendcmd(cmd)
+            baseObj.appendcmd(cmd)
     
 # Jupyter does not immediately transmit data to the browser from a thread,
 # which made for an awkward thread in early versions of Jupyter VPython, and
@@ -766,7 +769,7 @@ class standardAttributes(baseObj):
         self._pos.value = value
         if not self._constructing:
             if self._make_trail and self._interval > 0:
-                self.addmethod('add_to_trail', value.value)
+                self.addmethod('pos', value.value)
             else:
                 self.addattr('pos', value.value)
             
@@ -1290,7 +1293,8 @@ class attach_arrow(standardAttributes):
         args['_default_size'] = None
         self._obj = obj.idx
         args['_obj'] = self._obj
-        self._attr = attr
+        self._realattr = attr # could be for example "velocity"
+        self._attr = 'up'     # pretend that the atribute is "up"
         args['_attr'] = self._attr
         args['_objName'] = "attach_arrow"
         self._last_val = None
@@ -1330,18 +1334,14 @@ class attach_trail(standardAttributes):
         self._radius = 0
         if callable(obj): # true if obj is a function
             baseObj.attach_trails.append(self)
-            self._obj = "_funcvalue"
+            self._obj = "_func"
             self._func = obj
-        elif isinstance(obj, str):
-            baseObj.attach_trails.append(self)
-            self._obj = obj
-            setattr(self, obj, None)
         else:
             self._radius = obj.size.y * 0.1
             self._color = obj.color
             self._obj = obj.idx
-        self._last_val = None
         args['_obj'] = self._obj
+        self._last_val = None
         self._type = "curve"
         self._retain = -1
         self._pps = 0
@@ -3002,14 +3002,13 @@ class canvas(baseObj):
         self.addmethod('unbind', eventtype)      
         
     def waitfor(self, eventtype):
-        global _sent
         if 'textures' in eventtype: # textures are local; no need to wait
             eventtype = eventtype.replace('textures', '')
             if eventtype == '': return
         evts = ['redraw', 'draw_complete'] # wait for a render
         if eventtype in evts:
-            _sent = False
-            while _sent is False:
+            baseObj.sent = False
+            while baseObj.sent is False:
                 rate(60)
         else:
             self.addmethod('waitfor', eventtype)
@@ -3734,3 +3733,10 @@ def sleep(dt): # don't use time.sleep because it delays output queued up before 
     
 radians = math.radians
 degrees = math.degrees
+
+def print_to_string(*args): # treatment of <br> vs. \n not quite right here
+    s = ''
+    for a in args:
+        s += str(a)+' '
+    s = s[:-1]
+    return(s)

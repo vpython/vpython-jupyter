@@ -68,10 +68,11 @@ class WSserver(WebSocketServerProtocol):
 
     # For Python 3.5 and later, the newer syntax eliminates "@asyncio.coroutine"
     # in favor of "async def onMessage...", and "yield from" with "await".
-    @asyncio.coroutine
-    def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
-        global _sent
-        _sent = False
+    # Attempting to use the older Python 3.4 syntax was not successful, so this
+    # no-notebook version of VPython requires Python 3.5 or later.
+    #@asyncio.coroutine
+    #def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
+    async def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
         baseObj.handle_attach() # attach arrow and attach trail
         while True:
             try:
@@ -83,7 +84,7 @@ class WSserver(WebSocketServerProtocol):
         objdata = baseObj.package(objdata)
         jdata = json.dumps(objdata, separators=(',', ':')).encode('utf_8')
         self.sendMessage(jdata, isBinary=False)
-        _sent = True
+        baseObj.sent = True
         if data != b'trigger': # b'trigger' just asks for updates
             d = json.loads(data.decode("utf_8")) # update_canvas info
             for m in d:
@@ -91,7 +92,8 @@ class WSserver(WebSocketServerProtocol):
                 msg = {'content':{'data':[m]}} # message format used by notebook=
                 if 'bind' in m: # will execute a function that may contain waitfor etc. statements
                     loop = asyncio.get_event_loop()
-                    yield from loop.run_in_executor(None, GW.handle_msg, msg)
+                    #yield from loop.run_in_executor(None, GW.handle_msg, msg)
+                    await loop.run_in_executor(None, GW.handle_msg, msg)
                 else:
                     GW.handle_msg(msg)
 
@@ -105,8 +107,11 @@ __factory.protocol = WSserver
 __interact_loop = asyncio.get_event_loop()
 __coro = __interact_loop.create_server(__factory, '0.0.0.0', __SOCKET_PORT)
 __interact_loop.run_until_complete(__coro)
+
+# one-shot interact:
 #interact_loop.stop()
 #interact_loop.run_forever()
+
 # Need to put interact loop inside a thread in order to get a display
 # in the absence of a loop containing a rate statement.
 __t = threading.Thread(target=__interact_loop.run_forever)
@@ -140,11 +145,4 @@ def GSprint(*args):
         s += str(a)+' '
     s = s[:-1]
     __misc.print(s)
-
-def print_to_string(*args): # treatment of <br> vs. \n not quite right here
-    s = ''
-    for a in args:
-        s += str(a)+' '
-    s = s[:-1]
-    return(s)
 
