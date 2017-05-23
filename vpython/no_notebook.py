@@ -1,7 +1,7 @@
 from .vpython import *
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from os import sep
+import os
 import threading
 import json
 import webbrowser as _webbrowser
@@ -10,6 +10,21 @@ from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerF
 
 # Requests from client to http server can be the following:
 #    get glowcomm.html, library .js files, images, or font files
+
+import socket
+
+def find_free_port():
+    s = socket.socket()
+    s.bind(('',0)) # find an available port
+    return s.getsockname()[1]
+
+__HTTP_PORT = find_free_port()
+__SOCKET_PORT = find_free_port()
+# Make it possible for glowcomm.html to find out what the websocket port is:
+js = __file__.replace('no_notebook.py','vpython_libraries'+os.sep+'socket_port.js')
+fd = open(js,'w')
+fd.write('function socket_port() {'+'return {}'.format(__SOCKET_PORT)+'}')
+fd.close()
 
 GW = None
 
@@ -29,9 +44,9 @@ class serveHTTP(BaseHTTPRequestHandler):
         global GW
         if GW is None: GW = GlowWidget(None, None)
         if self.path == "/":
-            self.path = sep+'glowcomm.html'
+            self.path = os.sep+'glowcomm.html'
         elif self.path[0] == "/":
-            self.path = sep+self.path[1:]
+            self.path = os.sep+self.path[1:]
         f = self.path.rfind('.')
         fext = None
         if f > 0: fext = self.path[f+1:]
@@ -101,28 +116,24 @@ class WSserver(WebSocketServerProtocol):
         #print("Server WebSocket connection closed: {0}".format(reason))
         self.connection = None
 
-__SOCKET_PORT = 9001
+__server = HTTPServer(('', __HTTP_PORT), serveHTTP)
+_webbrowser.open('http://localhost:{}'.format(__HTTP_PORT)) # or webbrowser.open_new_tab()
+__w = threading.Thread(target=__server.serve_forever)
+__w.start()
+
 __factory = WebSocketServerFactory(u"ws://localhost:{}/".format(__SOCKET_PORT))
 __factory.protocol = WSserver
 __interact_loop = asyncio.get_event_loop()
 __coro = __interact_loop.create_server(__factory, '0.0.0.0', __SOCKET_PORT)
 __interact_loop.run_until_complete(__coro)
-
+# server.handle_request() is a single-shot interaction
 # one-shot interact:
 #interact_loop.stop()
 #interact_loop.run_forever()
-
 # Need to put interact loop inside a thread in order to get a display
 # in the absence of a loop containing a rate statement.
 __t = threading.Thread(target=__interact_loop.run_forever)
 __t.start()
-
-__HTTP_PORT = 9000
-__server = HTTPServer(('', __HTTP_PORT), serveHTTP)
-_webbrowser.open('http://localhost:{}'.format(__HTTP_PORT)) # or webbrowser.open_new_tab()
-__w = threading.Thread(target=__server.serve_forever)
-__w.start()
-# server.handle_request() is a single-shot interaction
 
 while baseObj.glow is None: # try to make sure setup is complete
     rate(60)

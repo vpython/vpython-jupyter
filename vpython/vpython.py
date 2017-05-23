@@ -10,8 +10,10 @@ except:
     from .vector import *
 from .shapespaths import *
 
-import math
+# Need to import the following for consistency across VPythons
 from math import *
+from numpy import arange
+
 import inspect
 from time import clock
 import os
@@ -734,7 +736,7 @@ class standardAttributes(baseObj):
         angle = oldaxis.diff_angle(newaxis)
         if angle > 1e-6: # smaller angles lead to catastrophes
             # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
-            if abs(angle-math.pi) < 1e-6:
+            if abs(angle-pi) < 1e-6:
                 newup = -self._up
             else:
                 rotaxis = cross(oldaxis,newaxis)
@@ -754,7 +756,7 @@ class standardAttributes(baseObj):
         angle = oldup.diff_angle(newup)
         if angle > 1e-6: # smaller angles lead to catastrophes
             # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
-            if abs(angle-math.pi) < 1e-6:
+            if abs(angle-pi) < 1e-6:
                 newxis = -self._axis
             else:
                 rotaxis = cross(oldup,newup)
@@ -1043,7 +1045,7 @@ class standardAttributes(baseObj):
         
         self._adjustupaxis = False # temporarily remove linkage of axis and up
         if diff_angle(axis,rotaxis) > 1e-6:
-            if abs(angle-math.pi) < 1e-6:
+            if abs(angle-pi) < 1e-6:
                 self.axis = -axis
             else:
                 self.axis = axis.rotate(angle=angle, axis=rotaxis)
@@ -1478,7 +1480,7 @@ class compound(standardAttributes):
     def _world_zaxis(self):
         axis = self._axis
         up = norm(self._up)
-        if abs(axis.dot(up)) / math.sqrt(axis.mag2) > 0.98:
+        if abs(axis.dot(up)) / sqrt(axis.mag2) > 0.98:
             if abs(norm(axis).dot(vector(-1,0,0))) > 0.98:
                 z_axis = axis.cross(vector(0,0,1)).norm()
             else:
@@ -2570,7 +2572,7 @@ class Camera(object):
     @property
     def pos(self):
         c = self._canvas
-        return c.center-(norm(c.forward)*(c.range / math.tan(c.fov/2)))
+        return c.center-(norm(c.forward)*(c.range / tan(c.fov/2)))
     @pos.setter
     def pos(self, value):
         c = self._canvas
@@ -2579,13 +2581,13 @@ class Camera(object):
     @property
     def axis(self):
         c = self._canvas
-        return norm(c.forward)*( c.range / math.tan(c.fov/2) )
+        return norm(c.forward)*( c.range / tan(c.fov/2) )
     @axis.setter
     def axis(self, value):
         c = self._canvas
         c.center = self.pos+value # use current self.pos before it is changed by change in c.forward
         c.forward = norm(value)
-        c.range = mag(value)*math.tan(c.fov/2)
+        c.range = mag(value)*tan(c.fov/2)
     
     @property
     def up(self):   ## but really this should not exist:  should be scene.up
@@ -2628,7 +2630,7 @@ class canvas(baseObj):
         self._height = 480
         self._width = 640
         self._align = 'none'
-        self._fov = math.pi/3
+        self._fov = pi/3
         
         # The following determine the view:
         self._range = 1 # user can alter with zoom
@@ -3730,9 +3732,7 @@ def sleep(dt): # don't use time.sleep because it delays output queued up before 
     t = clock()+dt
     while clock() < t:
         rate(60)
-    
-radians = math.radians
-degrees = math.degrees
+
 
 def print_to_string(*args): # treatment of <br> vs. \n not quite right here
     s = ''

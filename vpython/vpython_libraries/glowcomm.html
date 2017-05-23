@@ -4,6 +4,7 @@
 <script type="text/javascript" src="jquery.min.js"></script>
 <script type="text/javascript" src="jquery-ui.custom.min.js"></script>
 <script type="text/javascript" src="glow.min.js"></script>
+<script type="text/javascript" src="socket_port.js"></script>
 </head>
 <body>
 <div id="glowscript" class="glowscript">
@@ -41,8 +42,9 @@ var isopen = false
 
 window.onload = function() {
     "use strict";
-
-	ws = new WebSocket("ws://localhost:9001")
+	
+	var sock = socket_port() // created by no_notebook.py
+	ws = new WebSocket("ws://localhost:"+sock)
 	ws.binaryType = "arraybuffer";
 
 	ws.onopen = function() {
