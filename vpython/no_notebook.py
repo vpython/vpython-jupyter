@@ -26,7 +26,8 @@ fd = open(js,'w')
 fd.write('function socket_port() {'+'return {}'.format(__SOCKET_PORT)+'}')
 fd.close()
 
-GW = None
+httpserving = False
+websocketserving = False
 
 class serveHTTP(BaseHTTPRequestHandler):
     serverlib = __file__.replace('no_notebook.py','vpython_libraries')
@@ -41,8 +42,8 @@ class serveHTTP(BaseHTTPRequestHandler):
               'ico':['image/x-icon', serverdata]}
         
     def do_GET(self):
-        global GW
-        if GW is None: GW = GlowWidget(None, None)
+        global httpserving
+        httpserving = True
         if self.path == "/":
             self.path = os.sep+'glowcomm.html'
         elif self.path[0] == "/":
@@ -78,8 +79,8 @@ class WSserver(WebSocketServerProtocol):
         self.connection = self
 
     def onOpen(self):
-        global GW
-        if GW is None: GW = GlowWidget(None, None)
+        global websocketserving
+        websocketserving = True
 
     # For Python 3.5 and later, the newer syntax eliminates "@asyncio.coroutine"
     # in favor of "async def onMessage...", and "yield from" with "await".
@@ -135,8 +136,10 @@ __interact_loop.run_until_complete(__coro)
 __t = threading.Thread(target=__interact_loop.run_forever)
 __t.start()
 
-while baseObj.glow is None: # try to make sure setup is complete
+while not (httpserving and websocketserving): # try to make sure setup is complete
     rate(60)
+
+GW = GlowWidget(None, None)
 
 scene = canvas()
 
