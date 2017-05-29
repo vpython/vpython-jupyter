@@ -1045,8 +1045,8 @@ class standardAttributes(baseObj):
         
         self._adjustupaxis = False # temporarily remove linkage of axis and up
         if diff_angle(axis,rotaxis) > 1e-6:
-            if abs(angle-pi) < 1e-6:
-                self.axis = -axis
+            if diff_angle(axis,-rotaxis) < 1e-6: # object axis does not change
+                self.up = -self._up
             else:
                 self.axis = axis.rotate(angle=angle, axis=rotaxis)
                 self.up = self._up.rotate(angle=angle, axis=rotaxis)

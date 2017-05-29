@@ -405,12 +405,12 @@ function o2vec3(p) {
 function handler(data) {
     "use strict";
 	
-	
+	/*
 	console.log('---------------')
 	for (var d in data) {
 		for (var i in data[d]) console.log(i, JSON.stringify(data[d][i]))
 	}
-	
+	*/
 	
 	if (data.cmds != []) handle_cmds(data.cmds)
 	if (data.objs != []) handle_objs(data.objs)
