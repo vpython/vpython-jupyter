@@ -1033,6 +1033,8 @@ class standardAttributes(baseObj):
    
     def rotate(self, angle=None, axis=None, origin=None):
         saveorigin = origin
+        if angle == 0:
+            return
         if angle == None:
             raise TypeError('You must specify an angle through which to rotate')
         if axis == None:
@@ -1048,9 +1050,9 @@ class standardAttributes(baseObj):
             pos = self.pos
         
         # Update local values of axis and up; setting self._axis and self._up to avoid axis/up connections
-        if diff_angle(axis,rotaxis) > 1e-6:
-                self._axis = self._axis.rotate(angle=angle, axis=rotaxis)
-                self._up = self._up.rotate(angle=angle, axis=rotaxis)
+        if diff_angle(self.axis,rotaxis) > 1e-6:
+                self._axis.value = self._axis.rotate(angle=angle, axis=rotaxis)
+                self._up.value = self._up.rotate(angle=angle, axis=rotaxis)
         else:
             self._up = self._up.rotate(angle=angle, axis=rotaxis)
         # Tell glowcomm to perform object rotation:
@@ -1059,8 +1061,8 @@ class standardAttributes(baseObj):
         if saveorigin is not None and not origin.equals(self._pos):
             # This code is done only if origin is not the same as the original pos
             newpos = origin+(pos-origin).rotate(angle, rotaxis)
-            if isinstance(self, curve): self._origin = newpos
-            else: self._pos = newpos
+            if isinstance(self, curve): self._origin.value = newpos
+            else: self._pos.value = newpos
         
     def _on_size_change(self): # the vector class calls this when there's a change in x, y, or z
         self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
