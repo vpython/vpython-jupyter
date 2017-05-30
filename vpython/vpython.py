@@ -119,11 +119,12 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
-__methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused eghijklmnopuvxyzCDFAB           
-           'plot':'q', 'add_to_trail':'s',
-           'follow':'t', 'clear_trail':'w',
-           'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L',
-           'delete':'M'}
+__methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused ghijklmnopuvxyzCDFAB
+             'rotate':'e',
+             'plot':'q', 'add_to_trail':'s',
+             'follow':'t', 'clear_trail':'w',
+             'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L',
+             'delete':'M'}
 
 __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
             'direction', 'linecolor', 'bumpaxis', 'dot_color', 'add_to_trail', 'textcolor',
@@ -138,10 +139,14 @@ def _encode_attr2(sendval, val, ismethods):
         s += "{:.16G},{:.16G},{:.16G}".format(val[0], val[1], val[2])
     elif sendval in __textattrs:
         s += val
+    elif sendval == 'rotate':
+        for p in val:
+            s += "{:.16G},".format(p)
+        s = s[:-1]
     elif sendval == 'plot' or sendval == 'data':
         for p in val:
             s += "{:.16G},{:.16G},".format(p[0], p[1])
-        s =s[:-1]
+        s = s[:-1]
     elif ismethods:
         #if sendval in ['follow', 'waitfor', 'delete']: val = str(val) # scene.camera.follow(object idx)
         s += str(val)
@@ -221,10 +226,12 @@ class baseObj(object):
     object_registry = {}    ## idx -> instance
     attach_arrows = []
     attach_trails = []  ## needed only for functions
+    #attrs = set()
 
     @classmethod
     def initialize(cls):
         cls.updates = {'cmds':[], 'objs':{}, 'methods':[]}
+        #cls.attrs = set()
             
     @classmethod
     def empty(cls):
@@ -280,6 +287,7 @@ class baseObj(object):
         baseObj.updates['cmds'].append(cmd)
     
     def addattr(self, attr, val):
+        #baseObj.attrs.add((self.idx, attr))
         # Guard against reinitialization of baseObj.updates by websocket machinery
         while True:
             try:
@@ -292,7 +300,7 @@ class baseObj(object):
                 pass
         
     def addmethod(self, method, data):
-        baseObj.updates['methods'].append([self.idx, method, data])
+        baseObj.updates['methods'].append((self.idx, method, data))
 
     @classmethod
     def package(cls, objdata): # package up the data to send to the browser
@@ -604,7 +612,6 @@ class standardAttributes(baseObj):
         self._pickable = True
         self._oldaxis = None # used in linking axis and up
         self._oldup = None # used in linking axis and up
-        self._adjustupaxis = True # normally, link axis and up
         cloning = None
         if '_cloneid' in args:
             cloning = args['_cloneid']
@@ -784,7 +791,7 @@ class standardAttributes(baseObj):
         self._up.value = value
         if not self._constructing:
             self.addattr('up', value.value)
-        if self._adjustupaxis: self.adjust_axis(oldup, self.up) # not in object.rotate
+        self.adjust_axis(oldup, self.up)
             
     @property
     def size(self):
@@ -819,7 +826,7 @@ class standardAttributes(baseObj):
                 self._size._x = m
                 if not self._constructing:
                     self.addattr('size', self._size.value)
-        if self._adjustupaxis: self.adjust_up(oldaxis, self.axis) # not in object.rotate
+        self.adjust_up(oldaxis, self.axis)
             
     @property
     def length(self): 
@@ -1025,34 +1032,35 @@ class standardAttributes(baseObj):
         self._frame = value
    
     def rotate(self, angle=None, axis=None, origin=None):
+        saveorigin = origin
         if angle == None:
             raise TypeError('You must specify an angle through which to rotate')
         if axis == None:
             rotaxis = self.axis
         else:
             rotaxis = axis
-        if self._objName != 'text': # pos of text extrusion is not at text.pos
-            if isinstance(self, curve):
-                if origin is None: origin = self.origin
-                pos = self.origin
-            else:
-                if origin is None: origin = self.pos
-                pos = self.pos
-            newpos = origin+(pos-origin).rotate(angle, rotaxis)
-            if isinstance(self, curve): self.origin = newpos
-            else: self.pos = newpos
-        axis = self._axis
-        
-        self._adjustupaxis = False # temporarily remove linkage of axis and up
-        if diff_angle(axis,rotaxis) > 1e-6:
-            if diff_angle(axis,-rotaxis) < 1e-6: # object axis does not change
-                self.up = -self._up
-            else:
-                self.axis = axis.rotate(angle=angle, axis=rotaxis)
-                self.up = self._up.rotate(angle=angle, axis=rotaxis)
+        if isinstance(self, curve):
+            if origin is None: origin = self.origin
+            pos = self.origin
         else:
-            self.up = self._up.rotate(angle=angle, axis=rotaxis)
-        self._adjustupaxis = True
+            if origin is None:
+                origin = self.pos
+            pos = self.pos
+        
+        # Update local values of axis and up; setting self._axis and self._up to avoid axis/up connections
+        if diff_angle(axis,rotaxis) > 1e-6:
+                self._axis = self._axis.rotate(angle=angle, axis=rotaxis)
+                self._up = self._up.rotate(angle=angle, axis=rotaxis)
+        else:
+            self._up = self._up.rotate(angle=angle, axis=rotaxis)
+        # Tell glowcomm to perform object rotation:
+        self.addmethod('rotate', [angle,rotaxis.x,rotaxis.y,rotaxis.z,origin.x,origin.y,origin.z])
+
+        if saveorigin is not None and not origin.equals(self._pos):
+            # This code is done only if origin is not the same as the original pos
+            newpos = origin+(pos-origin).rotate(angle, rotaxis)
+            if isinstance(self, curve): self._origin = newpos
+            else: self._pos = newpos
         
     def _on_size_change(self): # the vector class calls this when there's a change in x, y, or z
         self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed

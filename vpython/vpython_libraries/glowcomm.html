@@ -311,7 +311,8 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid'}
 
 // methods are X in {'m': '23X....'}
-var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopuvxyzCDFAB
+var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused ghijklmnopuvxyzCDFAB
+			   'e':'rotate',
 			   'q':'plot', 's':'add_to_trail',
                't':'follow', 'w':'clear_trail',
                'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
@@ -357,6 +358,17 @@ function decode(data) {
 				val = vec(Number(val[1]), Number(val[2]), Number(val[3]))
 			} else if (textattrs.indexOf(attr) > -1) {
 				val = m[3]
+			} else if (attr == 'rotate') { // angle,x,y,z,x,y,z
+				var temp = m[3]
+				val = []
+				var first = temp.match(/([^,]*)/)
+				val.push(Number(first[1]))
+				var v1 = temp.slice(first[1].length+1)
+				m = v1.match(/([^,]*),([^,]*),([^,]*)/)
+				val.push(vec(Number(m[1]), Number(m[2]), Number(m[3])))
+				var v2 = temp.slice(first[1].length + 1 + m[0].length + 1)
+				m = v2.match(vpatt)
+				val.push(vec(Number(m[1]), Number(m[2]), Number(m[3])))
 			} else if (attr == 'plot' || attr == 'data') {
 				val = []
 				var start = m[1].length+1 // start of arguments
@@ -757,6 +769,8 @@ function handle_methods(dmeth) {
 		} else if (val == 'None') {
 			if (method == 'delete') obj['remove']()
 			else obj[method]()
+		} else if (method === 'rotate') {
+			obj.rotate({angle:val[0], axis:val[1], origin:val[2]})
 		} else if (method === 'pos') {
 			glowObjs[idx]['pos'] = val
 		} else if (method === 'add_to_trail') {
@@ -802,7 +816,7 @@ function handle_methods(dmeth) {
 		} else obj[method](val)
 	}
 }
-console.log("END OF GLOWCOMM");
+console.log("END OF GLOWCOMM")
 
 </script>
 </div>

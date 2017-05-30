@@ -97,6 +97,18 @@ class WSserver(WebSocketServerProtocol):
                 break
             except:
                 pass
+##        while True:
+##            try:
+##                objdata = copy.deepcopy(baseObj.updates)
+##                attrdata = copy.deepcopy(baseObj.attrs)
+##                baseObj.initialize() # reinitialize baseObj.updates
+##                break
+##            except:
+##                pass
+##        for a in attrdata:
+##            val = getattr(baseObj.object_registry[a[0]], a[1])
+##            if type(val) is vec: val = [val.x, val.y, val.z]
+##            objdata['objs'][a[0]] = {a[1]:val}
         objdata = baseObj.package(objdata)
         jdata = json.dumps(objdata, separators=(',', ':')).encode('utf_8')
         self.sendMessage(jdata, isBinary=False)
