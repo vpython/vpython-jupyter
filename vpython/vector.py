@@ -200,6 +200,9 @@ def mag2(A):
 def norm(A):
     return A.norm()
 
+def hat(A):
+    return A.norm()
+
 def dot(A,B):
     return A.dot(B)
 
