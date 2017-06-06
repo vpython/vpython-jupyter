@@ -43,9 +43,17 @@ function onmessage(msg) {
 // Otherwise the repeated execution of update_canvas() causes problems after killing Python.
 if (timer !== undefined && timer !== null) clearTimeout(timer)
 
+function send() { // periodically send events and update_canvas to websocket and request object update
+    "use strict";
+	var update = update_canvas()
+	if (update !== null) events = events.concat(update)
+	if (events.length === 0) events = [{event:'update_canvas', 'trigger':1}]
+	comm.send( events )
+	events = []
+}
 
 // ***************************************************************************** //
-// THE REST OF THIS FILE IS IDENTICAL TO THE CORRESPONDING PART OF glowcomm.html //
+// THE REST OF THIS FILE IS IDENTICAL TO THE CORRESPONDING PART OF glowcomm.js //
 
 // Should eventually have glowcomm.html and glowcom.js both import this common component.
 
@@ -58,15 +66,6 @@ function msclock() {
 var tstart = msclock()
 
 var events = [] // collects all events prior to 33 ms (or more) after previous send to server
-
-function send() { // periodically send events and update_canvas to websocket and request object update
-    "use strict";
-	var update = update_canvas()
-	if (update !== null) events = events.concat(update)
-	if (events.length === 0) events = [{event:'update_canvas', 'trigger':1}]
-	comm.send( events )
-	events = []
-}
 
 var timer = null
 var lastpos = vec(0,0,0)
@@ -288,15 +287,15 @@ var plotpatt = /([^,]*),([^,]*)/
 
 function decode(data) { 
     "use strict";
-	// data is {'cmds':list of constructors, 'objs': list of attributes and (time-ordered) methods
+	// data is {'cmds':list of constructors, 'attrs': list of attributes and (time-ordered) methods
 	// Attribute and method lists: [ 'XiK0.0,1.0,1.0', .....] X is a or b (attributes) or m (methods)
 	// i is object index, K is a key to an attribute or method in the dictionaries above
     var output = [], s, m, idx, attr, val, datatype, out, i, as, ms
 	var as = []
 	var ms = []
 	
-	if ('objs' in data) {
-		var c = data['objs']
+	if ('attrs' in data) {
+		var c = data['attrs']
 		for (i in c) { // step through the encoded attributes and methods
 			var d = c[i]
 			// constructor or appendcmd not currently compressed
@@ -342,8 +341,8 @@ function decode(data) {
 			else ms.push(out)
 		}
 	}
-	if (as.length > 0) data['objs'] = as
-	else data['objs'] = []
+	if (as.length > 0) data['attrs'] = as
+	else data['attrs'] = []
 	if (ms.length > 0) data['methods'] = ms
 	return data
 }
@@ -378,11 +377,11 @@ function handler(data) {
 	for (var d in data) {
 		for (var i in data[d]) console.log(i, JSON.stringify(data[d][i]))
 	}
-	*/
+    */
 	
-	if (data.cmds != []) handle_cmds(data.cmds)
-	if (data.objs != []) handle_objs(data.objs)
-	if (data.methods != []) handle_methods(data.methods)
+	if (data.cmds !== undefined && data.cmds.length > 0) handle_cmds(data.cmds)
+	if (data.attrs !== undefined && data.attrs.length > 0) handle_attrs(data.attrs)
+	if (data.methods !== undefined && data.methods.length > 0) handle_methods(data.methods)
 } // end of handler
 
 function handle_cmds(dcmds) {
@@ -403,7 +402,7 @@ function handle_cmds(dcmds) {
 		var triangle_quad = ['v0', 'v1', 'v2', 'v3']
 
 		//assembling cfg
-		var vlst = ['pos', 'color', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
+		var vlst = ['pos', 'color', 'size', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
 				 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'textcolor',
 				 'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color']
 		if ((obj != 'gcurve') && ( obj != 'gdots' ) ) vlst.push( 'size' )
@@ -667,11 +666,11 @@ function handle_cmds(dcmds) {
 	} // end of cmds (constructors and special data)
 }
 
-function handle_objs(dobjs) {
+function handle_attrs(dattrs) {
     "use strict";
-	//console.log('OBJECTS')
-	for (var idobjs in dobjs) { // attributes; cmd is ['idx':idx, 'attr':attr, 'val':val]
-		var cmd = dobjs[idobjs]
+	//console.log('ATTRS')
+	for (var idattrs in dattrs) { // attributes; cmd is {'idx':idx, 'attr':attr, 'val':val}
+		var cmd = dattrs[idattrs]
 		var idx = cmd.idx
 		var obj = glowObjs[idx]
 		var attr = cmd['attr']
@@ -684,18 +683,11 @@ function handle_objs(dobjs) {
 				for (var kk = 0; kk < val.length; kk++) {
 					ptlist.push( val[kk] )
 				}
-				obj[attr] = ptlist                                
+				obj[attr] = ptlist
+			} else if (attr === 'axis' && (obj instanceof arrow)) {
+				obj['axis_and_length'] = val
 			} else {
-				// VPython interactions between axis and size are dealt with in vpython.py
-				if (attr === 'axis') {
-					if (obj instanceof arrow) {
-						obj['axis_and_length'] = val
-					} else {
-						obj[attr] = val
-					}
-				} else {
-					obj[attr] = val
-				}
+				obj[attr] = val
 			}
 		} else if (attr == 'lights') {
 			if (val == 'empty_list') val = []

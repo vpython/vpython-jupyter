@@ -90,29 +90,29 @@ class WSserver(WebSocketServerProtocol):
     #def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
     async def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
         baseObj.handle_attach() # attach arrow and attach trail
+        
+        baseObj.sent = False # tell main thread that we're preparing to send data to browser
         while True:
             try:
                 objdata = copy.deepcopy(baseObj.updates)
+                attrdata = copy.deepcopy(baseObj.attrs)
                 baseObj.initialize() # reinitialize baseObj.updates
                 break
             except:
                 pass
-##        while True:
-##            try:
-##                objdata = copy.deepcopy(baseObj.updates)
-##                attrdata = copy.deepcopy(baseObj.attrs)
-##                baseObj.initialize() # reinitialize baseObj.updates
-##                break
-##            except:
-##                pass
-##        for a in attrdata:
-##            val = getattr(baseObj.object_registry[a[0]], a[1])
-##            if type(val) is vec: val = [val.x, val.y, val.z]
-##            objdata['objs'][a[0]] = {a[1]:val}
+        for a in attrdata: # a is [idx, attr]
+            idx, attr = a
+            val = getattr(baseObj.object_registry[idx], attr)
+            if type(val) is vec: val = [val.x, val.y, val.z]
+            if idx in objdata['attrs']:
+                objdata['attrs'][idx][attr] = val
+            else:
+                objdata['attrs'][idx] = {attr:val}
         objdata = baseObj.package(objdata)
         jdata = json.dumps(objdata, separators=(',', ':')).encode('utf_8')
         self.sendMessage(jdata, isBinary=False)
         baseObj.sent = True
+        
         if data != b'trigger': # b'trigger' just asks for updates
             d = json.loads(data.decode("utf_8")) # update_canvas info
             for m in d:

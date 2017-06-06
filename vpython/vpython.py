@@ -16,6 +16,7 @@ from numpy import arange
 
 import inspect
 from time import clock
+from time import sleep as timesleep
 import os
 import copy
 import sys
@@ -157,7 +158,7 @@ def _encode_attr2(sendval, val, ismethods):
 def _encode_attr(D, ismethods): # ismethods is True if a list of method operations
     # If ismethods is True,  D is [ [idx, method, data], [idx, method, data], etc. ]
     # If ismethods is False: D is {idx:{'pos':vec, etc.}, idx:{'pos':vec, etc.}, etc.}
-    # For 'objs', convert {'opacity': 0.5, 'idx': 3} to 'a(idx)X(value)' or 'b(idx)X(value)'
+    # For 'attrs', convert {'opacity': 0.5, 'idx': 3} to 'a(idx)X(value)' or 'b(idx)X(value)'
     # where (idx) is a number, X is the attribute code in attrs, (value) is a number or x,y,z or a string
     # For a method, we have {idx, method, value} to be converted to 'm(idx)X(value)'
     out = []
@@ -217,26 +218,26 @@ def list_to_vec(L):
 class baseObj(object):
     glow = None
     objCnt = 0
-    sent = False # set to True by a render
+    sent = True # set to True by a render in the non-notebook case
     
     # 'cmds': list of constructors,
-    # 'objs': {idx:{'pos':vec, etc.}, idx:{'pos':vec, etc.}, etc.},
+    # 'attrs': {idx:{'pos':vec, etc.}, idx:{'pos':vec, etc.}, etc.},
     # 'methods': [ [idx, method, date], [idx, method, date], etc. ]
-    updates = {'cmds':[], 'objs':{}, 'methods':[]}
+    updates = {'cmds':[], 'attrs':{}, 'methods':[]}
     object_registry = {}    ## idx -> instance
     attach_arrows = []
     attach_trails = []  ## needed only for functions
-    #attrs = set()
+    attrs = set()  # each element is (idx, attr name)
 
     @classmethod
     def initialize(cls):
-        cls.updates = {'cmds':[], 'objs':{}, 'methods':[]}
-        #cls.attrs = set()
+        cls.updates = {'cmds':[], 'attrs':{}, 'methods':[]}
+        cls.attrs = set()
             
     @classmethod
     def empty(cls):
         b = cls.updates
-        return b['cmds'] == [] and b['objs'] == {} and b['methods'] == []
+        return b['cmds'] == [] and b['methods'] == [] and len(cls.attrs) == 0
 
     @classmethod
     def handle_attach(cls): # called when about to send data to the browser
@@ -248,7 +249,7 @@ class baseObj(object):
                 continue
             if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
                 continue
-            ob.addattr('up', vval.value) # pretend that the attribute is 'up'
+            ob.addattr('up') # pretend that the attribute is 'up'
             aa._last_val = vval
         
         ## update every attach_trail that depends on a function
@@ -284,35 +285,32 @@ class baseObj(object):
     def appendcmd(self,cmd):
         # The following code makes sure that constructors are sent to the front end first.
         cmd['idx'] = self.idx
-        baseObj.updates['cmds'].append(cmd)
+        while not baseObj.sent: # baseObj.sent is always True in the notebook case
+            timesleep(0.001)
+        baseObj.updates['cmds'].append(cmd) # this is an "atomic" (uninterruptable) operation
     
-    def addattr(self, attr, val):
-        #baseObj.attrs.add((self.idx, attr))
-        # Guard against reinitialization of baseObj.updates by websocket machinery
-        while True:
-            try:
-                if self.idx not in baseObj.updates['objs']:
-                    baseObj.updates['objs'][self.idx] = {attr:val}
-                else:
-                    baseObj.updates['objs'][self.idx][attr] = val
-                break
-            except:
-                pass
+    def addattr(self, attr):
+        while not baseObj.sent: # baseObj.sent is always True in the notebook case
+            timesleep(0.001)
+        baseObj.attrs.add((self.idx, attr)) # this is an "atomic" (uninterruptable) operation
         
     def addmethod(self, method, data):
-        baseObj.updates['methods'].append((self.idx, method, data))
+        while not baseObj.sent: # baseObj.sent is always True in the notebook case
+            timesleep(0.001)
+        baseObj.updates['methods'].append((self.idx, method, data)) # this is an "atomic" (uninterruptable) operation
 
     @classmethod
     def package(cls, objdata): # package up the data to send to the browser
         if objdata['cmds'] == []: del objdata['cmds']
-        if objdata['objs'] != {}: objdata['objs'] = _encode_attr(objdata['objs'], False)
-        else: del objdata['objs']
+        if objdata['attrs'] != {}:
+            objdata['attrs'] = _encode_attr(objdata['attrs'], False)
+        else: del objdata['attrs']
         if objdata['methods'] != []:
             m = _encode_attr(objdata['methods'], True)
-            if 'objs' in objdata:
-                objdata['objs'] += m
+            if 'attrs' in objdata:
+                objdata['attrs'] += m
             else:
-                objdata['objs'] = m
+                objdata['attrs'] = m
         del objdata['methods']
         return objdata
 
@@ -321,6 +319,14 @@ class baseObj(object):
         if cls.empty():
             objdata = 'trigger' # handshake with browser
         else:
+            for a in baseObj.attrs:
+                idx, attr = a
+                val = getattr(baseObj.object_registry[idx], attr)
+                if type(val) is vec: val = [val.x, val.y, val.z]
+                if idx in baseObj.updates['attrs']:
+                    baseObj.updates['attrs'][idx][attr] = val
+                else:
+                    baseObj.updates['attrs'][idx] = {attr:val}                
             objdata = cls.package(baseObj.updates)
         cls.handle_attach()
         sender(objdata)
@@ -780,7 +786,7 @@ class standardAttributes(baseObj):
             if self._make_trail and self._interval > 0:
                 self.addmethod('pos', value.value)
             else:
-                self.addattr('pos', value.value)
+                self.addattr('pos')
             
     @property
     def up(self):
@@ -790,7 +796,7 @@ class standardAttributes(baseObj):
         oldup = norm(self._up)
         self._up.value = value
         if not self._constructing:
-            self.addattr('up', value.value)
+            self.addattr('up')
         self.adjust_axis(oldup, self.up)
             
     @property
@@ -800,7 +806,7 @@ class standardAttributes(baseObj):
     def size(self,value):
         self._size.value = value
         if not self._constructing:
-            self.addattr('size', value.value)
+            self.addattr('size')
         if self._objName != 'text':
             a = self._axis.norm() * value.x
             if mag(self._axis) == 0:
@@ -809,7 +815,7 @@ class standardAttributes(baseObj):
             if not v.equals(a):
                 self._axis.value = a
                 if not self._constructing:
-                    self.addattr('axis', value.value)
+                    self.addattr('axis')
 
     @property
     def axis(self):
@@ -819,13 +825,13 @@ class standardAttributes(baseObj):
         oldaxis = norm(self._axis)
         self._axis.value = value
         if not self._constructing:
-            self.addattr('axis', value.value)
+            self.addattr('axis')
         if self._objName != 'text':
             m = value.mag
             if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
                 self._size._x = m
                 if not self._constructing:
-                    self.addattr('size', self._size.value)
+                    self.addattr('size')
         self.adjust_up(oldaxis, self.axis)
             
     @property
@@ -836,8 +842,8 @@ class standardAttributes(baseObj):
         self._axis = self._axis.norm() * value
         self._size._x = value
         if not self._constructing:
-            self.addattr('axis', self._axis.value)
-            self.addattr('size', self._size.value)
+            self.addattr('axis')
+            self.addattr('size')
 
     @property
     def height(self): 
@@ -846,7 +852,7 @@ class standardAttributes(baseObj):
     def height(self,value):
         self._size._y = value
         if not self._constructing:
-            self.addattr('size', self._size.value)
+            self.addattr('size')
 
     @property
     def width(self): 
@@ -855,7 +861,7 @@ class standardAttributes(baseObj):
     def width(self,value):
         self._size._z = value
         if not self._constructing:
-            self.addattr('size', self._size.value)
+            self.addattr('size')
         
     @property    
     def color(self):
@@ -864,7 +870,7 @@ class standardAttributes(baseObj):
     def color(self,value):
         self._color.value = value
         if not self._constructing:
-            self.addattr('color', value.value)
+            self.addattr('color')
 
     @property
     def red(self):
@@ -873,7 +879,7 @@ class standardAttributes(baseObj):
     def red(self,value):
         self._color = (value,self.green,self.blue)
         if not self._constructing:
-            self.addattr('color', self._color.value)
+            self.addattr('color')
 
     @property
     def green(self):
@@ -882,7 +888,7 @@ class standardAttributes(baseObj):
     def green(self,value):
         self._color = (self.red,value,self.blue)
         if not self._constructing:
-            self.addattr('color', self._color.value)
+            self.addattr('color')
 
     @property
     def blue(self):
@@ -891,7 +897,7 @@ class standardAttributes(baseObj):
     def blue(self,value):
         self._color = (self.red,self.green,value)
         if not self._constructing:
-            self.addattr('color', self._color.value)
+            self.addattr('color')
 
     @property
     def visible(self):
@@ -900,7 +906,7 @@ class standardAttributes(baseObj):
     def visible(self,value):
         self._visible = value
         if not self._constructing:
-            self.addattr('visible', value)
+            self.addattr('visible')
 
     @property
     def pickable(self):
@@ -909,7 +915,7 @@ class standardAttributes(baseObj):
     def pickable(self,value):
         self._pickable = value
         if not self._constructing:
-            self.addattr('pickable', value)
+            self.addattr('pickable')
 
     @property
     def canvas(self):
@@ -927,7 +933,7 @@ class standardAttributes(baseObj):
     def opacity(self,value):
         self._opacity = value
         if not self._constructing:
-            self.addattr('opacity', value)
+            self.addattr('opacity')
 
     @property
     def emissive(self):
@@ -936,7 +942,7 @@ class standardAttributes(baseObj):
     def emissive(self,value):
         self._emissive = value
         if not self._constructing:
-            self.addattr('emissive', value)
+            self.addattr('emissive')
 
     @property
     def texture(self):
@@ -954,7 +960,7 @@ class standardAttributes(baseObj):
     def shininess(self,value):
         self._shininess = value
         if not self._constructing:
-            self.addattr('shininess', value)
+            self.addattr('shininess')
             
     @property
     def make_trail(self):
@@ -963,7 +969,7 @@ class standardAttributes(baseObj):
     def make_trail(self,value):
         self._make_trail = value
         if not self._constructing:
-            self.addattr('make_trail', value)
+            self.addattr('make_trail')
 
     @property
     def trail_type(self):
@@ -974,7 +980,7 @@ class standardAttributes(baseObj):
             raise Exception("ArgumentError: trail_type must be 'curve' or 'points'")
         self._trail_type = value   
         if not self._constructing:
-            self.addattr('trail_type', value)
+            self.addattr('trail_type')
         
     @property
     def trail_color(self):
@@ -986,7 +992,7 @@ class standardAttributes(baseObj):
         else:
             raise TypeError('trail_color must be a vector')
         if not self._constructing: 
-            self.addattr('trail_color', value.value)
+            self.addattr('trail_color')
 
     @property
     def interval(self):
@@ -995,7 +1001,7 @@ class standardAttributes(baseObj):
     def interval(self,value):
         self._interval = value
         if not self._constructing:
-            self.addattr('interval', value)
+            self.addattr('interval')
 
     @property
     def retain(self):
@@ -1004,7 +1010,7 @@ class standardAttributes(baseObj):
     def retain(self,value):
         self._retain = value
         if not self._constructing:
-            self.addattr('retain', value)
+            self.addattr('retain')
 
     @property
     def trail_radius(self):
@@ -1013,7 +1019,7 @@ class standardAttributes(baseObj):
     def trail_radius(self,value):
         self._trail_radius = value
         if not self._constructing:
-            self.addattr('trail_radius', value)
+            self.addattr('trail_radius')
         
     @property
     def pps(self):
@@ -1022,7 +1028,7 @@ class standardAttributes(baseObj):
     def pps(self, value):
         self._pps = value
         if not self._constructing:
-            self.addattr('pps', value)
+            self.addattr('pps')
 
     @property
     def frame(self):
@@ -1053,31 +1059,38 @@ class standardAttributes(baseObj):
         if diff_angle(self.axis,rotaxis) > 1e-6:
                 self._axis.value = self._axis.rotate(angle=angle, axis=rotaxis)
                 self._up.value = self._up.rotate(angle=angle, axis=rotaxis)
+                self.addattr('axis')
+                self.addattr('up')
         else:
             self._up = self._up.rotate(angle=angle, axis=rotaxis)
+            self.addattr('up')
         # Tell glowcomm to perform object rotation:
-        self.addmethod('rotate', [angle,rotaxis.x,rotaxis.y,rotaxis.z,origin.x,origin.y,origin.z])
+        #self.addmethod('rotate', [angle,rotaxis.x,rotaxis.y,rotaxis.z,origin.x,origin.y,origin.z])
 
         if saveorigin is not None and not origin.equals(self._pos):
             # This code is done only if origin is not the same as the original pos
             newpos = origin+(pos-origin).rotate(angle, rotaxis)
-            if isinstance(self, curve): self._origin.value = newpos
-            else: self._pos.value = newpos
+            if isinstance(self, curve):
+                self._origin.value = newpos
+                self.addattr('origin')
+            else:
+                self._pos.value = newpos
+                self.addattr('pos')
         
     def _on_size_change(self): # the vector class calls this when there's a change in x, y, or z
         self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
-        self.addattr('size', self._axis.value)
+        self.addattr('size')
 
     def _on_pos_change(self): # the vector class calls this when there's a change in x, y, or z
-        self.addattr('pos', self._pos.value)
+        self.addattr('pos')
 
     def _on_axis_change(self): # the vector class calls this when there's a change in x, y, or z
         if self._objName != 'text':
             self._size.x = self._axis.mag
-        self.addattr('axis', self._axis.value)
+        self.addattr('axis')
 
     def _on_up_change(self): # the vector class calls this when there's a change in x, y, or z
-        self.addattr('up', self._up.value)        
+        self.addattr('up')        
         
     def clear_trail(self):
         self.addmethod('clear_trail', 'None')
@@ -1166,7 +1179,7 @@ class sphere(standardAttributes):
     def axis(self,value): # changing a sphere axis should not affect size
         self._axis.value = value
         if not self._constructing:
-            self.addattr('axis', value.value)
+            self.addattr('axis')
         
 class cylinder(standardAttributes):
     def __init__(self, **args):
@@ -1231,7 +1244,7 @@ class ring(standardAttributes):
         self._size.x = 2*value
         self._size.y = self._size.z = 2*(R1+value)
         if not self._constructing:
-            self.addattr('size', self._size.value)
+            self.addattr('size')
         
     @property
     def radius(self):
@@ -1241,7 +1254,7 @@ class ring(standardAttributes):
         R2 = self.thickness
         self._size.y = self._size.z = 2*(value+R2)
         if not self._constructing:
-            self.addattr('size', self._size.value)
+            self.addattr('size')
     
     @property        ## override methods of parent class
     def axis(self):
@@ -1251,7 +1264,7 @@ class ring(standardAttributes):
         if not isinstance(value, vector): raise TypeError('axis must be a vector')
         self._axis = value
         if not self._constructing:
-            self.addattr('axis', value.value)
+            self.addattr('axis')
  
     @property        ## override methods of parent class
     def size(self):
@@ -1261,7 +1274,7 @@ class ring(standardAttributes):
         if not isinstance(value, vector): raise TypeError('axis must be a vector')
         self._size = value
         if not self._constructing:
-            self.addattr('size', value.value) 
+            self.addattr('size') 
         
 class arrow(standardAttributes): 
     def __init__(self, **args):
@@ -1272,6 +1285,35 @@ class arrow(standardAttributes):
         self._headlength = 0
         
         super(arrow, self).setup(args)
+            
+    @property
+    def size(self):
+        return self._size
+    @size.setter
+    def size(self,value): # no need to send to browser both arrow.size and arrow.axis
+        self._size.value = value
+        if not self._constructing:
+            self.addattr('size')
+        a = self._axis.norm() * value.x
+        if mag(self._axis) == 0:
+            a = vector(value.x,0,0)
+        v = self._axis
+        if not v.equals(a):
+            self._axis.value = a
+
+    @property
+    def axis(self):
+        return self._axis
+    @axis.setter
+    def axis(self,value): # no need to send to browser both arrow.size and arrow.axis
+        oldaxis = norm(self._axis)
+        self._axis.value = value
+        if not self._constructing:
+            self.addattr('axis')
+        m = value.mag
+        if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
+            self._size._x = m
+        self.adjust_up(oldaxis, self.axis)
 
     @property
     def shaftwidth(self): 
@@ -1280,7 +1322,7 @@ class arrow(standardAttributes):
     def shaftwidth(self,value):
         self._shaftwidth = value
         if not self._constructing:
-            self.addattr('shaftwidth', value)
+            self.addattr('shaftwidth')
         
     @property
     def headwidth(self): 
@@ -1289,7 +1331,7 @@ class arrow(standardAttributes):
     def headwidth(self,value):
         self._headwidth =value
         if not self._constructing:
-            self.addattr('headwidth', value)
+            self.addattr('headwidth')
         
     @property
     def headlength(self): 
@@ -1298,7 +1340,7 @@ class arrow(standardAttributes):
     def headlength(self,value):
         self._headlength =value
         if not self._constructing:
-            self.addattr('headlength', value)
+            self.addattr('headlength')
             
 class attach_arrow(standardAttributes):
     def __init__(self, obj, attr, **args):
@@ -1322,7 +1364,7 @@ class attach_arrow(standardAttributes):
     def scale(self, value):
         self._scale = value
         if not self._constructing:
-            self.addattr("scale", value)
+            self.addattr("scale")
     
     @property 
     def shaftwidth(self):
@@ -1331,7 +1373,7 @@ class attach_arrow(standardAttributes):
     def shaftwidth(self, value):
         self._shaftwidth = value
         if not self._constructing:
-            self.addattr("shaftwidth", value)
+            self.addattr("shaftwidth")
             
     def stop(self):
         self.addmethod('stop', 'None')
@@ -1366,7 +1408,7 @@ class attach_trail(standardAttributes):
     def radius(self, value):
         self._radius = value
         if not self._constructing:
-            self.addattr('radius', value)
+            self.addattr('radius')
             
     @property
     def retain(self):
@@ -1375,7 +1417,7 @@ class attach_trail(standardAttributes):
     def retain(self, value):
         self._retain = value
         if not self._constructing:
-            self.addattr("retain", value)
+            self.addattr("retain")
             
     @property
     def pps(self):
@@ -1384,7 +1426,7 @@ class attach_trail(standardAttributes):
     def pps(self, value):
         self._pps = value
         if not self._constructing:
-            self.addattr("pps", value)
+            self.addattr("pps")
             
     @property
     def type(self):
@@ -1393,7 +1435,7 @@ class attach_trail(standardAttributes):
     def type(self, value):
         self._type = value
         if not self._constructing:
-            self.addattr("type", value)
+            self.addattr("type")
             
     def stop(self):
         self.addmethod('stop', 'None')
@@ -1421,7 +1463,7 @@ class helix(standardAttributes):
     def thickness(self,value):
         self._thickness = value
         if not self._constructing:
-            self.addattr('thickness', value)
+            self.addattr('thickness')
             
     @property
     def coils(self): 
@@ -1430,7 +1472,7 @@ class helix(standardAttributes):
     def coils(self,value):
         self._coils =value
         if not self._constructing:
-            self.addattr('coils', value)   
+            self.addattr('coils')   
             
     @property
     def radius(self):
@@ -1446,8 +1488,8 @@ class compound(standardAttributes):
     def __init__(self, objList, **args):
         self._obj_idxs = None
         idxlist = []
-        # wait for compounding or cloning objects to exist
-        while not baseObj.empty():
+        baseObj.sent = False
+        while not baseObj.sent: # wait for compounding or cloning objects to exist
             rate(60)            
         ineligible = [label, curve, helix, points]  ## type objects
         cloning =  None
@@ -1554,7 +1596,7 @@ class vertex(standardAttributes):
             raise AttributeError('normal must be a vector')
         self._normal = vector(value)
         if not self._constructing:
-            self.addattr('normal', value.value)
+            self.addattr('normal')
             
     @property
     def bumpaxis(self):
@@ -1565,7 +1607,7 @@ class vertex(standardAttributes):
             raise AttributeError('bumpaxis must be a vector')
         self._bumpaxis = vector(value)
         if not self._constructing:
-            self.addattr('bumpaxis', value.value)
+            self.addattr('bumpaxis')
             
     @property
     def texpos(self):
@@ -1578,13 +1620,13 @@ class vertex(standardAttributes):
             raise AttributeError('the z component of texpos must currently be zero')
         self._texpos = value
         if not self._constructing:
-            self.addattr('texpos', value.value)
+            self.addattr('texpos')
             
     def _on_normal_change(self):
-        self.addattr('normal', self._normal.value)
+        self.addattr('normal')
         
     def _on_bumpaxis_change(self):
-        self.addattr('bumpaxis', self._bumpaxis.value)
+        self.addattr('bumpaxis')
 
             
 class triangle(standardAttributes):   
@@ -1615,7 +1657,7 @@ class triangle(standardAttributes):
         self._v0 = value    
         if not self._constructing:
             self._v0.decrementTriangleCount()  ## current v0 now used less
-            self.addattr('v0', value.value)
+            self.addattr('v0')
         self._v0.incrementTriangleCount()   ## new v0 now used more
         
     @property
@@ -1626,7 +1668,7 @@ class triangle(standardAttributes):
         self._v1 = value
         if not self._constructing:
             self._v1.decrementTriangleCount()  ## current v1 now used less
-            self.addattr('v1', value.value)
+            self.addattr('v1')
         self._v1.incrementTriangleCount()   ## new v1 now used more
         
     @property
@@ -1637,7 +1679,7 @@ class triangle(standardAttributes):
         self._v2 = value
         if not self._constructing:
             self._v2.decrementTriangleCount()  ## current v2 now used less
-            self.addattr('v2', value.value)
+            self.addattr('v2')
         self._v2.incrementTriangleCount()   ## new v2 now used more
        
     @property
@@ -1685,7 +1727,7 @@ class quad(triangle):
         self._v3 = value
         if not self._constructing:
             self._v3.decrementTriangleCount()  ## current v3 now used less
-            self.addattr('v3', value.value)
+            self.addattr('v3')
         self._v3.incrementTriangleCount()   ## new v3 now used more
         
     @property
@@ -1787,7 +1829,7 @@ class curveMethods(standardAttributes):
         self.appendcmd({"val":cps[:],"method":"append","idx":self.idx})
     
     def _on_origin_change(self):
-        self.addattr('origin', self._origin.value)
+        self.addattr('origin')
 
     @property
     def npoints(self):
@@ -1803,7 +1845,7 @@ class curveMethods(standardAttributes):
     def radius(self,value):
         self._radius = value
         if not self._constructing:
-            self.addattr('radius', value)   
+            self.addattr('radius')   
                              
     def pop(self):
         if len(self._pts) == 0: return None
@@ -1893,7 +1935,7 @@ class curveMethods(standardAttributes):
     def origin(self,value):
         self._origin.value = value
         if not self._constructing:
-            self.addattr('origin', value.value)
+            self.addattr('origin')
 
     @property
     def pos(self):
@@ -1928,7 +1970,7 @@ class curve(curveMethods):
             self.append(*args1)
 
     def _on_origin_change(self): 
-        self.addattr('origin', self._origin.value)
+        self.addattr('origin')
             
             
 class points(curveMethods):
@@ -2016,7 +2058,7 @@ class gobj(baseObj):
     def color(self,val): 
         if not isinstance(val, vector): raise TypeError('color must be a vector')
         self._color = val
-        self.addattr('color', val.value)
+        self.addattr('color')
         
     @property
     def graph(self): return self._graph
@@ -2032,7 +2074,7 @@ class gobj(baseObj):
     @interval.setter
     def size(self,val): 
         self._interval = val
-        self.addattr('interval', val)
+        self.addattr('interval')
 
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
@@ -2089,7 +2131,7 @@ class gobj(baseObj):
     @data.setter
     def data(self,val): 
         self._data = val
-        self.addattr('data', val)
+        self.addattr('data')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) graph object
         pass
@@ -2109,21 +2151,21 @@ class gcurve(gobj):
     @width.setter
     def width(self,val): 
         self._width = val
-        self.addattr('width', val)
+        self.addattr('width')
 
     @property
     def size(self): return self._size
     @size.setter
     def size(self,val): 
         self._size = val
-        self.addattr('size', val)
+        self.addattr('size')
         
     @property
     def dot(self): return self._dot
     @dot.setter
     def dot(self,val): 
         self._dot = val
-        self.addattr('dot', val)
+        self.addattr('dot')
         
     @property
     def dot_color(self): return self._dot_color
@@ -2131,7 +2173,7 @@ class gcurve(gobj):
     def dot_color(self,val): 
         if not isinstance(val, vector): raise TypeError('dot_color must be a vector')
         self._dot_color = vector(value)
-        self.addattr('dot_color', val.value)
+        self.addattr('dot_color')
         
 class gdots(gobj):
     def __init__(self, **args):
@@ -2144,7 +2186,7 @@ class gdots(gobj):
     @size.setter
     def size(self,val): 
         self._size = val
-        self.addattr('size', val)
+        self.addattr('size')
         
 class gvbars(gobj):
     def __init__(self, **args):
@@ -2157,7 +2199,7 @@ class gvbars(gobj):
     @delta.setter
     def delta(self,val): 
         self._delta = val
-        self.addattr('delta', val)
+        self.addattr('delta')
 
 class ghbars(gvbars):
     def __init__(self, **args):
@@ -2221,14 +2263,14 @@ class graph(baseObj):
     @width.setter
     def width(self,val): 
         self._width = val
-        self.addattr('width', val)
+        self.addattr('width')
 
     @property
     def height(self): return self._height
     @height.setter
     def height(self,val): 
         self._height = val
-        self.addattr('height', val)
+        self.addattr('height')
 
     @property
     def align(self): return self._align
@@ -2237,7 +2279,7 @@ class graph(baseObj):
         if not (val == 'left' or val == 'right' or val == 'none'):
             raise NameError("align must be 'left', 'right', or 'none' (the default).")
         self._align = val
-        self.addattr('align', val)
+        self.addattr('align')
 
     @property
     def title(self): 
@@ -2246,21 +2288,21 @@ class graph(baseObj):
     def title(self,val): 
         self._title = val
         #self.appendcmd({attr='title', 'idx'=self.idx})
-        self.addattr('title', val)
+        self.addattr('title')
 
     @property
     def xtitle(self): return self._xtitle
     @xtitle.setter
     def xtitle(self,val): 
         self._xtitle = val
-        self.addattr('xtitle', val)
+        self.addattr('xtitle')
 
     @property
     def ytitle(self): return self._ytitle
     @ytitle.setter
     def ytitle(self,val): 
         self._ytitle = val
-        self.addattr('ytitle', val)
+        self.addattr('ytitle')
 
     @property
     def foreground(self): return self._foreground
@@ -2268,7 +2310,7 @@ class graph(baseObj):
     def foreground(self,val): 
         if not isinstance(val, vector): raise TypeError('foreground must be a vector')
         self._foreground = vector(value)
-        self.addattr('foreground', val.value)
+        self.addattr('foreground')
 
     @property
     def background(self): return self._background
@@ -2276,35 +2318,35 @@ class graph(baseObj):
     def background(self,val):
         if not isinstance(val,vector): raise TypeError('background must be a vector')
         self._background = vector(value)
-        self.addattr('background', value.val)
+        self.addattr('background')
         
     @property
     def xmin(self): return self._xmin
     @xmin.setter
     def xmin(self,val): 
         self._xmin = val
-        self.addattr('xmin', val)
+        self.addattr('xmin')
         
     @property
     def xmax(self): return self._xmax
     @xmax.setter
     def xmax(self,val): 
         self._xmax = val
-        self.addattr('xmax', val)
+        self.addattr('xmax')
         
     @property
     def ymin(self): return self._ymin
     @ymin.setter
     def ymin(self,val): 
         self._ymin = val
-        self.addattr('ymin', val)
+        self.addattr('ymin')
         
     @property
     def ymax(self): return self._ymax
     @ymax.setter
     def ymax(self,val): 
         self._ymax = val
-        self.addattr('ymax', val)
+        self.addattr('ymax')
 
     def delete(self):
         self.addmethod('delete','None')
@@ -2349,7 +2391,7 @@ class label(standardAttributes):
     def xoffset(self,value):
         self._xoffset = value
         if not self._constructing:
-            self.addattr('xoffset', value)
+            self.addattr('xoffset')
 
     @property
     def yoffset(self):
@@ -2358,7 +2400,7 @@ class label(standardAttributes):
     def yoffset(self,value):
         self._yoffset = value
         if not self._constructing:
-            self.addattr('yoffset', value)
+            self.addattr('yoffset')
 
     @property
     def text(self):
@@ -2367,7 +2409,7 @@ class label(standardAttributes):
     def text(self,value):
         self._text = print_to_string(value)
         if not self._constructing:
-            self.addattr("text", self._text)
+            self.addattr("text")
 
     @property
     def align(self):
@@ -2376,7 +2418,7 @@ class label(standardAttributes):
     def align(self,value):
         self._align = value
         if not self._constructing:
-            self.addattr('align', value)
+            self.addattr('align')
 
     @property
     def font(self):
@@ -2385,7 +2427,7 @@ class label(standardAttributes):
     def font(self,value):
         self._font = value
         if not self._constructing:
-            self.addattr('font', value)
+            self.addattr('font')
 
     @property
     def height(self):
@@ -2394,7 +2436,7 @@ class label(standardAttributes):
     def height(self,value):
         self._height = value
         if not self._constructing:
-            self.addattr('height', value)
+            self.addattr('height')
 
     @property
     def background(self):
@@ -2406,7 +2448,7 @@ class label(standardAttributes):
         else:
             raise TypeError('background must be a vector')
         if not self._constructing:
-            self.addattr('background', value.value)
+            self.addattr('background')
 
     @property
     def border(self):
@@ -2415,7 +2457,7 @@ class label(standardAttributes):
     def border(self,value):
         self._border = value
         if not self._constructing:
-            self.addattr('border', value)
+            self.addattr('border')
 
     @property
     def box(self):
@@ -2424,7 +2466,7 @@ class label(standardAttributes):
     def box(self,value):
         self._box = value
         if not self._constructing:
-            self.addattr('box', value)
+            self.addattr('box')
 
     @property
     def line(self):
@@ -2433,7 +2475,7 @@ class label(standardAttributes):
     def line(self,value):
         self._line = value
         if not self._constructing:
-            self.addattr('line', value)
+            self.addattr('line')
 
     @property
     def linewidth(self):
@@ -2442,7 +2484,7 @@ class label(standardAttributes):
     def linewidth(self,value):
         self._linewidth = value
         if not self._constructing:
-            self.addattr('linewidth', value)
+            self.addattr('linewidth')
 
     @property
     def linecolor(self):
@@ -2454,7 +2496,7 @@ class label(standardAttributes):
         else:
             raise TypeError('linecolor must be a vector')
         if not self._constructing:
-            self.addattr('linecolor', value.value)
+            self.addattr('linecolor')
 
     @property
     def space(self):
@@ -2463,7 +2505,7 @@ class label(standardAttributes):
     def space(self,value):
         self._space = value
         if not self._constructing:
-            self.addattr('space', value)
+            self.addattr('space')
 
     @property
     def pixel_pos(self):
@@ -2472,7 +2514,7 @@ class label(standardAttributes):
     def pixel_pos(self,value):
         self._pixel_pos = value
         if not self._constructing:
-            self.addattr('pixel_pos', value)  
+            self.addattr('pixel_pos')  
 
 class frame(object):
     def __init__(self, **args):
@@ -2770,7 +2812,7 @@ class canvas(baseObj):
     def visible(self,value):
         self._visible = value
         if not self._constructing:
-            self.addattr('visible', value)
+            self.addattr('visible')
 
     @property
     def background(self):
@@ -2788,7 +2830,7 @@ class canvas(baseObj):
     def ambient(self,value):
         self._ambient = vector(value)
         if not self._constructing:
-            self.addattr('ambient', value.value)
+            self.addattr('ambient')
 
     @property
     def width(self):
@@ -3035,13 +3077,13 @@ class canvas(baseObj):
         _wait(self)
 
     def _on_forward_change(self):
-        self.addattr('forward', self._forward.value)
+        self.addattr('forward')
         
     def _on_up_change(self):
-        self.addattr('up', self._up.value)
+        self.addattr('up')
         
     def _on_center_change(self):
-        self.addattr('center', self._center.value)
+        self.addattr('center')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) canvas
         pass
@@ -3081,7 +3123,7 @@ class distant_light(standardAttributes):
     def direction(self,value):
         self._direction = vector(value)
         if not self._constructing:
-            self.addattr('direction', value.value)
+            self.addattr('direction')
    
 ## title_anchor = 1 and caption_anchor = 2 are attributes of canvas
 print_anchor = 3  ## problematic -- intended to point at print area
@@ -3176,7 +3218,7 @@ class button(controls):
     def text(self, value):
         self._text = value
         if not self._constructing:
-            self.addattr('text', value)   
+            self.addattr('text')   
 
     @property
     def textcolor(self):
@@ -3185,7 +3227,7 @@ class button(controls):
     def textcolor(self, value):
         self._textcolor = vector(value)
         if not self._constructing:
-            self.addattr('textcolor', value.value)
+            self.addattr('textcolor')
     
     @property
     def background(self):
@@ -3194,7 +3236,7 @@ class button(controls):
     def background(self, value):
         self._background = vector(value)
         if not self._constructing:
-            self.addattr('background', value.value)
+            self.addattr('background')
             
     @property
     def disabled(self):
@@ -3203,7 +3245,7 @@ class button(controls):
     def disabled(self, value):
         self._disabled = value
         if not self._constructing:
-            self.addattr('disabled', value)
+            self.addattr('disabled')
 
 class checkbox(controls): 
     def __init__(self, **args):
@@ -3219,7 +3261,7 @@ class checkbox(controls):
     def text(self, value):
         self._text = value
         if not self._constructing:
-            self.addattr('text', value)
+            self.addattr('text')
             
     @property
     def checked(self):
@@ -3228,7 +3270,7 @@ class checkbox(controls):
     def checked(self, value):
         self._checked = value
         if not self._constructing:
-            self.addattr('checked', value)
+            self.addattr('checked')
             
 class radio(controls):
     def __init__(self, **args):
@@ -3244,7 +3286,7 @@ class radio(controls):
     def text(self, value):
         self._text = value
         if not self._constructing:
-            self.addattr('text', value)
+            self.addattr('text')
             
     @property
     def checked(self):
@@ -3253,7 +3295,7 @@ class radio(controls):
     def checked(self, value):
         self._checked = value
         if not self._constructing:
-            self.addattr('checked', value)
+            self.addattr('checked')
             
 class menu(controls):
     def __init__(self, **args):
@@ -3294,7 +3336,7 @@ class menu(controls):
             value = "None"
         self._selected = value
         if not self._constructing:
-            self.addattr('selected', value)
+            self.addattr('selected')
             
 class slider(controls):
     def __init__(self, **args): 
@@ -3354,7 +3396,7 @@ class slider(controls):
     def value(self, val):
         self._value = val
         if not self._constructing:
-            self.addattr('value', val)
+            self.addattr('value')
             
     @property
     def length(self):
@@ -3554,7 +3596,7 @@ class text(standardAttributes):
             self._size.y *= m
             self._descender *= m
             self._height = val
-            self.addattr('size', self._size.val)
+            self.addattr('size')
         
     @property
     def length(self):
@@ -3565,7 +3607,7 @@ class text(standardAttributes):
             raise AttributeError("text length can't be set when creating a text object")
         else:
             self._size.x = val
-            self.addattr('size', val.value)
+            self.addattr('size')
         
     @property
     def depth(self):
@@ -3581,8 +3623,8 @@ class text(standardAttributes):
             self._size.z *= abs(value)
             self._pos.z = val/2
             self._depth = val
-            self.addattr('pos', self._pos.value)
-            self.addattr('size', self._size.value)
+            self.addattr('pos')
+            self.addattr('size')
         
     @property
     def align(self):
@@ -3591,7 +3633,7 @@ class text(standardAttributes):
     def align(self,val):
         self._align = val
         if not self._constructing:
-            self.addattr('align', val)
+            self.addattr('align')
             
     @property
     def font(self):
@@ -3602,7 +3644,7 @@ class text(standardAttributes):
             raise AttributeError("text font must be either 'sans' or 'serif' ")
         self._font = val
         if not self._constructing:
-            self.addattr('font', val)
+            self.addattr('font')
             
     @property
     def text(self):
@@ -3611,7 +3653,7 @@ class text(standardAttributes):
     def text(self, val):
         self._text = val
         if not self._constructing:
-            self.addattr('text', val)
+            self.addattr('text')
             
     @property
     def billboard(self):
