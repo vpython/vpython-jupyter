@@ -90,7 +90,7 @@ class WSserver(WebSocketServerProtocol):
     #def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
     async def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
         baseObj.handle_attach() # attach arrow and attach trail
-        
+
         baseObj.sent = False # tell main thread that we're preparing to send data to browser
         while True:
             try:

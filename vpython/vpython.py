@@ -16,7 +16,7 @@ from numpy import arange
 
 import inspect
 from time import clock
-from time import sleep as timesleep
+import time
 import os
 import copy
 import sys
@@ -120,8 +120,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
-__methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused ghijklmnopuvxyzCDFAB
-             'rotate':'e',
+__methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused eghijklmnopuvxyzCDFAB
              'plot':'q', 'add_to_trail':'s',
              'follow':'t', 'clear_trail':'w',
              'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L',
@@ -183,7 +182,6 @@ class _RateKeeper2(RateKeeper):
     def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
         self.rval = 30
         self.tocall = None
-        self.lasttime = 0
         super(_RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
 
     def sendtofrontend(self):
@@ -198,8 +196,6 @@ class _RateKeeper2(RateKeeper):
                 ident = kernel._parent_ident
                 kernel.do_one_iteration()
                 kernel.set_parent(ident, parent)
-        else:
-            self.lasttime = clock()
             
     def __call__(self, N): # rate(N) calls this function
         self.rval = N          
@@ -223,7 +219,7 @@ class baseObj(object):
     # 'cmds': list of constructors,
     # 'attrs': {idx:{'pos':vec, etc.}, idx:{'pos':vec, etc.}, etc.},
     # 'methods': [ [idx, method, date], [idx, method, date], etc. ]
-    updates = {'cmds':[], 'attrs':{}, 'methods':[]}
+    updates = {'cmds':[], 'methods':[], 'attrs':{}}
     object_registry = {}    ## idx -> instance
     attach_arrows = []
     attach_trails = []  ## needed only for functions
@@ -231,7 +227,7 @@ class baseObj(object):
 
     @classmethod
     def initialize(cls):
-        cls.updates = {'cmds':[], 'attrs':{}, 'methods':[]}
+        cls.updates = {'cmds':[], 'methods':[], 'attrs':{}}
         cls.attrs = set()
             
     @classmethod
@@ -286,18 +282,18 @@ class baseObj(object):
         # The following code makes sure that constructors are sent to the front end first.
         cmd['idx'] = self.idx
         while not baseObj.sent: # baseObj.sent is always True in the notebook case
-            timesleep(0.001)
+            time.sleep(0.001)
         baseObj.updates['cmds'].append(cmd) # this is an "atomic" (uninterruptable) operation
-    
-    def addattr(self, attr):
-        while not baseObj.sent: # baseObj.sent is always True in the notebook case
-            timesleep(0.001)
-        baseObj.attrs.add((self.idx, attr)) # this is an "atomic" (uninterruptable) operation
         
     def addmethod(self, method, data):
         while not baseObj.sent: # baseObj.sent is always True in the notebook case
-            timesleep(0.001)
+            time.sleep(0.001)
         baseObj.updates['methods'].append((self.idx, method, data)) # this is an "atomic" (uninterruptable) operation
+    
+    def addattr(self, attr):
+        while not baseObj.sent: # baseObj.sent is always True in the notebook case
+            time.sleep(0.001)
+        baseObj.attrs.add((self.idx, attr)) # this is an "atomic" (uninterruptable) operation
 
     @classmethod
     def package(cls, objdata): # package up the data to send to the browser
@@ -793,11 +789,14 @@ class standardAttributes(baseObj):
         return self._up  
     @up.setter
     def up(self,value):
-        oldup = norm(self._up)
+        oldup = vec(self.up)
+        a = self.axis
         self._up.value = value
+        self.adjust_axis(norm(oldup), self.up)
         if not self._constructing:
-            self.addattr('up')
-        self.adjust_axis(oldup, self.up)
+            # must update both axis and up when either is changed
+            if not self.axis.equals(a): self.addattr('axis')
+            if not self.up.equals(value): self.addattr('up')
             
     @property
     def size(self):
@@ -822,17 +821,20 @@ class standardAttributes(baseObj):
         return self._axis
     @axis.setter
     def axis(self,value):
-        oldaxis = norm(self._axis)
+        oldaxis = vec(self.axis)
+        u = self.up
         self._axis.value = value
+        self.adjust_up(norm(oldaxis), self.axis)
         if not self._constructing:
-            self.addattr('axis')
+            # must update both axis and up when either is changed
+            if not self.axis.equals(oldaxis): self.addattr('axis')
+            if not self.up.equals(u): self.addattr('up')
         if self._objName != 'text':
             m = value.mag
             if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
                 self._size._x = m
                 if not self._constructing:
                     self.addattr('size')
-        self.adjust_up(oldaxis, self.axis)
             
     @property
     def length(self): 
@@ -1056,16 +1058,17 @@ class standardAttributes(baseObj):
             pos = self.pos
         
         # Update local values of axis and up; setting self._axis and self._up to avoid axis/up connections
+        a = vec(self.axis)
+        u = vec(self.up)
         if diff_angle(self.axis,rotaxis) > 1e-6:
                 self._axis.value = self._axis.rotate(angle=angle, axis=rotaxis)
                 self._up.value = self._up.rotate(angle=angle, axis=rotaxis)
-                self.addattr('axis')
-                self.addattr('up')
+                if not self.axis.equals(a): self.addattr('axis')
+                if not self.up.equals(u): self.addattr('up')
         else:
             self._up = self._up.rotate(angle=angle, axis=rotaxis)
-            self.addattr('up')
-        # Tell glowcomm to perform object rotation:
-        #self.addmethod('rotate', [angle,rotaxis.x,rotaxis.y,rotaxis.z,origin.x,origin.y,origin.z])
+            if not self.axis.equals(a): self.addattr('axis')
+            if not self.up.equals(u): self.addattr('up')
 
         if saveorigin is not None and not origin.equals(self._pos):
             # This code is done only if origin is not the same as the original pos
@@ -1488,9 +1491,6 @@ class compound(standardAttributes):
     def __init__(self, objList, **args):
         self._obj_idxs = None
         idxlist = []
-        baseObj.sent = False
-        while not baseObj.sent: # wait for compounding or cloning objects to exist
-            rate(60)            
         ineligible = [label, curve, helix, points]  ## type objects
         cloning =  None
         if '_cloneid' in args:
@@ -1509,6 +1509,11 @@ class compound(standardAttributes):
         if 'size' in args:
             savesize = args['size']
             del args['size']
+
+        baseObj.sent = False
+        while not baseObj.sent: # wait for compounding or cloning objects to exist
+            if _isnotebook: rate(1000)
+            else: time.sleep(0.001)
         
         self.compound_idx += 1
         args['_objName'] = 'compound'+str(self.compound_idx)

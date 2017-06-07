@@ -43,7 +43,7 @@ function onmessage(msg) {
 // Otherwise the repeated execution of update_canvas() causes problems after killing Python.
 if (timer !== undefined && timer !== null) clearTimeout(timer)
 
-function send() { // periodically send events and update_canvas to websocket and request object update
+function send() { // periodically send events and update_canvas and request object update
     "use strict";
 	var update = update_canvas()
 	if (update !== null) events = events.concat(update)
@@ -52,8 +52,8 @@ function send() { // periodically send events and update_canvas to websocket and
 	events = []
 }
 
-// ***************************************************************************** //
-// THE REST OF THIS FILE IS IDENTICAL TO THE CORRESPONDING PART OF glowcomm.js //
+// *************************************************************************************************** //
+// THE REST OF THIS FILE IS IDENTICAL IN glowcomm.html AND glowcomm.js (except for the last few lines) //
 
 // Should eventually have glowcomm.html and glowcom.js both import this common component.
 
@@ -266,8 +266,7 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid'}
 
 // methods are X in {'m': '23X....'}
-var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused ghijklmnopuvxyzCDFAB
-			   'e':'rotate',
+var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopuvxyzCDFAB
 			   'q':'plot', 's':'add_to_trail',
                't':'follow', 'w':'clear_trail',
                'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
@@ -380,8 +379,8 @@ function handler(data) {
     */
 	
 	if (data.cmds !== undefined && data.cmds.length > 0) handle_cmds(data.cmds)
-	if (data.attrs !== undefined && data.attrs.length > 0) handle_attrs(data.attrs)
 	if (data.methods !== undefined && data.methods.length > 0) handle_methods(data.methods)
+	if (data.attrs !== undefined && data.attrs.length > 0) handle_attrs(data.attrs)
 } // end of handler
 
 function handle_cmds(dcmds) {
@@ -666,42 +665,6 @@ function handle_cmds(dcmds) {
 	} // end of cmds (constructors and special data)
 }
 
-function handle_attrs(dattrs) {
-    "use strict";
-	//console.log('ATTRS')
-	for (var idattrs in dattrs) { // attributes; cmd is {'idx':idx, 'attr':attr, 'val':val}
-		var cmd = dattrs[idattrs]
-		var idx = cmd.idx
-		var obj = glowObjs[idx]
-		var attr = cmd['attr']
-		var val = cmd['val']
-		var triangle_quad = ['v0', 'v1', 'v2', 'v3']
-		// vector attrs in attach_arrow have arbitrary names, so check for length 3 array instead
-		if (val instanceof vec) {
-			if (attr === 'pos' && (obj instanceof points || obj instanceof curve)) {
-				var ptlist = []
-				for (var kk = 0; kk < val.length; kk++) {
-					ptlist.push( val[kk] )
-				}
-				obj[attr] = ptlist
-			} else if (attr === 'axis' && (obj instanceof arrow)) {
-				obj['axis_and_length'] = val
-			} else {
-				obj[attr] = val
-			}
-		} else if (attr == 'lights') {
-			if (val == 'empty_list') val = []
-			obj[attr] = val
-		} else {
-			if (triangle_quad.indexOf(attr) !== -1) {
-				obj[attr] = glowObjs[val]
-			} else {
-				obj[attr] = val
-			}
-		}
-	} // end of attributes
-}
-
 function handle_methods(dmeth) {
     "use strict";
 	//console.log('METHODS')
@@ -763,6 +726,51 @@ function handle_methods(dmeth) {
 			send_pick(val, p, seg)
 		} else obj[method](val)
 	}
+}
+
+function handle_attrs(dattrs) {
+    "use strict";
+	//console.log('ATTRS')
+	for (var idattrs in dattrs) { // attributes; cmd is {'idx':idx, 'attr':attr, 'val':val}
+		var cmd = dattrs[idattrs]
+		var idx = cmd.idx
+		var obj = glowObjs[idx]
+		var attr = cmd['attr']
+		var val = cmd['val']
+		var triangle_quad = ['v0', 'v1', 'v2', 'v3']
+		// vector attrs in attach_arrow have arbitrary names, so check for length 3 array instead
+		if (val instanceof vec) {
+			if (attr === 'pos' && (obj instanceof points || obj instanceof curve)) {
+				var ptlist = []
+				for (var kk = 0; kk < val.length; kk++) {
+					ptlist.push( val[kk] )
+				}
+				obj[attr] = ptlist
+			} else if (attr === 'axis') {
+				// For axis and up, Python maintains them to be perpendicular, so avoid
+				//   having GlowScript do it again, which can have bad results.
+				window.__adjustupaxis = false
+				if (obj instanceof arrow) attr = 'axis_and_length'
+				obj[attr] = val
+				window.__adjustupaxis = true
+			} else if (attr === 'up') {
+				window.__adjustupaxis = false
+				obj[attr] = val
+				window.__adjustupaxis = true
+			} else {
+				obj[attr] = val
+			}
+		} else if (attr == 'lights') {
+			if (val == 'empty_list') val = []
+			obj[attr] = val
+		} else {
+			if (triangle_quad.indexOf(attr) !== -1) {
+				obj[attr] = glowObjs[val]
+			} else {
+				obj[attr] = val
+			}
+		}
+	} // end of attributes
 }
 console.log("END OF GLOWCOMM")
 
