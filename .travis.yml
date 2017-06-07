@@ -37,14 +37,19 @@ install:
     - conda install --quiet jinja2 conda-build anaconda-client cython
 
     # make a wheel building environment to ensure correct python version.
-    # - conda create --quiet -n wheel-build python=$CONDA_PY wheel cython
+    - conda create --quiet -n wheel-build python=$CONDA_PY wheel cython
 
 script:
     # Not much of a real test yet, just try to build myself...
     - conda build --quiet vpython.recipe
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
     - export OUTPUT_DIR=`dirname $CONDA_PACKAGE`
-    - export WHEEL_PACKAGE="$OUTPUT_DIR/*.whl"
+    # Uncomment the next line when bdist_wheel option in recipe starts
+    # paying attention to CONDA_PY. See:
+    # https://github.com/conda/conda-build/issues/1832
+    # - export WHEEL_PACKAGE="$OUTPUT_DIR/*.whl"
+    - source activate wheel-build; python setup.py bdist_wheel; source deactivate
+    - export WHEEL_PACKAGE=dist/*.whl
     - echo $CONDA_PACKAGE
     - echo $WHEEL_PACKAGE
     - if [ -e $WHEEL_PACKAGE ]; then echo "Wheel exists"; else echo "NO WHEEL"; fi
