@@ -44,6 +44,7 @@ script:
     - conda build --quiet vpython.recipe
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
     - export OUTPUT_DIR=`dirname $CONDA_PACKAGE`
+
     # Uncomment the next line when bdist_wheel option in recipe starts
     # paying attention to CONDA_PY. See:
     # https://github.com/conda/conda-build/issues/1832
@@ -52,9 +53,9 @@ script:
     - export WHEEL_PACKAGE=dist/*.whl
     - echo $CONDA_PACKAGE
     - echo $WHEEL_PACKAGE
-    - if [ -e $WHEEL_PACKAGE ]; then echo "Wheel exists"; else echo "NO WHEEL"; fi
+
     # This will fail if the package does not actually exist
-    - ls $CONDA_PACKAGE
+    - ls $CONDA_PACKAGE $WHEEL_PACKAGE
     - conda install -c astropy -c conda-forge extruder twine
     - if [ $TRAVIS_EVENT_TYPE == "cron" ]; then
         copy_packages vp_copy.yaml vpython;
