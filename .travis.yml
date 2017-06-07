@@ -34,7 +34,7 @@ install:
 
     # Install a couple of dependencies we need for sure.
     # Not sure why cython is necessary since it is listed as a build dependency.
-    - conda install --quiet jinja2 conda-build anaconda-client cython twine
+    - conda install --quiet jinja2 conda-build anaconda-client cython
 
     # make a wheel building environment to ensure correct python version.
     # - conda create --quiet -n wheel-build python=$CONDA_PY wheel cython
@@ -50,7 +50,7 @@ script:
     - if [ -e $WHEEL_PACKAGE ]; then echo "Wheel exists"; else echo "NO WHEEL"; fi
     # This will fail if the package does not actually exist
     - ls $CONDA_PACKAGE
-    - conda install -c astropy -c conda-forge extruder
+    - conda install -c astropy -c conda-forge extruder twine
     - if [ $TRAVIS_EVENT_TYPE == "cron" ]; then
         copy_packages vp_copy.yaml vpython;
       fi
