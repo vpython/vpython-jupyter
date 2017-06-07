@@ -77,6 +77,9 @@ after_success:
     #
     # The twine password has been set in $TWINE_PASSWORD.
     - if [ -n "$upload_build" ]; then twine upload $WHEEL_PACKAGE; fi
+    # In any event, remove the built wheel because having it around appears to
+    # confuse the deploy step, which is still trying to upload a wheel.
+    - rm -f $WHEEL_PACKAGE
 deploy:
   provider: pypi
   user: mwcraig
