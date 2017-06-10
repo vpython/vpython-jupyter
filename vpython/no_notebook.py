@@ -160,7 +160,7 @@ class MISC(baseObj):
     def __init__(self):
         super(MISC, self).__init__() 
     
-    def print(self, s):
+    def prnt(self, s):
         self.addmethod('GSprint', s)
 
 __misc = MISC()
@@ -170,5 +170,5 @@ def GSprint(*args):
     for a in args:
         s += str(a)+' '
     s = s[:-1]
-    __misc.print(s)
+    __misc.prnt(s)
 
