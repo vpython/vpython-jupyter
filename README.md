@@ -16,7 +16,7 @@ the source code is at https://github.com/BruceSherwood/vpython-jupyter.
 
 ## Installation
 
-For more detailed instructions on how to install Jupyter VPython, see http://vpython.org.
+For more detailed instructions on how to install vpython, see http://vpython.org.
 
 Briefly:
 
@@ -25,14 +25,15 @@ Briefly:
 
 ## Sample program
 
-Here is a simple example that will run in a Jupyter Notebook cell:
+Here is a simple example:
 
 ```python
 from vpython import *
 sphere()
 ```
 
-This will create a 3D window in the Notebook containing a 3D sphere, with mouse and touch controls available to zoom and rotate the camera:
+This will create a canvas containing a 3D sphere, with mouse and touch
+controls available to zoom and rotate the camera:
 
     Right button drag or Ctrl-drag to rotate "camera" to view scene.
     To zoom, drag with middle button or Alt/Option depressed, or use scroll wheel.
