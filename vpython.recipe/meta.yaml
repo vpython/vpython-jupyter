@@ -42,6 +42,7 @@ requirements:
     - vpnotebook
     - ujson
     - autobahn # [not py2k and not py34]
+    - numpy
 
 outputs:
     - type: wheel   # [not win]

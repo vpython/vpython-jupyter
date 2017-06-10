@@ -20,10 +20,10 @@ except ImportError:
 
 import versioneer
 
+install_requires = ['jupyter', 'vpnotebook', 'numpy']
+
 if sys.version_info.major == 3 and sys.version_info.minor >= 5:
-    install_requires = ['jupyter', 'vpnotebook', 'autobahn']
-else:
-    install_requires = ['jupyter', 'vpnotebook']
+    install_requires.append('autobahn')
 
 setup(
     name='vpython',
