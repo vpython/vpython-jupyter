@@ -891,6 +891,9 @@ class shape_object(object):
                 if abs(g1[0] - g2[0]) < .001*radius and abs(g1[1] - g2[1]) < .001*radius:
                     i += 1
                 i += 1
+            g1 = pts[0]
+            g2 = pts[-1]
+            if not (g1[0] == g2[0] and g1[1] == g2[1]): pts.append(g1)
             return pts
 
     def rackgear(self, pos=(0,0), n=30, radius=5., phi=20., addendum=0.4, dedendum=0.5,
@@ -944,6 +947,9 @@ class shape_object(object):
                 g2.append([ temp[0] + dx, temp[1] + dy ])      
             if scale != 1: g2 = scalecp(g2, scale, scale)
             if rotate != 0: g2 = rotatecp(g2, pos, rotate)
+            a1 = g2[0]
+            a2 = g2[-1]
+            if not a1[0] == a2[0] and a1[1] == a2[1]: g2.append(a1)
             return g2
 
 def convert(pos=(0,0,0), up=(0,1,0), points=None, closed=True):

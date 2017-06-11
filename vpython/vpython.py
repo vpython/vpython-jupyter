@@ -3456,6 +3456,11 @@ class extrusion(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,1,1) # to keep standardAttributes happy
         args['_objName'] = "extrusion"
+        if 'path' not in args:
+            raise AttributeError("An extrusion must have a path.")
+        if 'shape' not in args:
+            raise AttributeError("An extrusion must have a shape.")
+        self.check_shape(args['shape'])
         savesize = None
         if 'size' in args:
             savesize = args['size']
@@ -3478,6 +3483,40 @@ class extrusion(standardAttributes):
         _wait(self.canvas)
         if savesize is not None:
             self._size = savesize
+
+    def level(self,a):
+    	# Determine format of shape specification:
+        #    return 1 if a = [S, S, ...] where S is [x,y]
+        #    return 2 if a = [ [S, S, ... ], [S, S, ...], [S, S, ...] ]
+        #    return 3 if a = [ [ [S, S, ... ], [S, S, ...], [S, S, ...] ],
+        #                      [ [S, S, ... ], [S, S, ...], [S, S, ...] ], ... ]
+        if not (type(a) is list or type(a) is tuple): raise AttributeError("A shape must be a list of [x,y] elements.")
+        if not (type(a[0]) is list or type(a[0]) is tuple): raise AttributeError("A shape must be a list of [x,y] elements.")
+        if type(a[0][0]) is int or type(a[0][0]) is float: return 1
+        if type(a[0][0][0]) is int or type(a[0][0][0]) is float: return 2
+        if type(a[0][0][0][0]) is int or type(a[0][0][0][0]) is float: return 3
+        raise AttributeError("A shape must be a list of lists of [x,y] elements.")
+
+    def check_shape(self, a): # check that all shapes are closed
+        n = self.level(a)
+        if n == 1:
+            p1 = a[0]
+            p2 = a[-1]
+            if not (p1[0] == p2[0] and p1[1] == p2[1]):
+                raise AttributeError("An extrusion shape must be closed.")
+        elif n == 2:
+            for b in a:
+                p1 = b[0]
+                p2 = b[-1]
+                if not (p1[0] == p2[0] and p1[1] == p2[1]):
+                    raise AttributeError("An extrusion shape must be closed.")
+        else:
+            for c in a:
+                for b in c:
+                    p1 = b[0]
+                    p2 = b[-1]
+                    if not (p1[0] == p2[0] and p1[1] == p2[1]):
+                        raise AttributeError("An extrusion shape must be closed.")
         
     @property
     def path(self):
