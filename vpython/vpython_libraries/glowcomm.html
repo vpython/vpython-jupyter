@@ -4,11 +4,12 @@
 <script type="text/javascript" src="jquery.min.js"></script>
 <script type="text/javascript" src="jquery-ui.custom.min.js"></script>
 <script type="text/javascript" src="glow.min.js"></script>
-<script type="text/javascript" src="socket_port.js"></script>
 </head>
 <body>
 <div id="glowscript" class="glowscript">
 <script type="text/javascript">
+
+var sock = 'XXX' // a port number generated and inserted here by no_notebook.py
 
 window.__context = { glowscript_container: $("#glowscript") }
 window.Jupyter_VPython = '/' // prefix used by glow.min.js for textures
@@ -43,7 +44,7 @@ var isopen = false
 window.onload = function() {
     "use strict";
 	
-	var sock = socket_port() // created by no_notebook.py
+	//var sock = socket_port() // created by no_notebook.py
 	ws = new WebSocket("ws://localhost:"+sock)
 	ws.binaryType = "arraybuffer";
 

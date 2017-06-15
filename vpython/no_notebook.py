@@ -21,10 +21,15 @@ def find_free_port():
 __HTTP_PORT = find_free_port()
 __SOCKET_PORT = find_free_port()
 # Make it possible for glowcomm.html to find out what the websocket port is:
-js = __file__.replace('no_notebook.py','vpython_libraries'+os.sep+'socket_port.js')
-fd = open(js,'w')
-fd.write('function socket_port() {'+'return {}'.format(__SOCKET_PORT)+'}')
+#js = __file__.replace('no_notebook.py','vpython_libraries'+os.sep+'socket_port.js')
+#fd = open(js,'w')
+#fd.write('function socket_port() {'+'return {}'.format(__SOCKET_PORT)+'}')
+#fd.close()
+js = __file__.replace('no_notebook.py','vpython_libraries'+os.sep+'glowcomm.html')
+fd = open(js)
+glowcomm = fd.read()
 fd.close()
+glowcomm = glowcomm.replace('XXX',str(__SOCKET_PORT)) # provide glowcomm.html with socket number
 
 httpserving = False
 websocketserving = False
@@ -44,8 +49,10 @@ class serveHTTP(BaseHTTPRequestHandler):
     def do_GET(self):
         global httpserving
         httpserving = True
+        html = False
         if self.path == "/":
-            self.path = os.sep+'glowcomm.html'
+            self.path = 'glowcomm.html'
+            html = True
         elif self.path[0] == "/":
             self.path = os.sep+self.path[1:]
         f = self.path.rfind('.')
@@ -54,13 +61,17 @@ class serveHTTP(BaseHTTPRequestHandler):
         try:
             if fext in self.mimes:
                 mime = self.mimes[fext]
-                loc = mime[1] + self.path
-                fd = open(loc, 'rb') 
                 self.send_response(200)
                 self.send_header('Content-type', mime[0])
                 self.end_headers()
-                self.wfile.write(fd.read())
-                fd.close()
+                if not html:
+                    loc = mime[1] + self.path
+                    fd = open(loc, 'rb')
+                    self.wfile.write(fd.read())
+                    fd.close()
+                else:
+                    # string.encode() is not available in Python 2.7, but neither is async
+                    self.wfile.write(glowcomm.encode('utf-8'))
         except IOError:
                 self.send_error(404,'File Not Found: {}'.format(self.path))
                     
