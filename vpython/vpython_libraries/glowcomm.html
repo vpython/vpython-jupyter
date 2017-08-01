@@ -209,23 +209,30 @@ var waitfor_canvas = null
 var waitfor_options = null
  // possible event types to bind:
 var binds = ['mousedown', 'mouseup', 'mousemove', 'click', 'mouseenter', 'mouseleave',
-			 'keydown', 'keyup', 'redraw', 'draw_complete']
+			 'keydown', 'keyup', 'redraw', 'draw_complete', 'resize']
 
-function process(event) {  // mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
+function process(event) {  
+	// mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
+	// other: resize
     "use strict";
 	var evt = {event:event.type}
     var idx = event.canvas['idx']
     evt.canvas = idx
-	var pos = event.pos
-	evt.pos = [pos.x, pos.y, pos.z]
-	evt.press = event.press
-	evt.release = event.release
-	evt.which = event.which
-	var ray = event.canvas.mouse.ray 
-	evt.ray = [ ray.x, ray.y, ray.z ]
-	evt.alt = event.canvas.mouse.alt
-	evt.ctrl = event.canvas.mouse.ctrl
-	evt.shift = event.canvas.mouse.shift
+	if (event.type != 'resize') {
+		var pos = event.pos
+		evt.pos = [pos.x, pos.y, pos.z]
+		evt.press = event.press
+		evt.release = event.release
+		evt.which = event.which
+		var ray = event.canvas.mouse.ray 
+		evt.ray = [ ray.x, ray.y, ray.z ]
+		evt.alt = event.canvas.mouse.alt
+		evt.ctrl = event.canvas.mouse.ctrl
+		evt.shift = event.canvas.mouse.shift
+	} else {
+		evt.width = event.canvas.width
+		evt.height = event.canvas.height
+	}
 	if ('bind' in event) evt.bind = true
 	events.push(evt)
 }
@@ -279,10 +286,10 @@ function process_waitfor(evt) {
 }
 
 // attrs are X in {'a': '23X....'}
-var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: +-, 
+var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: -, 
          'e':'ambient', 'f':'axis', 'g':'size', 'h':'origin', 'i':'textcolor',
          'j':'direction', 'k':'linecolor', 'l':'bumpaxis', 'm':'dot_color',
-         'n':'foreground', 'o':'background', 'p':'ray', 'E':'center', '#':'forward',
+         'n':'foreground', 'o':'background', 'p':'ray', 'E':'center', '#':'forward', '+':'resizable',
          
          // scalar attributes
          'q':'graph', 'r':'canvas', 's':'trail_radius', 

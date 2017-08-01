@@ -87,10 +87,10 @@ GSversion = [__gs_version__, 'glowscript']
 # method:  {'m': str(idx)+methods[<methodname>]+<value(s) as above>}
 
 # attrs are X in {'a': '23X....'}
-__attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: +-,
+__attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: -,
          'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h', 'textcolor':'i',
          'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 'dot_color':'m',
-         'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 
+         'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 'resizable':'+', 
          
          # scalar attributes
          'graph':'q', 'canvas':'r', 'trail_radius':'s', 
@@ -2688,6 +2688,7 @@ class canvas(baseObj):
         self._width = 640
         self._align = 'none'
         self._fov = pi/3
+        self._resizable = True
         
         # The following determine the view:
         self._range = 1 # user can alter with zoom
@@ -2709,7 +2710,7 @@ class canvas(baseObj):
         self._mouse = Mouse(self)
         self._binds = {'mousedown':[], 'mouseup':[], 'mousemove':[],'click':[],
                         'mouseenter':[], 'mouseleave':[], 'keydown':[], 'keyup':[],
-                        'redraw':[], 'draw_complete':[]}
+                        'redraw':[], 'draw_complete':[], 'resize':[]}
                         #'_compound':[]}
             # no key events unless notebook command mode can be disabled
         self._camera = Camera(self)
@@ -2818,6 +2819,15 @@ class canvas(baseObj):
         self._visible = value
         if not self._constructing:
             self.addattr('visible')
+        
+    @property
+    def resizable(self):
+        return self._resizable    
+    @resizable.setter
+    def resizable(self,value):
+        self._resizable = value
+        if not self._constructing:
+            self.addattr('resizable')
 
     @property
     def background(self):
@@ -3001,6 +3011,22 @@ class canvas(baseObj):
                 obj._size.value = list_to_vec(s)
                 obj._axis.value = obj._size._x*norm(obj._axis)
             self._waitfor = True # what compound and text and extrusion are looking for
+        elif ev == 'resize':
+            if self.resizable and ('resize' in self._binds):
+                self.width = evt['width']
+                self.height = evt['height']
+                del evt['width']
+                del evt['height']
+                for fct in self._binds['resize']:
+                    # inspect the bound function and see what it's expecting
+                    if _ispython3: # Python 3
+                        a = signature(fct)
+                        if str(a) != '()': fct( evt )
+                        else: fct()
+                    else: # Python 2
+                        a = getargspec(fct)
+                        if len(a.args) > 0: fct( evt ) 
+                        else: fct()
         else:
             if 'pos' in evt:
                 pos = evt['pos']
