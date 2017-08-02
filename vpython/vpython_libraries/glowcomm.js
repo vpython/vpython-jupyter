@@ -154,9 +154,10 @@ function send_pick(cvs, p, seg) {
 	events.push(evt)
 }
 
-function send_compound(cvs, pos, size) {
+function send_compound(cvs, pos, size, up) {
     "use strict";
-    var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 'size': [size.x, size.y, size.z]}
+    var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 
+        'size': [size.x, size.y, size.z], 'up': [up.x, up.y, up.z]}
 	events.push(evt)
 }
 
@@ -241,7 +242,7 @@ function process_waitfor(evt) {
 }
 
 // attrs are X in {'a': '23X....'}
-var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: +-, 
+var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: -, 
          'e':'ambient', 'f':'axis', 'g':'size', 'h':'origin', 'i':'textcolor',
          'j':'direction', 'k':'linecolor', 'l':'bumpaxis', 'm':'dot_color',
          'n':'foreground', 'o':'background', 'p':'ray', 'E':'center', '#':'forward', '+':'resizable',
@@ -537,14 +538,14 @@ function handle_cmds(dcmds) {
 				} else {
 					var obj = glowObjs[idx] = compound(objects, cfg)
 					// Return computed compound pos and size to Python
-					send_compound(obj.canvas['idx'], obj.pos, obj.size)
+					send_compound(obj.canvas['idx'], obj.pos, obj.size, obj.up)
 				}
 				break
 			}
 			case 'extrusion': {
 				var obj = glowObjs[idx] = extrusion(cfg)
 				// Return computed compound pos and size to Python
-				send_compound(obj.canvas['idx'], obj.pos, obj.size)
+				send_compound(obj.canvas['idx'], obj.pos, obj.size, obj.up)
 				break
 			}
 			case 'text':     {
@@ -555,7 +556,8 @@ function handle_cmds(dcmds) {
 				} else {
 					// Return text parameters to Python
 					var obj = glowObjs[idx] = text(cfg)
-					send_compound(obj.canvas['idx'], vec(obj.length, obj.descender, 0), vec(0,0,0))
+					send_compound(obj.canvas['idx'], vec(obj.length, obj.descender, 0), 
+                            obj.__comp.size, obj.up)
 				}
 				break
 			}

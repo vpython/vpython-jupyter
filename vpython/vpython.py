@@ -562,8 +562,8 @@ class standardAttributes(baseObj):
                          'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable' ],
                         ['red', 'green', 'blue','length', 'width', 'height'] ],
-                 'text': [ ['pos', 'up', 'color', 'start_face_color', 'end_face_color'],
-                          ['axis', 'size'],
+                 'text': [ ['pos', 'up', 'color', 'start_face_color', 'end_face_color', 'axis'],
+                          [],
                           ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs', 'pickable',
@@ -650,7 +650,8 @@ class standardAttributes(baseObj):
                 del args[a]
 
         if defaultSize is not None:
-            if 'size' not in argsToSend:  ## always send size because Python size differs from JS size
+            ## If not 3D text, always send size because Python size differs from JS size
+            if 'size' not in argsToSend and objName != 'text':  
                 argsToSend.append('size')
             self._trail_radius = 0.1 * self._size.y  ## default depends on size
         elif objName == 'points':
@@ -806,15 +807,14 @@ class standardAttributes(baseObj):
         self._size.value = value
         if not self._constructing:
             self.addattr('size')
-        if self._objName != 'text':
-            a = self._axis.norm() * value.x
-            if mag(self._axis) == 0:
-                a = vector(value.x,0,0)
-            v = self._axis
-            if not v.equals(a):
-                self._axis.value = a
-                if not self._constructing:
-                    self.addattr('axis')
+        a = self._axis.norm() * value.x
+        if mag(self._axis) == 0:
+            a = vector(value.x,0,0)
+        v = self._axis
+        if not v.equals(a):
+            self._axis.value = a
+            if not self._constructing:
+                self.addattr('axis')
 
     @property
     def axis(self):
@@ -829,12 +829,11 @@ class standardAttributes(baseObj):
             # must update both axis and up when either is changed
             if not self.axis.equals(oldaxis): self.addattr('axis')
             if not self.up.equals(u): self.addattr('up')
-        if self._objName != 'text':
-            m = value.mag
-            if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
-                self._size._x = m
-                if not self._constructing:
-                    self.addattr('size')
+        m = value.mag
+        if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
+            self._size._x = m
+            if not self._constructing:
+                self.addattr('size')
             
     @property
     def length(self): 
@@ -1110,7 +1109,7 @@ class standardAttributes(baseObj):
         elif objName == 'text': # the text object is a wrapper around an extrusion, which is a compound
             newargs = {'pos':self._pos, 'canvas':self.canvas,
                     'color':self._color, 'opacity':self._opacity, 
-                    'size':self._size, 'axis':self._axis, 'up':self._up, '_text':self._text,
+                    'axis':self._axis, 'up':self._up, '_text':self._text,
                     '_length':self._length, '_height':self._height, '_depth':self._depth,
                     '_font':self._font, '_align':self._align, '_billboard':self._billboard,
                     '_show_start_face':self._show_start_face, '_show_end_face':self._show_end_face,
@@ -3001,8 +3000,9 @@ class canvas(baseObj):
             obj = self._compound
             p = evt['pos']
             if obj._objName == 'text':
-                obj._size._x = p[0]
+                obj._length = p[0]
                 obj._descender = p[1]
+                obj._up.value = list_to_vec(evt['up'])
             else:
                 # Set attribute_vector.value, which avoids nullifying the
                 # on_change functions that detect changes in e.g. obj.pos.y
@@ -3010,6 +3010,7 @@ class canvas(baseObj):
                 s = evt['size']
                 obj._size.value = list_to_vec(s)
                 obj._axis.value = obj._size._x*norm(obj._axis)
+                obj._up.value = list_to_vec(evt['up'])
             self._waitfor = True # what compound and text and extrusion are looking for
         elif ev == 'resize':
             if self.resizable and ('resize' in self._binds):
@@ -3629,6 +3630,7 @@ class text(standardAttributes):
         self._start = vector(0,0,0)
         self._end = vector(0,0,0)
         cloning = None
+        if ('size' in args): raise AttributeError("The text object has no size attribute.")
         if '_cloneid' in args:
             cloning = args['_cloneid']
             self._lines = len(args['_text'].split('\n'))
@@ -3640,18 +3642,43 @@ class text(standardAttributes):
         if 'color' in args:
             self._start_face_color = args['color']
             self._end_face_color = args['color']
-        savesize = None
-        if 'size' in args:
-            savesize = args['size']
-            del args['size']
 
         super(text, self).setup(args)
         
         if cloning is None:
             self.canvas._compound = self # used by event handler to update pos and size
-            _wait(self.canvas)
-            if savesize is not None:
-                self._size = savesize
+            _wait(self.canvas) # sets _length, _descender, up
+            
+        
+    @property
+    def size(self):
+        raise AttributeError("The text object has no size attribute.")
+    @size.setter
+    def size(self, val):
+        raise AttributeError("The text object has no size attribute.")
+
+    @property
+    def axis(self):
+        return self._axis
+    @axis.setter
+    def axis(self,value): # changing axis does not affect size
+        oldaxis = vec(self.axis)
+        u = self.up
+        self._axis.value = value
+        self.adjust_up(norm(oldaxis), self.axis)
+        self.addattr('axis')
+        self.addattr('up')
+        
+    @property
+    def length(self):
+        return self._length
+    @length.setter
+    def length(self, val):
+        if self._constructing:
+            raise AttributeError("text length can't be set when creating a text object")
+        else:
+            self._length = val
+            self.addattr('length')
         
     @property
     def height(self):
@@ -3662,22 +3689,8 @@ class text(standardAttributes):
             self._height = val
         else:
             if val == self._height: return
-            m = val/self._height
-            self._size.y *= m
-            self._descender *= m
             self._height = val
-            self.addattr('size')
-        
-    @property
-    def length(self):
-        return self._size.x
-    @length.setter
-    def length(self, val):
-        if self._constructing:
-            raise AttributeError("text length can't be set when creating a text object")
-        else:
-            self._size.x = val
-            self.addattr('size')
+            self.addattr('height')
         
     @property
     def depth(self):
@@ -3690,11 +3703,8 @@ class text(standardAttributes):
             if abs(val) < 0.01*self._height:
                 if val < 0: val = -0.01*self._height
                 else: val = 0.01*self._height
-            self._size.z *= abs(value)
-            self._pos.z = val/2
-            self._depth = val
-            self.addattr('pos')
-            self.addattr('size')
+            self._depth = value
+            self.addattr('depth')
         
     @property
     def align(self):
@@ -3822,18 +3832,6 @@ class text(standardAttributes):
     @vertical_spacing.setter
     def vertical_spacing(self, val):
         raise AttributeError("vertical_spacing cannot be modified")
-                    
-# primary attrs are height, length, depth, descender
-
-## pos, align, text, font, billboard, height, length, depth, color, start_face_color, 
-## end_face_color, show_start_face, show_end_face, descender, upper_left, upper_right,
-## lower_left, lower_right, start, end, vertical_spacing, size, axis, up, 
-## opacity, shininess, emissive
-    # def __init__(self, **args):
-        # super(text, self).__init__() 
-        # cmd = {"cmd": 'text', "idx": self.idx, "attrs":[]}
-        # cmd["attrs"].append({"attr": 'text', "value": 'ABC'})
-        # self.appendcmd(cmd)
                         
 def combin(x, y):
     # combin(x,y) = factorial(x)/[factorial(y)*factorial(x-y)]
