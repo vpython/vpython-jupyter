@@ -439,3 +439,6 @@ a.button
   background: rgb(250, 250, 255);
   border: 1px solid rgb(200, 200, 250);
 }
+.tickLabel{
+    font-size: 14px;
+ }
