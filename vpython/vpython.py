@@ -875,7 +875,7 @@ class standardAttributes(baseObj):
 
     @property
     def red(self):
-        return self._color[0]    
+        return self._color.x
     @red.setter
     def red(self,value):
         self._color = (value,self.green,self.blue)
@@ -884,7 +884,7 @@ class standardAttributes(baseObj):
 
     @property
     def green(self):
-        return self._color[1]    
+        return self._color.y
     @green.setter
     def green(self,value):
         self._color = (self.red,value,self.blue)
@@ -893,7 +893,7 @@ class standardAttributes(baseObj):
 
     @property
     def blue(self):
-        return self._color[2]    
+        return self._color.z
     @blue.setter
     def blue(self,value):
         self._color = (self.red,self.green,value)
@@ -2676,14 +2676,16 @@ class canvas(baseObj):
         
         self._constructing = True        
         canvas.selected_canvas = self
-            
+        
+        if 'lights' in args:
+            raise AttributeError("Lights for a canvas can be assigned only after the canvas has been created.")
+                   
         self._objz = set()
-        self.lights = []
         self.vertexCount = 0
         self._visible = True
         self._background = vector(0,0,0)
         self._ambient = vector(0.2, 0.2, 0.2)
-        self._height = 480
+        self._height = 400 # to match the GlowScript default
         self._width = 640
         self._align = 'none'
         self._fov = pi/3
@@ -2751,6 +2753,11 @@ class canvas(baseObj):
         self._constructing = False
         
         self._camera.follow = self.follow
+        
+        self.lights = [] # delete all lights created by glowcomm.js
+        # Add the standard lighting (these lights will be added to self._lights):
+        distant_light(direction=vector( 0.22,  0.44,  0.88), color=color.gray(0.8))
+        distant_light(direction=vector(-0.88, -0.22, -0.44), color=color.gray(0.3))
         
     def follow(self, obj):    ## should allow a function also
         self.addmethod('follow', obj.idx)
@@ -2953,12 +2960,13 @@ class canvas(baseObj):
         return self._lights
     @lights.setter
     def lights(self, value):
-        self._lights = value[:]
-        if not self._constructing:
-            s = self._lights
-            if len(s) == 0:
-                s = 'empty_list' # JSON doesn't like an empty list
-            self.appendcmd({"lights":s}) # don't encode this unusual statement
+        if type(value) is list and len(value) == 0:
+            # JSON doesn't like an empty list
+            self._lights = []
+            self.appendcmd({"lights":'empty_list'}) # don't encode this unusual statement
+        else:
+            raise AttributeError("canvas.lights can be set only to [].")
+            
             
     @property
     def pixel_to_world(self):
@@ -3136,7 +3144,7 @@ class local_light(standardAttributes):
         super(local_light, self).setup(args)
 
         if (canvas.get_selected() != None):
-            canvas.get_selected().lights.append(self)
+            canvas.get_selected()._lights.append(self)
                 
 class distant_light(standardAttributes):
     def __init__(self, **args):
@@ -3146,7 +3154,7 @@ class distant_light(standardAttributes):
         super(distant_light, self).setup(args)
 
         if (canvas.get_selected() != None):
-            canvas.get_selected().lights.append(self)
+            canvas.get_selected()._lights.append(self)
         
     @property
     def direction(self):
