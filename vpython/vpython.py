@@ -702,7 +702,9 @@ class standardAttributes(baseObj):
             self.canvas = canvas.get_selected()
         #cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
         cmd['canvas'] = self.canvas.idx
-        self.canvas.objz(self,'add')
+        # Lights are listed in canvas.lights, not canvas.objects
+        if not (objName == 'distant_light' or objName == 'local_light'):
+            self.canvas.objz(self,'add')
                    
         self._constructing = False  ## from now on any setter call will not be from constructor
         #if cloning is not None: cmd["attrs"].append({"attr":"_cloneid", "value":cloning})
@@ -3096,7 +3098,7 @@ class canvas(baseObj):
         self.addmethod('unbind', eventtype)      
         
     def waitfor(self, eventtype):
-        if 'textures' in eventtype: # textures are local; no need to wait
+        if 'textures' in eventtype: # textures are local; little need to wait
             eventtype = eventtype.replace('textures', '')
             if eventtype == '': return
         evts = ['redraw', 'draw_complete'] # wait for a render

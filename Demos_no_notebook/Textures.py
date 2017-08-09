@@ -11,11 +11,9 @@ names = ['flower', 'granite', 'gravel', 'metal', 'rock', 'rough', 'rug', 'stones
 Ts = [textures.flower, textures.granite, textures.gravel, textures.metal, textures.rock, textures.rough,
       textures.rug, textures.stones, textures.stucco, textures.wood, textures.wood_old, textures.earth]
 bumps = [ None, None, 'gravel', None, 'rock', None, None, 'stones', 'stucco', None, 'wood_old']
-labels = []
 
 def erase():
-    objects = scene.objects
-    for obj in objects:
+    for obj in scene.objects:
         obj.visible = False
 
 def show_object(index, x, y):
@@ -36,17 +34,16 @@ def show_object(index, x, y):
         c = pyramid(pos=vec(x-D/2,y,0), size=D*vec(1,1,1))
     c.index = index
     c.shininess = 0
-    #c.texture = {'file':T, 'bumpmap':B}
-    c.texture = T
-    labels.append(label(pos=vec(x,y-.5,0), box=0, text='textures.'+names[index]))
+    c.texture = {'file':T, 'bumpmap':B}
+    label(pos=vec(x,y-.5,0), box=0, text='textures.'+names[index])
 
-def start_setup():
+def setup():
     scene.range = 2.2
     scene.fov = 0.2
     scene.center = vec(1.5,2,0)
     scene.forward = vec(0,0,-1)
     erase()
-    #scene.visible = False
+    scene.visible = False
     index = 0
     y = 3.3
     while y > 0:
@@ -55,23 +52,14 @@ def start_setup():
             show_object(index, x, y)
             index += 1
         y -= 1.3
+    scene.visible = True
 
-def end_setup():
-    pass
-    #scene.visible = True
-
-def setup():
-    start_setup()
-    end_setup()
-
-start_setup()
+setup()
+scene.visible = False
 scene.caption = "Loading textures..."
-#scene.waitfor("textures")
-scene.caption = ""
-
-#while True: rate(1)
-
+scene.waitfor("textures")
 scene.caption = "Choose the type of object:  "
+scene.visible = True
 
 def choose(c):
     global show
@@ -80,7 +68,6 @@ def choose(c):
 menu(choices=['box', 'sphere', 'cylinder', 'cone', 'pyramid'], selected='box', bind=choose)
 
 scene.append_to_caption('\n\nClick an object to enlarge it; then click anywhere to show all objects again.')
-end_setup()
 
 hit = None
 clicked = False
