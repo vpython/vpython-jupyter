@@ -40,7 +40,7 @@ controls available to zoom and rotate the camera:
          On a two-button mouse, middle is left + right.
     Touch screen: pinch/extend to zoom, swipe or two-finger rotate.
 
-Run example VPython programs: [![Binder](http://mybinder.org/badge.svg)](http://beta.mybinder.org/v2/gh/BruceSherwood/vpython-jupyter/7.0.3?filename=index.ipynb)
+Run example VPython programs: [![Binder](http://mybinder.org/badge.svg)](http://beta.mybinder.org/v2/gh/BruceSherwood/vpython-jupyter/7.1.2?filename=index.ipynb)
 
 ## vpython build status (for the vpython developers)
 
