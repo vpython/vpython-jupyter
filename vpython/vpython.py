@@ -120,13 +120,13 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
-__methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused eghijklmnopuvxyzCDFAB
+__methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused eghijklmnopvxyzCDFAB
              'plot':'q', 'add_to_trail':'s',
-             'follow':'t', 'clear_trail':'w',
+             'follow':'t', '_attach_arrow':'u', 'clear_trail':'w',
              'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L',
              'delete':'M'}
 
-__vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
+__vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_attach_arrow',
             'direction', 'linecolor', 'bumpaxis', 'dot_color', 'add_to_trail', 'textcolor',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
                 
@@ -239,13 +239,13 @@ class baseObj(object):
     def handle_attach(cls): # called when about to send data to the browser
         ## update every attach_arrow if relevant vector has changed
         for aa in cls.attach_arrows:
-            ob = cls.object_registry[aa._obj]
-            vval = getattr(ob, aa._realattr) # could be 'velocity', for example
+            obj = baseObj.object_registry[aa._obj]
+            vval = getattr(obj, aa.attr) # could be 'velocity', for example
             if not isinstance(vval, vector):
+                raise AttributeError("attach_arrow value must be a vector.")
+            if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)):
                 continue
-            if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)) :
-                continue
-            ob.addattr('up') # pretend that the attribute is 'up'
+            aa.addmethod('_attach_arrow', vval.value)
             aa._last_val = vval
         
         ## update every attach_trail that depends on a function
@@ -547,9 +547,9 @@ class standardAttributes(baseObj):
                         [],
                         ['texture', 'bumpmap', 'visible', 'pickable'],
                         ['v0', 'v1', 'v2', 'v3'] ],
-                 'attach_arrow': [ [ 'color'],
+                 'attach_arrow': [ [ 'color', 'attrval'],
                         [],
-                        ['shaftwidth','scale', '_obj', '_attr'],
+                        ['shaftwidth', 'scale', 'obj', 'attr'],
                         [] ],
                  'attach_trail': [ ['color'],
                         [],
@@ -1348,18 +1348,19 @@ class arrow(standardAttributes):
             
 class attach_arrow(standardAttributes):
     def __init__(self, obj, attr, **args):
+        attrs = ['pos', 'size', 'axis', 'up', 'color']
         args['_default_size'] = None
-        self._obj = obj.idx
-        args['_obj'] = self._obj
-        self._realattr = attr # could be for example "velocity"
-        self._attr = 'up'     # pretend that the atribute is "up"
-        args['_attr'] = self._attr
+        self.obj = args['obj'] = obj.idx
+        self.attr = args['attr'] = attr # could be for example "velocity"
+        self.attrval = args['attrval'] = getattr(baseObj.object_registry[self.obj], attr)
+        print(self.attrval)
         args['_objName'] = "attach_arrow"
         self._last_val = None
         self._scale = 1
         self._shaftwidth = 0
         super(attach_arrow, self).setup(args)
-        baseObj.attach_arrows.append(self)
+        # Only if the attribute is a user attribute do we need to add to attach_arrows:
+        if attr not in attrs: baseObj.attach_arrows.append(self)
         
     @property
     def scale(self):

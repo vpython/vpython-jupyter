@@ -319,14 +319,15 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid'}
 
 // methods are X in {'m': '23X....'}
-var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopuvxyzCDFAB
+var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopvxyzCDFAB
 			   'q':'plot', 's':'add_to_trail',
-               't':'follow', 'w':'clear_trail',
+               't':'follow', 'u':'_attach_arrow', 'w':'clear_trail',
                'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
 		       'M':'delete'}
          
 var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 'textcolor',
                 'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail',
+                '_attach_arrow',
                 'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
                 
 var textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected',
@@ -455,7 +456,7 @@ function handle_cmds(dcmds) {
 
 		//assembling cfg
 		var vlst = ['pos', 'color', 'size', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
-				 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'textcolor',
+				 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'textcolor', 'attrval',
 				 'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color']
 		if ((obj != 'gcurve') && ( obj != 'gdots' ) ) vlst.push( 'size' )
 		var cfg = {}
@@ -616,10 +617,15 @@ function handle_cmds(dcmds) {
 					//$("<div id='fps'/>").appendTo(glowObjs[idx].title)
 			}
 			case 'attach_arrow':  {
-				var o = glowObjs[cfg['_obj']]
-				delete cfg['_o']
-				var attr = cfg['_attr']
-				delete cfg['_attr']
+                var attrs = ['pos', 'size', 'axis', 'up', 'color']
+				var o = glowObjs[cfg['obj']]
+				delete cfg['obj']
+				var attr = cfg['attr']
+				delete cfg['attr']
+                var val = cfg['attrval']
+                delete cfg['attrval']
+                if (attrs.indexOf(attr) < 0) attr = '_attach_arrow'
+                o.attr = val
 				glowObjs[idx] = attach_arrow( o, attr, cfg )
 				break
 			}
@@ -740,6 +746,8 @@ function handle_methods(dmeth) {
 			glowObjs[idx]['pos'] = val
 		} else if (method === 'add_to_trail') {
 			obj['_func'] = val
+		} else if (method === '_attach_arrow') {
+            obj.obj._attach_arrow = val
 		} else if (method === 'bind') {
 			var evts = val.split(' ')
 			for (var evt in evts) {
