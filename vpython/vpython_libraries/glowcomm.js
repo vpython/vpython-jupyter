@@ -358,9 +358,16 @@ function decode(data) {
 function fix_location(cfgx) {
     "use strict";
     if ('location' in cfgx) {
-        if (cfgx['location'] === 1) {cfgx['pos'] = cfgx['canvas'].title_anchor}
-        else if (cfgx['location'] === 2) {cfgx['pos'] = cfgx['canvas'].caption_anchor}
-        else if (cfgx['location'] === 3) {cfgx['pos'] = print_anchor}
+        var loc = cfgx['location']
+        var id = loc[0]
+        if (id == -1) {
+            cfgx['pos'] = print_anchor // this doesn't work; throw an error in vpython.py
+        } else {
+            var cvs = glowObjs[id]
+            var where = loc[1]
+            if (where === 1) cfgx['pos'] = cvs.title_anchor
+            else cfgx['pos'] = cvs.caption_anchor
+        }
         delete cfgx['location']
     }
     return cfgx
@@ -594,6 +601,12 @@ function handle_cmds(dcmds) {
 				glowObjs[idx] = attach_trail(o, cfg)
 				break
 			}
+            case 'wtext': {
+				cfg.objName = obj
+				cfg = fix_location(cfg)
+				glowObjs[idx] = wtext(cfg)
+				break
+            }
 			case 'checkbox': {
 				cfg.objName = obj
 				cfg.bind = control_handler

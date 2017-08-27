@@ -1,4 +1,6 @@
 from vpython import *
+# This version uses VPython widgets: button, radio button, checkbox, slider, menu
+# See ButtonsSlidersMenus1 for a version that uses Jupyter notebook widgets: button, slider, menu
 scene.width = 350
 scene.height = 300
 scene.range = 1.3
@@ -33,7 +35,7 @@ def Color(c):
         cbutton.background = color.red
         r1.checked = False
         r2.checked = True
-    else:                      # change to cyan=
+    else:                      # change to cyan
         currentobject.color = col = color.cyan
         cbutton.text = "<b>Red</b>"
         cbutton.textcolor = color.red
@@ -43,13 +45,16 @@ def Color(c):
         
 cbutton = button(text='<b>Red</b>', textcolor=color.red, background=color.cyan, pos=scene.title_anchor, bind=Color)
 
-scene.caption = "Vary the rotation speed: \n"
+scene.caption = "Vary the rotation speed:\n"
 speed = 150
 def setspeed(s):
     global speed
     speed = s.value
+    wt.text = '{:1.0f}'.format(s.value)
     
-slider(min=20, max=500, value=250, length=350, bind=setspeed)
+sl = slider(min=20, max=500, value=250, length=280, bind=setspeed, right=15)
+
+wt = wtext(text='{:1.0f}'.format(sl.value))
 
 scene.append_to_caption('\n')
 
@@ -96,3 +101,4 @@ while True:
     rate(100)
     if running:
         currentobject.rotate(angle=speed*1e-4, axis=vector(0,1,0))
+

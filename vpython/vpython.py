@@ -555,6 +555,10 @@ class standardAttributes(baseObj):
                         [],
                         ['radius', 'pps', 'retain', 'type', '_obj'],
                         [] ],
+                 'wtext': [[],  
+                         [],
+                         ['location', 'text'],
+                         []],
                  'extrusion':[ ['pos', 'up', 'color', 'start_face_color', 'end_face_color'],
                         [ 'axis', 'size' ],
                         ['path', 'shape', 'visible', 'opacity','shininess', 'emissive',  
@@ -2718,8 +2722,8 @@ class canvas(baseObj):
                         #'_compound':[]}
             # no key events unless notebook command mode can be disabled
         self._camera = Camera(self)
-        self.title_anchor = 1  ## used by buttons etc.
-        self.caption_anchor = 2
+        self.title_anchor   = [self.idx, 1]  ## used by buttons etc.
+        self.caption_anchor = [self.idx, 2]
         cmd = {"cmd": "canvas", "idx": self.idx}
         
     # send only nondefault values to GlowScript
@@ -3163,13 +3167,43 @@ class distant_light(standardAttributes):
     def direction(self):
         return self._direction
     @direction.setter
-    def direction(self,value):
+    def direction(self, value):
         self._direction = vector(value)
         if not self._constructing:
             self.addattr('direction')
    
-## title_anchor = 1 and caption_anchor = 2 are attributes of canvas
+## title_anchor = [canvas.idx, 1] and caption_anchor = [canvas.idx, 2] are attributes of canvas
 print_anchor = 3  ## problematic -- intended to point at print area
+            
+class wtext(standardAttributes):
+    def __init__(self, **args):
+        super(wtext, self).__init__()  ## get idx, attrsupdt from baseObj
+        argsToSend = ['location', 'text']
+        self._constructing = True
+        objName = 'wtext'
+        self._text = ''
+        if 'text' in args:
+            self._text = args['text']
+        self.location = None
+        if 'pos' in args:
+            self.location = args['pos']
+            if self.location == print_anchor:
+                #self.location = [-1, print_anchor]
+                raise AttributeError('wtext: Cannot specify "print_anchor" in VPython 7.')
+            argsToSend.append('location')
+        cmd = {"cmd": objName, "idx": self.idx, "text":self._text}
+        if self.location is not None: cmd['location'] = self.location
+        self.appendcmd(cmd)
+        self._constructing = False
+        
+    @property
+    def text(self):
+        return self._text
+    @text.setter
+    def text(self, value):
+        self._text = value
+        if not self._constructing:
+            self.addattr('text')
 
 class controls(baseObj):
     attrlists = { 'button': ['text', 'textcolor', 'background', 'disabled'],
@@ -3188,6 +3222,9 @@ class controls(baseObj):
         del args['_objName']
         if 'pos' in args:
             self.location = args['pos']
+            if self.location == print_anchor:
+                #self.location = [-1, print_anchor]
+                raise AttributeError(objName+': Cannot specify "print_anchor" in VPython 7.')
             argsToSend.append('location')
             del args['pos']
         if 'canvas' in args:  ## specified in constructor
@@ -3209,9 +3246,9 @@ class controls(baseObj):
                 val = args[a]
                 if isinstance(val, vector): setattr(self, '_'+a, val)
                 else: raise AttributeError(a+' must be a vector')
-                del args[a]        
+                del args[a] 
+                
         ## override default scalar attributes
-
         for a,val in args.items():
             if a in controls.attrlists[objName]:
                 argsToSend.append(a)
@@ -3228,7 +3265,7 @@ class controls(baseObj):
                 aval = aval.value
             cmd[a] = aval
             
-        self.appendcmd(cmd)                     
+        self.appendcmd(cmd)
         self._constructing = False
         
     @property
@@ -3240,7 +3277,10 @@ class controls(baseObj):
         
     @property
     def pos(self):
-        return None
+        raise AttributeError(objName+' pos attribute is not available.')
+    @pos.setter
+    def pos(self, value):
+        raise AttributeError(objName+' pos attribute cannot be changed.')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) object
         pass
