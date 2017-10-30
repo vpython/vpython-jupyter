@@ -167,24 +167,34 @@ var waitfor_options = null
 var binds = ['mousedown', 'mouseup', 'mousemove', 'click', 'mouseenter', 'mouseleave',
 			 'keydown', 'keyup', 'redraw', 'draw_complete', 'resize']
 
-function process(event) {  
-	// mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click, pause, waitfor
+function process(event) {
+	// mouse events:  mouseup, mousedown, mousemove, mouseenter, mouseleave, click
+    // key events: keydown, keyup
 	// other: resize
     "use strict";
-	var evt = {event:event.type}
+    var etype = event.type
+	var evt = {event:etype}
     var idx = event.canvas['idx']
     evt.canvas = idx
-	if (event.type != 'resize') {
-		var pos = event.pos
-		evt.pos = [pos.x, pos.y, pos.z]
-		evt.press = event.press
-		evt.release = event.release
-		evt.which = event.which
-		var ray = event.canvas.mouse.ray 
-		evt.ray = [ ray.x, ray.y, ray.z ]
-		evt.alt = event.canvas.mouse.alt
-		evt.ctrl = event.canvas.mouse.ctrl
-		evt.shift = event.canvas.mouse.shift
+	if (etype != 'resize') {
+        if (etype.slice(0,3) == 'key') {
+            evt.key = event.key
+            evt.which = event.which
+            evt.alt = event.alt
+            evt.ctrl = event.ctrl
+            evt.shift = event.shift
+        } else {
+            var pos = event.pos
+            evt.pos = [pos.x, pos.y, pos.z]
+            evt.press = event.press
+            evt.release = event.release
+            evt.which = event.which
+            var ray = event.canvas.mouse.ray 
+            evt.ray = [ ray.x, ray.y, ray.z ]
+            evt.alt = event.canvas.mouse.alt
+            evt.ctrl = event.canvas.mouse.ctrl
+            evt.shift = event.canvas.mouse.shift
+        }
 	} else {
 		evt.width = event.canvas.width
 		evt.height = event.canvas.height
@@ -193,9 +203,35 @@ function process(event) {
 	events.push(evt)
 }
 
+function process_pause() {
+    "use strict";
+    // come here on a pause; must mock up event (pause returns null)
+    var cvs = glowObjs[waitfor_canvas]
+    var evt = {event:'click'}
+    evt.canvas = waitfor_canvas
+    var pos = cvs.mouse.pos
+    evt.pos = [pos.x, pos.y, pos.z]
+    evt.press = false
+    evt.release = true
+    evt.which = 1
+    var ray = cvs.mouse.ray 
+    evt.ray = [ ray.x, ray.y, ray.z ]
+    evt.alt = cvs.mouse.alt
+    evt.ctrl = cvs.mouse.ctrl
+    evt.shift = cvs.mouse.shift
+    events.push(evt)
+}
+
+function process_waitfor(event) {
+    "use strict";
+    // come here on a waitfor
+    glowObjs[waitfor_canvas].unbind(waitfor_options, process_waitfor)
+    process(event)
+}
+
 function process_binding(event) { // event associated with a previous bind command
     "use strict";
-	event.bind = true
+    event.bind = true
 	process(event)
 }
 
@@ -226,17 +262,6 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
     } else {
         console.log('unrecognized control', 'obj=', obj, obj.text)
     }
-	//send_to_server(evt, ok)
-	events.push(evt)
-}
-
-function process_waitfor(evt) {
-    "use strict";
-    // come here on a pause or waitfor
-	glowObjs[waitfor_canvas].unbind(waitfor_options, process_waitfor)
-	if (evt === null) evt = {} // event is null if pause rather than waitfor
-	evt.event = 'waitfor'
-	evt.canvas = waitfor_canvas
 	//send_to_server(evt, ok)
 	events.push(evt)
 }
@@ -742,9 +767,9 @@ function handle_methods(dmeth) {
 			waitfor_canvas = idx
 			waitfor_options = 'click'
 			if (val.length > 0) {
-			   obj.pause(val, process_waitfor) 
+			   obj.pause(val, process_pause) 
 			} else {
-			   obj.pause(process_waitfor) 
+			   obj.pause(process_pause) 
 			}
 		} else if (method === 'pick') {
 			var p = glowObjs[val].mouse.pick()   // wait for pick render; val is canvas

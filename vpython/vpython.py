@@ -412,10 +412,11 @@ class GlowWidget(object):
         print ("comm closed")
 
 def _wait(cvs): # wait for an event
-    cvs._waitfor = False
+    cvs._waitfor = None
     if _isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
-    while cvs._waitfor is False:
+    while cvs._waitfor is None:
         rate(30)
+    return cvs._waitfor
 
 class color(object):
     black = vector(0,0,0)
@@ -1357,7 +1358,6 @@ class attach_arrow(standardAttributes):
         self.obj = args['obj'] = obj.idx
         self.attr = args['attr'] = attr # could be for example "velocity"
         self.attrval = args['attrval'] = getattr(baseObj.object_registry[self.obj], attr)
-        print(self.attrval)
         args['_objName'] = "attach_arrow"
         self._last_val = None
         self._scale = 1
@@ -3009,8 +3009,8 @@ class canvas(baseObj):
         if ev == 'pick':
             self.mouse.setpick( evt )
             self._waitfor = True # what pick is looking for
-        elif ev == 'waitfor':
-            self._waitfor = True # what pause/waitfor is looking for
+        #elif ev == 'waitfor':
+        #    self._waitfor = True # what pause/waitfor is looking for
         elif ev == '_compound': # compound, text, extrusion
             obj = self._compound
             p = evt['pos']
@@ -3055,9 +3055,10 @@ class canvas(baseObj):
             canvas.hasmouse = self  
             if ev != 'update_canvas':   ## mouse events bound to functions, and pause/waitfor
                 evt['canvas'] = self
-                self.mouse._alt = evt['alt']
-                self.mouse._shift = evt['shift']
-                self.mouse._ctrl = evt['ctrl']
+                if ev[:3] != 'key':  # not a key event
+                    self.mouse._alt = evt['alt']
+                    self.mouse._shift = evt['shift']
+                    self.mouse._ctrl = evt['ctrl']
                 evt1 = event_return(evt)  ## turn it into an object
                 for fct in self._binds[ev]:
                     # inspect the bound function and see what it's expecting
@@ -3069,7 +3070,7 @@ class canvas(baseObj):
                         a = getargspec(fct)
                         if len(a.args) > 0: fct( evt1 ) 
                         else: fct()
-                self._waitfor = True # what pause and waitfor are looking for
+                self._waitfor = evt1 # what pause and waitfor are looking for
             else:  ## user can change forward with spin, range/autoscale with zoom, up with touch gesture
                 if 'forward' in evt and self.userspin and not self._set_forward:
                     fwd = evt['forward']
@@ -3114,6 +3115,7 @@ class canvas(baseObj):
         else:
             self.addmethod('waitfor', eventtype)
             _wait(self)
+            return self._waitfor
         
     def pause(self,*s):
         if len(s) > 0:
@@ -3122,6 +3124,7 @@ class canvas(baseObj):
         else:
             self.addmethod('pause', '')
         _wait(self)
+        return self._waitfor
 
     def _on_forward_change(self):
         self.addattr('forward')
@@ -3139,10 +3142,16 @@ class event_return(object):
     def __init__(self, args):
         self.canvas = args['canvas']
         self.event = args['event']
-        self.pos = args['pos']
-        self.press = args['press']
-        self.release = args['release']
-        self.which = args['which']  
+        self.which = args['which']
+        if self.event[:3] == 'key':
+            self.key = args['key']
+            self.shift = args['shift']
+            self.ctrl = args['ctrl']
+            self.alt = args['alt']
+        else:
+            self.pos = args['pos']
+            self.press = args['press']
+            self.release = args['release']  
              
 class local_light(standardAttributes):
     def __init__(self, **args):
