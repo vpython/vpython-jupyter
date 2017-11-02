@@ -87,7 +87,7 @@ GSversion = [__gs_version__, 'glowscript']
 # method:  {'m': str(idx)+methods[<methodname>]+<value(s) as above>}
 
 # attrs are X in {'a': '23X....'}
-__attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: -,
+__attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: comma, but maybe that would cause trouble
          'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h', 'textcolor':'i',
          'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 'dot_color':'m',
          'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 'resizable':'+', 
@@ -104,7 +104,8 @@ __attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use sing
          'ctrl':'~', 'shift':'!', 'alt':'@',
          
          # text attributes:
-         'text':'$', 'align':'%', 'caption':'^', 'title':'&', 'xtitle':'*', 'ytitle':'(',
+         'text':'$', 'align':'%', 'caption':'^', 
+         'title_align': '-', 'title':'&', 'xtitle':'*', 'ytitle':'(',
          
          # Miscellany:
          'lights':')', 'objects':'_', 'bind':'=',
@@ -130,7 +131,7 @@ __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_a
             'direction', 'linecolor', 'bumpaxis', 'dot_color', 'add_to_trail', 'textcolor',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
                 
-__textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected',
+__textattrs = ['text', 'align', 'caption', 'title_align', 'title', 'xtitle', 'ytitle', 'selected',
                  'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 def _encode_attr2(sendval, val, ismethods):
@@ -138,6 +139,8 @@ def _encode_attr2(sendval, val, ismethods):
     if sendval in __vecattrs: # it would be good to do some kind of compression of doubles
         s += "{:.16G},{:.16G},{:.16G}".format(val[0], val[1], val[2])
     elif sendval in __textattrs:
+        # '\n' doesn't survive JSON transmission, so we replace '\n' with '<br>' (and convert back in glowcomm)
+        val = val.replace('\n', '<br>')
         s += val
     elif sendval == 'rotate':
         for p in val:
@@ -2228,6 +2231,7 @@ class graph(baseObj):
         self._width = 640
         self._height = 400
         self._align = 'none'
+        self._title_align = 'left'
         self._foreground = vector(0,0,0)
         self._background = vector(1,1,1)
         self._title = ""
@@ -2246,7 +2250,7 @@ class graph(baseObj):
                 del args[a]
         
         ## override default scalar attributes
-        scalarAttributes = ['width', 'height', 'title', 'xtitle', 'ytitle','align',
+        scalarAttributes = ['width', 'height', 'title', 'title_align', 'xtitle', 'ytitle','align',
                             'xmin', 'xmax', 'ymin', 'ymax']
         for a in scalarAttributes:
             if a in args:
@@ -2291,6 +2295,15 @@ class graph(baseObj):
             raise NameError("align must be 'left', 'right', or 'none' (the default).")
         self._align = val
         self.addattr('align')
+
+    @property
+    def title_align(self): return self._title_align
+    @title_align.setter
+    def title_align(self,val):
+        if not (val == 'left' or val == 'right' or val == 'center'):
+            raise NameError("title_align must be 'left' (the default), 'right', or 'center'.")
+        self._align = val
+        self.addattr('title_align')
 
     @property
     def title(self): 

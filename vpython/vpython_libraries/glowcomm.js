@@ -267,7 +267,7 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
 }
 
 // attrs are X in {'a': '23X....'}
-var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: -, 
+var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: comma, but maybe that would cause trouble
          'e':'ambient', 'f':'axis', 'g':'size', 'h':'origin', 'i':'textcolor',
          'j':'direction', 'k':'linecolor', 'l':'bumpaxis', 'm':'dot_color',
          'n':'foreground', 'o':'background', 'p':'ray', 'E':'center', '#':'forward', '+':'resizable',
@@ -284,7 +284,8 @@ var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use s
          '~':'ctrl', '!':'shift', '@':'alt',
          
          // text attributes: 
-         '$':'text', '%':'align', '^':'caption', '&':'title', '*':'xtitle', '(':'ytitle',
+         '$':'text', '%':'align', '^':'caption',
+         '-':'title_align', '&':'title', '*':'xtitle', '(':'ytitle',
          
          // Miscellany:
          ')':'lights', '_':'objects', '=':'bind',
@@ -310,7 +311,7 @@ var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '
                 '_attach_arrow',
                 'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
                 
-var textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected',
+var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', 'ytitle', 'selected',
                  'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 // patt gets idx and attr code; vpatt gets x,y,z of a vector            
@@ -345,7 +346,8 @@ function decode(data) {
 				val = m[3].match(vpatt)
 				val = vec(Number(val[1]), Number(val[2]), Number(val[3]))
 			} else if (textattrs.indexOf(attr) > -1) {
-				val = m[3]
+                // '\n' doesn't survive JSON transmission, so in vpython.py we replace '\n' with '<br>'
+				val = m[3].replace(/<br>/g, "\n")
 			} else if (attr == 'rotate') { // angle,x,y,z,x,y,z
 				var temp = m[3]
 				val = []
@@ -538,7 +540,7 @@ function handle_cmds(dcmds) {
 			case 'quad':      {glowObjs[idx] = quad(cfg); break}
 			case 'label':     {glowObjs[idx] = label(cfg); break}
 			case 'ellipsoid': {glowObjs[idx] = sphere(cfg); break}
-			case 'graph':     { // currently graph give an error for non-fundamental arguments
+			case 'graph':     { // currently graph gives an error for non-fundamental arguments
 				delete cfg.idx
 				glowObjs[idx] = vp_graph(cfg)
 				break
