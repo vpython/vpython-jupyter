@@ -1,9 +1,13 @@
 from __future__ import division
 #from vpython import vec, mag, norm
 from math import sqrt, sin, cos, tan, asin, acos, atan, floor, pi
+import platform
 try:
-    from .cyvector import vector, mag, norm
-    v = vector(0.,0.,0.)
+    if platform.python_implementation() == 'PyPy':
+        from .vector import vector, mag, norm      # use pure python vector for PyPy
+    else:
+        from .cyvector import vector, mag, norm
+        v = vector(0.,0.,0.)
 except:
     from .vector import vector, mag, norm
 vec = vector

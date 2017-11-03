@@ -3,9 +3,13 @@ from __future__ import print_function, division, absolute_import
 # Cythonize the encode machinery?
 import colorsys
 from .rate_control import *
+import platform
 try:
-    from .cyvector import *
-    v = vector(0,0,0)
+    if platform.python_implementation() == 'PyPy':
+        from .vector import *    # use pure python vector for PyPy
+    else:
+        from .cyvector import *
+        v = vector(0,0,0)
 except:
     from .vector import *
 from .shapespaths import *
@@ -52,7 +56,6 @@ if _isnotebook:
     from jupyter_core.paths import jupyter_data_dir
     from . import __version__, __gs_version__
 
-import platform
 __p = platform.python_version()
 _ispython3 = (__p[0] == '3')
 
