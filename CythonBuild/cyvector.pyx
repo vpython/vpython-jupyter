@@ -73,26 +73,30 @@ cdef class vector(object):
 
     def __add__(self,other):
         return vector(self.x + other.x, self.y + other.y, self.z + other.z)
+    
+    def __truediv__(self, other): # used by Python 3, and by Python 2 in the presence of __future__ division
+        try:
+            return vector(self._x / other, self._y / other, self._z / other)
+        except:
+            raise TypeError('a vector can only be divided by a scalar', self, other)
 
-    def __truediv__(self, other): # Python 3, or Python 2 + future division
-        if isinstance(other, (int, float)):
-            return vector(self.x / other, self.y / other, self.z / other)
-        raise TypeError('a vector can only be divided by a scalar')
-
-    def __div__(self, other): # Python 2 without future division
-        if isinstance(other, (int, float)):
-            return vector(self.x / other, self.y / other, self.z / other)
-        raise TypeError('a vector can only be divided by a scalar')
+    def __div__(self, other): # used by Python 2 in the absence of __future__ division
+        try:
+            return vector(self._x / other, self._y / other, self._z / other)
+        except:
+            raise TypeError('a vector can only be divided by a scalar', self, other)
 
     def __sub__(self,other):
         return vector(self.x - other.x, self.y - other.y, self.z - other.z)
     
     def __mul__(self, other):  ## in cython order of arguments is arbitrary, rmul doesn't exist
-        if isinstance(other, (int, float)):
+        try:
             return vector(self.x * other, self.y * other, self. z * other)
-        elif isinstance(self, (int, float)):
+        except:
+            pass
+        try:
             return vector(self * other.x, self * other.y, self * other.z)
-        else:
+        except:
             raise TypeError('a vector can only be multiplied by a scalar', self, other)
         
     property mag:
