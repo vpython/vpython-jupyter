@@ -127,14 +127,10 @@ class WSserver(WebSocketServerProtocol):
         if data != b'trigger': # b'trigger' just asks for updates
             d = json.loads(data.decode("utf_8")) # update_canvas info
             for m in d:
-                # Must sent events one at a time to GW.handle_msg because bound events need the loop code:
-                msg = {'content':{'data':[m]}} # message format used by notebook=
-                if 'bind' in m: # will execute a function that may contain waitfor etc. statements
-                    loop = asyncio.get_event_loop()
-                    #yield from loop.run_in_executor(None, GW.handle_msg, msg)
-                    await loop.run_in_executor(None, GW.handle_msg, msg)
-                else:
-                    GW.handle_msg(msg)
+                # Must send events one at a time to GW.handle_msg because bound events need the loop code:
+                msg = {'content':{'data':[m]}} # message format used by notebook
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, GW.handle_msg, msg)
 
     def onClose(self, wasClean, code, reason):
         #print("Server WebSocket connection closed: {0}".format(reason))

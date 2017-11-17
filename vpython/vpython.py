@@ -3019,14 +3019,12 @@ class canvas(baseObj):
         except:
             raise TypeError(obj + ' is not an object belonging to a canvas')
             
-## key events conflict with notebook command mode; not permitted for now   
+## key events conflict with notebook command mode; not permitted for now
     def handle_event(self, evt):  ## events and scene info updates
         ev = evt['event']
         if ev == 'pick':
             self.mouse.setpick( evt )
             self._waitfor = True # what pick is looking for
-        #elif ev == 'waitfor':
-        #    self._waitfor = True # what pause/waitfor is looking for
         elif ev == '_compound': # compound, text, extrusion
             obj = self._compound
             p = evt['pos']
@@ -3042,7 +3040,7 @@ class canvas(baseObj):
                 obj._size.value = list_to_vec(s)
                 obj._axis.value = obj._size._x*norm(obj._axis)
                 obj._up.value = list_to_vec(evt['up'])
-            self._waitfor = True # what compound and text and extrusion are looking for
+            self._waitfor = True # what compound and text and extrusion are looking for in _wait()
         elif ev == 'resize':
             if self.resizable and ('resize' in self._binds):
                 self.width = evt['width']
@@ -3059,7 +3057,7 @@ class canvas(baseObj):
                         a = getargspec(fct)
                         if len(a.args) > 0: fct( evt ) 
                         else: fct()
-        else:
+        else: # pause/waitfor, update_canvas
             if 'pos' in evt:
                 pos = evt['pos']
                 evt['pos'] = list_to_vec(pos)
