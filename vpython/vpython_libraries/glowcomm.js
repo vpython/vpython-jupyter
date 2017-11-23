@@ -1,9 +1,17 @@
 define(["nbextensions/vpython_libraries/jquery-ui.custom.min",
         "nbextensions/vpython_libraries/glow.min"], function() {
 
-comm = IPython.notebook.kernel.comm_manager.new_comm('glow')
-comm.on_msg(onmessage)
-console.log("comm created for glow target", comm)
+var comm
+
+IPython.notebook.kernel.comm_manager.register_target('glow',
+    function(commChannel, msg) {
+        // commChannel is the frontend comm instance
+        // msg is the comm_open message, which can carry data
+        comm = commChannel
+        // Register handlers for later messages:
+        comm.on_msg(onmessage);
+        comm.on_close(function(msg) {console.log("glow comm channel closed")});
+    });
 
 //var datadir = '../vpython_data/'
 var datadir = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/'
@@ -48,7 +56,7 @@ function send() { // periodically send events and update_canvas and request obje
 	var update = update_canvas()
 	if (update !== null) events = events.concat(update)
 	if (events.length === 0) events = [{event:'update_canvas', 'trigger':1}]
-	comm.send( events )
+	if (comm) comm.send( events )
 	events = []
 }
 

@@ -47,8 +47,10 @@ if _isnotebook:
     if IPython.__version__ >= '4.0.0' :
         import ipykernel
         import notebook
+        from ipykernel.comm import Comm
     else:
         import IPython.html.nbextensions
+        from IPython.kernel.comm.comm import Comm
     from IPython.display import HTML
     from IPython.display import display
     from IPython.display import Javascript
@@ -372,13 +374,14 @@ class baseObj(object):
 # and sent as a block to the browser at render times.
 
 class GlowWidget(object):    
-    def __init__(self, comm, msg): # msg is passed but not used in notebook case
+    def __init__(self): 
         global sender
         baseObj.glow = self
         if _isnotebook:
-            comm.on_msg(self.handle_msg)
-            comm.on_close(self.handle_close)
-            sender = comm.send
+            self.comm = Comm(target_name='glow')
+            self.comm.on_close(self.handle_close)
+            self.comm.on_msg(self.handle_msg)
+            sender = self.comm.send
             self.show = True
 
     ## baseObj.object_registry = {}

@@ -50,10 +50,6 @@ if transfer:
     fd.write(__version__)    
     fd.close()
 
-if IPython.__version__ >= '3.0.0' :
-    get_ipython().kernel.comm_manager.register_target('glow', GlowWidget)
-else:
-    get_ipython().comm_manager.register_target('glow', GlowWidget) 
 
 display(Javascript("""require.undef("nbextensions/vpython_libraries/glow.min");"""))
 display(Javascript("""require.undef("nbextensions/vpython_libraries/glowcomm");"""))
@@ -62,11 +58,10 @@ display(Javascript("""require.undef("nbextensions/vpython_libraries/jquery-ui.cu
 display(Javascript("""require(["nbextensions/vpython_libraries/glow.min"], function(){console.log("GLOW LOADED");})"""))
 display(Javascript("""require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");})"""))
 display(Javascript("""require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
-            
-get_ipython().kernel.do_one_iteration()
+           
+time.sleep(1)      # allow some time for javascript code above to run before attempting to setup Comm Channel
 
-while baseObj.glow is None: # try to make sure setup is complete
-    rate(60)
+baseObj.glow = GlowWidget()     # Setup Comm Channel
 
 scene = canvas()
 
