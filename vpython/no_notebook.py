@@ -158,7 +158,7 @@ __t.start()
 while not (httpserving and websocketserving): # try to make sure setup is complete
     rate(60)
 
-GW = GlowWidget(None, None)
+GW = GlowWidget()
 
 scene = canvas()
 
