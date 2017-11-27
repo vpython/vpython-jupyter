@@ -645,7 +645,7 @@ class standardAttributes(baseObj):
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
                 
-        vectorInteractions = {'size':'axis', 'axis':'size', 'axis':'up', 'up':'axis'}
+        vectorInteractions = [ ('size','axis'), ('axis','size'), ('axis','up'), ('up','axis')]
                 
     # override defaults for vector attributes with side effects
     # For consistency with GlowScript, axis is listed before up in the attrLists,
@@ -658,8 +658,10 @@ class standardAttributes(baseObj):
                     setattr(self, a, vector(val))   ## use setter to take care of side effects; copy of val
                     if a not in argsToSend:
                         argsToSend.append(a)
-                    if vectorInteractions[a] not in argsToSend:
-                        argsToSend.append(vectorInteractions[a])  
+                    for vi in vectorInteractions:
+                        if vi[0] == a:
+                            if vi[1] not in argsToSend:
+                                argsToSend.append(vi[1])
                 elif objName == 'points' and a == 'size':  ## in this case size is a scalar
                     argsToSend.append(a)
                 else: raise AttributeError(a+' must be a vector')
