@@ -486,40 +486,40 @@ class bumpmaps(object):
 class standardAttributes(baseObj):
 # vector-no-interactions, vector-interactions, scalar-no-interactions, scalar-interactions
 
-    attrLists = {'box':[['pos', 'up', 'color', 'trail_color'], 
-                        ['axis', 'size'],
+    attrLists = {'box':[['pos', 'color', 'trail_color'], 
+                        ['axis', 'size', 'up'],
                         ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
                         ['red', 'green', 'blue','length', 'width', 'height']],
-                 'sphere':[['pos', 'up', 'color', 'trail_color'], 
-                        ['axis', 'size'],
+                 'sphere':[['pos', 'color', 'trail_color'], 
+                        ['axis', 'size', 'up'],
                         ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
                         ['red', 'green', 'blue','length', 'width', 'height', 'radius']],                        
-                 'arrow':[['pos', 'up', 'color', 'trail_color'],
-                         ['axis', 'size'],
+                 'arrow':[['pos', 'color', 'trail_color'],
+                         ['axis', 'size', 'up'],
                          ['visible', 'opacity',
                           'shininess', 'emissive', 'texture', 'frame', 'material',
                           'make_trail', 'trail_type', 'interval', 
                           'retain', 'trail_color', 'trail_radius', 'texture',
                           'shaftwidth', 'headwidth', 'headlength', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
-                 'ring':[['pos', 'up', 'color', 'trail_color', 'axis', 'size'],  
-                        [],
+                 'ring':[['pos', 'color', 'trail_color', 'size'],  
+                        ['axis', 'up'],
                         ['visible', 'opacity','shininess', 'emissive', 
                          'make_trail', 'trail_type', 'interval', 
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
                         ['red', 'green', 'blue','length', 'width', 'height', 'thickness']],                       
-                 'helix':[['pos', 'up', 'color', 'trail_color'],
-                         ['axis', 'size'],
+                 'helix':[['pos', 'color', 'trail_color'],
+                         ['axis', 'size', 'up'],
                          ['visible', 'opacity','shininess', 'emissive', 
                          'make_trail', 'trail_type', 'interval', 
                          'retain', 'trail_color', 'trail_radius', 'coils', 'thickness', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
-                 'curve':[['origin', 'up', 'color'],  
-                         ['axis', 'size'],
+                 'curve':[['origin', 'color'],  
+                         ['axis', 'size', 'up'],
                          ['visible', 'shininess', 'emissive', 'radius', 'retain', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
                  'points':[['color'],  
@@ -539,8 +539,8 @@ class standardAttributes(baseObj):
                          [],
                          ['visible'],
                          []],
-                 'compound':[['pos', 'up', 'color', 'trail_color'], 
-                         ['axis', 'size'],
+                 'compound':[['pos', 'color', 'trail_color'], 
+                         ['axis', 'size', 'up'],
                          ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 'texture', 
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs', 'pickable'],
@@ -569,8 +569,8 @@ class standardAttributes(baseObj):
                          [],
                          ['location', 'text'],
                          []],
-                 'extrusion':[ ['pos', 'up', 'color', 'start_face_color', 'end_face_color'],
-                        [ 'axis', 'size' ],
+                 'extrusion':[ ['pos', 'color', 'start_face_color', 'end_face_color'],
+                        [ 'axis', 'size', 'up' ],
                         ['path', 'shape', 'visible', 'opacity','shininess', 'emissive',  
                          'show_start_face', 'show_end_face',
                          'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
@@ -641,13 +641,15 @@ class standardAttributes(baseObj):
             if a in args:
                 argsToSend.append(a)
                 val = args[a]
-                if isinstance(val, vector): setattr(self, '_'+a, vector(val))  ## by-passing setters; copy of val
+                if isinstance(val, vector): setattr(self, '_'+a, vector(val))  ## '_' bypasses setters; copy of val
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
                 
-        vectorInteractions = {'size':'axis', 'axis':'size'}
+        vectorInteractions = {'size':'axis', 'axis':'size', 'axis':'up', 'up':'axis'}
                 
     # override defaults for vector attributes with side effects
+    # For consistency with GlowScript, axis is listed before up in the attrLists,
+    # so that setting axis may affect up, but then setting up can affect axis afterwards.
         attrs = standardAttributes.attrLists[objName][1]
         for a in attrs:
             if a in args:
@@ -758,7 +760,7 @@ class standardAttributes(baseObj):
             # Restore saved oldaxis now that newaxis is nonzero
             oldaxis = self._oldaxis
             self._oldaxis = None
-        if newaxis.dot(self._up) == 0: return # axis and up already orthogonal
+        if newaxis.dot(self._up) == 0: return self._up # axis and up already orthogonal
         angle = oldaxis.diff_angle(newaxis)
         if angle > 1e-6: # smaller angles lead to catastrophes
             # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
@@ -767,7 +769,9 @@ class standardAttributes(baseObj):
             else:
                 rotaxis = cross(oldaxis,newaxis)
                 newup = self._up.rotate(angle=angle, axis=rotaxis)
-            self._up = newup
+            return newup
+        else:
+            return self._up
 
     def adjust_axis(self, oldup, newup): # adjust axis when up is changed
         if abs(newup.x) + abs(newup.y) + abs(newup.z):
@@ -778,16 +782,18 @@ class standardAttributes(baseObj):
             # Restore saved oldup now that newup is nonzero
             oldup = self._oldup
             self._oldup = None
-        if newup.dot(self._axis) == 0: return # axis and up already orthogonal
+        if newup.dot(self._axis) == 0: return self._axis # axis and up already orthogonal
         angle = oldup.diff_angle(newup)
         if angle > 1e-6: # smaller angles lead to catastrophes
             # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
             if abs(angle-pi) < 1e-6:
-                newxis = -self._axis
+                newaxis = -self._axis
             else:
                 rotaxis = cross(oldup,newup)
                 newaxis = self._axis.rotate(angle=angle, axis=rotaxis)
-            self._axis = newaxis
+            return newaxis
+        else:
+            return self._axis
 
     @property
     def pos(self):
@@ -807,13 +813,13 @@ class standardAttributes(baseObj):
     @up.setter
     def up(self,value):
         oldup = vec(self.up)
-        a = self.axis
+        oldaxis = vec(self.axis)
         self._up.value = value
-        self.adjust_axis(norm(oldup), self.up)
+        self._axis = self.adjust_axis(norm(oldup), self.up)
         if not self._constructing:
             # must update both axis and up when either is changed
-            if not self.axis.equals(a): self.addattr('axis')
-            if not self.up.equals(value): self.addattr('up')
+            if not self.axis.equals(oldaxis): self.addattr('axis')
+            if not self.up.equals(oldup): self.addattr('up')
             
     @property
     def size(self):
@@ -838,13 +844,13 @@ class standardAttributes(baseObj):
     @axis.setter
     def axis(self,value):
         oldaxis = vec(self.axis)
-        u = self.up
+        oldup = vec(self.up)
         self._axis.value = value
-        self.adjust_up(norm(oldaxis), self.axis)
+        self._up = self.adjust_up(norm(oldaxis), self.axis)
         if not self._constructing:
             # must update both axis and up when either is changed
             if not self.axis.equals(oldaxis): self.addattr('axis')
-            if not self.up.equals(u): self.addattr('up')
+            if not self.up.equals(oldup): self.addattr('up')
         m = value.mag
         if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
             self._size._x = m
