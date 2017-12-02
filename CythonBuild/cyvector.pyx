@@ -243,3 +243,52 @@ cpdef vector rotate(A, angle = 0., axis = None):
         ax = axis
     ang = angle
     return A.rotate(ang, ax)
+        
+cpdef adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is changed
+    if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:
+        # If axis has changed to <0,0,0>, must save the old axis to restore later
+        if save_oldaxis is None: save_oldaxis = oldaxis
+        return [up, save_oldaxis]
+    if save_oldaxis is not None:
+        # Restore saved oldaxis now that newaxis is nonzero
+        oldaxis = save_oldaxis
+        save_oldaxis = None
+    if newaxis.dot(up) == 0: return [up, save_oldaxis] # axis and up already orthogonal
+    cdef double angle = oldaxis.diff_angle(newaxis)
+    cdef vector newup
+    cdef vector rotaxis
+    if angle > 1e-6: # smaller angles lead to catastrophes
+        # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
+        if abs(angle-pi) < 1e-6:
+            newup = -up
+        else:
+            rotaxis = cross(oldaxis,newaxis)
+            newup = up.rotate(angle=angle, axis=rotaxis)
+        return [newup, save_oldaxis]
+    else:
+        return [up, save_oldaxis]
+
+cpdef adjust_axis(oldup, newup, axis, save_oldup): # adjust axis when up is changed
+    if abs(newup.x) + abs(newup.y) + abs(newup.z) == 0:
+        # If up will be set to <0,0,0>, must save the old up to restore later
+        if save_oldup is None: save_oldup = oldup
+        return [axis, save_oldup]
+    if save_oldup is not None:
+        # Restore saved oldup now that newup is nonzero
+        oldup = save_oldup
+        save_oldup = None
+    if newup.dot(axis) == 0: return [axis, save_oldup] # axis and up already orthogonal
+    cdef double angle = oldup.diff_angle(newup)
+    cdef vector newaxis
+    cdef vector rotaxis
+    if angle > 1e-6: # smaller angles lead to catastrophes
+        # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
+        if abs(angle-pi) < 1e-6:
+            newaxis = -axis
+        else:
+            rotaxis = cross(oldup,newup)
+            newaxis = axis.rotate(angle=angle, axis=rotaxis)
+        return [newaxis, save_oldup]
+    else:
+        return [axis, save_oldup]
+

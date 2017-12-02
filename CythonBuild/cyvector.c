@@ -942,6 +942,14 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject **argnames[],\
     PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args,\
     const char* function_name);
 
+/* PyIntBinop.proto */
+#if !CYTHON_COMPILING_IN_PYPY
+static PyObject* __Pyx_PyInt_EqObjC(PyObject *op1, PyObject *op2, long intval, int inplace);
+#else
+#define __Pyx_PyInt_EqObjC(op1, op2, intval, inplace)\
+    PyObject_RichCompare(op1, op2, Py_EQ)
+    #endif
+
 /* SetVTable.proto */
 static int __Pyx_SetVtable(PyObject *dict, void *vtable);
 
@@ -1011,6 +1019,8 @@ static struct __pyx_obj_8cyvector_vector *__pyx_f_8cyvector_proj(PyObject *, PyO
 static double __pyx_f_8cyvector_comp(PyObject *, PyObject *, int __pyx_skip_dispatch); /*proto*/
 static double __pyx_f_8cyvector_diff_angle(PyObject *, PyObject *, int __pyx_skip_dispatch); /*proto*/
 static struct __pyx_obj_8cyvector_vector *__pyx_f_8cyvector_rotate(PyObject *, int __pyx_skip_dispatch, struct __pyx_opt_args_8cyvector_rotate *__pyx_optional_args); /*proto*/
+static PyObject *__pyx_f_8cyvector_adjust_up(PyObject *, PyObject *, PyObject *, PyObject *, int __pyx_skip_dispatch); /*proto*/
+static PyObject *__pyx_f_8cyvector_adjust_axis(PyObject *, PyObject *, PyObject *, PyObject *, int __pyx_skip_dispatch); /*proto*/
 #define __Pyx_MODULE_NAME "cyvector"
 int __pyx_module_is_main_cyvector = 0;
 
@@ -1022,6 +1032,7 @@ static const char __pyx_k_B[] = "B";
 static const char __pyx_k_x[] = "x";
 static const char __pyx_k_y[] = "y";
 static const char __pyx_k_z[] = "z";
+static const char __pyx_k_up[] = "up";
 static const char __pyx_k_dot[] = "dot";
 static const char __pyx_k_hat[] = "hat";
 static const char __pyx_k_mag[] = "mag";
@@ -1038,24 +1049,30 @@ static const char __pyx_k_test[] = "__test__";
 static const char __pyx_k_angle[] = "angle";
 static const char __pyx_k_cross[] = "cross";
 static const char __pyx_k_f_f_f[] = "<%f, %f, %f>";
+static const char __pyx_k_newup[] = "newup";
+static const char __pyx_k_oldup[] = "oldup";
 static const char __pyx_k_equals[] = "equals";
 static const char __pyx_k_ignore[] = "ignore";
 static const char __pyx_k_import[] = "__import__";
 static const char __pyx_k_random[] = "random";
 static const char __pyx_k_rotate[] = "rotate";
+static const char __pyx_k_newaxis[] = "newaxis";
+static const char __pyx_k_oldaxis[] = "oldaxis";
 static const char __pyx_k_cyvector[] = "cyvector";
 static const char __pyx_k_TypeError[] = "TypeError";
 static const char __pyx_k_diff_angle[] = "diff_angle";
 static const char __pyx_k_pyx_vtable[] = "__pyx_vtable__";
+static const char __pyx_k_save_oldup[] = "save_oldup";
+static const char __pyx_k_save_oldaxis[] = "save_oldaxis";
 static const char __pyx_k_staticmethod[] = "staticmethod";
 static const char __pyx_k_A_vector_needs_3_components[] = "A vector needs 3 components.";
 static const char __pyx_k_a_vector_can_only_be_divided_by[] = "a vector can only be divided by a scalar";
 static const char __pyx_k_a_vector_can_only_be_multiplied[] = "a vector can only be multiplied by a scalar";
-static const char __pyx_k_D_0C_workspace_vpython_jupyter_C[] = "D:\\0C\\workspace\\vpython-jupyter\\CythonBuild\\cyvector.pyx";
+static const char __pyx_k_D_0C_workspace_vpython_jupyter_v[] = "D:\\0C\\workspace\\vpython-jupyter\\vpython-jupyter\\CythonBuild\\cyvector.pyx";
 static PyObject *__pyx_n_s_A;
 static PyObject *__pyx_kp_s_A_vector_needs_3_components;
 static PyObject *__pyx_n_s_B;
-static PyObject *__pyx_kp_s_D_0C_workspace_vpython_jupyter_C;
+static PyObject *__pyx_kp_s_D_0C_workspace_vpython_jupyter_v;
 static PyObject *__pyx_n_s_TypeError;
 static PyObject *__pyx_kp_s_a_vector_can_only_be_divided_by;
 static PyObject *__pyx_kp_s_a_vector_can_only_be_multiplied;
@@ -1074,13 +1091,20 @@ static PyObject *__pyx_n_s_import;
 static PyObject *__pyx_n_s_mag;
 static PyObject *__pyx_n_s_mag2;
 static PyObject *__pyx_n_s_main;
+static PyObject *__pyx_n_s_newaxis;
+static PyObject *__pyx_n_s_newup;
 static PyObject *__pyx_n_s_norm;
+static PyObject *__pyx_n_s_oldaxis;
+static PyObject *__pyx_n_s_oldup;
 static PyObject *__pyx_n_s_proj;
 static PyObject *__pyx_n_s_pyx_vtable;
 static PyObject *__pyx_n_s_random;
 static PyObject *__pyx_n_s_rotate;
+static PyObject *__pyx_n_s_save_oldaxis;
+static PyObject *__pyx_n_s_save_oldup;
 static PyObject *__pyx_n_s_staticmethod;
 static PyObject *__pyx_n_s_test;
+static PyObject *__pyx_n_s_up;
 static PyObject *__pyx_n_s_x;
 static PyObject *__pyx_n_s_x_2;
 static PyObject *__pyx_n_s_y;
@@ -1142,6 +1166,8 @@ static PyObject *__pyx_pf_8cyvector_12proj(CYTHON_UNUSED PyObject *__pyx_self, P
 static PyObject *__pyx_pf_8cyvector_14comp(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_A, PyObject *__pyx_v_B); /* proto */
 static PyObject *__pyx_pf_8cyvector_16diff_angle(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_A, PyObject *__pyx_v_B); /* proto */
 static PyObject *__pyx_pf_8cyvector_18rotate(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_A, PyObject *__pyx_v_angle, PyObject *__pyx_v_axis); /* proto */
+static PyObject *__pyx_pf_8cyvector_20adjust_up(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_oldaxis, PyObject *__pyx_v_newaxis, PyObject *__pyx_v_up, PyObject *__pyx_v_save_oldaxis); /* proto */
+static PyObject *__pyx_pf_8cyvector_22adjust_axis(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_oldup, PyObject *__pyx_v_newup, PyObject *__pyx_v_axis, PyObject *__pyx_v_save_oldup); /* proto */
 static PyObject *__pyx_tp_new_8cyvector_vector(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 static PyObject *__pyx_float_0_;
 static PyObject *__pyx_float_neg_1_;
@@ -7652,6 +7678,7 @@ static struct __pyx_obj_8cyvector_vector *__pyx_f_8cyvector_rotate(PyObject *__p
  *         ax = axis
  *     ang = angle             # <<<<<<<<<<<<<<
  *     return A.rotate(ang, ax)
+ * 
  */
   __pyx_t_4 = __pyx_PyFloat_AsDouble(__pyx_v_angle); if (unlikely((__pyx_t_4 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 244, __pyx_L1_error)
   __pyx_v_ang = __pyx_t_4;
@@ -7660,6 +7687,8 @@ static struct __pyx_obj_8cyvector_vector *__pyx_f_8cyvector_rotate(PyObject *__p
  *         ax = axis
  *     ang = angle
  *     return A.rotate(ang, ax)             # <<<<<<<<<<<<<<
+ * 
+ * cpdef adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is changed
  */
   __Pyx_XDECREF(((PyObject *)__pyx_r));
   __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_A, __pyx_n_s_rotate); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 245, __pyx_L1_error)
@@ -7833,6 +7862,1069 @@ static PyObject *__pyx_pf_8cyvector_18rotate(CYTHON_UNUSED PyObject *__pyx_self,
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_AddTraceback("cyvector.rotate", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "cyvector.pyx":247
+ *     return A.rotate(ang, ax)
+ * 
+ * cpdef adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is changed             # <<<<<<<<<<<<<<
+ *     if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:
+ *         # If axis has changed to <0,0,0>, must save the old axis to restore later
+ */
+
+static PyObject *__pyx_pw_8cyvector_21adjust_up(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_f_8cyvector_adjust_up(PyObject *__pyx_v_oldaxis, PyObject *__pyx_v_newaxis, PyObject *__pyx_v_up, PyObject *__pyx_v_save_oldaxis, CYTHON_UNUSED int __pyx_skip_dispatch) {
+  double __pyx_v_angle;
+  struct __pyx_obj_8cyvector_vector *__pyx_v_newup = 0;
+  struct __pyx_obj_8cyvector_vector *__pyx_v_rotaxis = 0;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  PyObject *__pyx_t_2 = NULL;
+  PyObject *__pyx_t_3 = NULL;
+  int __pyx_t_4;
+  int __pyx_t_5;
+  PyObject *__pyx_t_6 = NULL;
+  double __pyx_t_7;
+  __Pyx_RefNannySetupContext("adjust_up", 0);
+  __Pyx_INCREF(__pyx_v_oldaxis);
+  __Pyx_INCREF(__pyx_v_save_oldaxis);
+
+  /* "cyvector.pyx":248
+ * 
+ * cpdef adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is changed
+ *     if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:             # <<<<<<<<<<<<<<
+ *         # If axis has changed to <0,0,0>, must save the old axis to restore later
+ *         if save_oldaxis is None: save_oldaxis = oldaxis
+ */
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_newaxis, __pyx_n_s_x); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 248, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_2 = PyNumber_Absolute(__pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 248, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_newaxis, __pyx_n_s_y); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 248, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_3 = PyNumber_Absolute(__pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 248, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_1 = PyNumber_Add(__pyx_t_2, __pyx_t_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 248, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_newaxis, __pyx_n_s_z); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 248, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_2 = PyNumber_Absolute(__pyx_t_3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 248, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = PyNumber_Add(__pyx_t_1, __pyx_t_2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 248, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_2 = __Pyx_PyInt_EqObjC(__pyx_t_3, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 248, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 248, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  if (__pyx_t_4) {
+
+    /* "cyvector.pyx":250
+ *     if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:
+ *         # If axis has changed to <0,0,0>, must save the old axis to restore later
+ *         if save_oldaxis is None: save_oldaxis = oldaxis             # <<<<<<<<<<<<<<
+ *         return [up, save_oldaxis]
+ *     if save_oldaxis is not None:
+ */
+    __pyx_t_4 = (__pyx_v_save_oldaxis == Py_None);
+    __pyx_t_5 = (__pyx_t_4 != 0);
+    if (__pyx_t_5) {
+      __Pyx_INCREF(__pyx_v_oldaxis);
+      __Pyx_DECREF_SET(__pyx_v_save_oldaxis, __pyx_v_oldaxis);
+    }
+
+    /* "cyvector.pyx":251
+ *         # If axis has changed to <0,0,0>, must save the old axis to restore later
+ *         if save_oldaxis is None: save_oldaxis = oldaxis
+ *         return [up, save_oldaxis]             # <<<<<<<<<<<<<<
+ *     if save_oldaxis is not None:
+ *         # Restore saved oldaxis now that newaxis is nonzero
+ */
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_2 = PyList_New(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 251, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_2);
+    __Pyx_INCREF(__pyx_v_up);
+    __Pyx_GIVEREF(__pyx_v_up);
+    PyList_SET_ITEM(__pyx_t_2, 0, __pyx_v_up);
+    __Pyx_INCREF(__pyx_v_save_oldaxis);
+    __Pyx_GIVEREF(__pyx_v_save_oldaxis);
+    PyList_SET_ITEM(__pyx_t_2, 1, __pyx_v_save_oldaxis);
+    __pyx_r = __pyx_t_2;
+    __pyx_t_2 = 0;
+    goto __pyx_L0;
+
+    /* "cyvector.pyx":248
+ * 
+ * cpdef adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is changed
+ *     if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:             # <<<<<<<<<<<<<<
+ *         # If axis has changed to <0,0,0>, must save the old axis to restore later
+ *         if save_oldaxis is None: save_oldaxis = oldaxis
+ */
+  }
+
+  /* "cyvector.pyx":252
+ *         if save_oldaxis is None: save_oldaxis = oldaxis
+ *         return [up, save_oldaxis]
+ *     if save_oldaxis is not None:             # <<<<<<<<<<<<<<
+ *         # Restore saved oldaxis now that newaxis is nonzero
+ *         oldaxis = save_oldaxis
+ */
+  __pyx_t_5 = (__pyx_v_save_oldaxis != Py_None);
+  __pyx_t_4 = (__pyx_t_5 != 0);
+  if (__pyx_t_4) {
+
+    /* "cyvector.pyx":254
+ *     if save_oldaxis is not None:
+ *         # Restore saved oldaxis now that newaxis is nonzero
+ *         oldaxis = save_oldaxis             # <<<<<<<<<<<<<<
+ *         save_oldaxis = None
+ *     if newaxis.dot(up) == 0: return [up, save_oldaxis] # axis and up already orthogonal
+ */
+    __Pyx_INCREF(__pyx_v_save_oldaxis);
+    __Pyx_DECREF_SET(__pyx_v_oldaxis, __pyx_v_save_oldaxis);
+
+    /* "cyvector.pyx":255
+ *         # Restore saved oldaxis now that newaxis is nonzero
+ *         oldaxis = save_oldaxis
+ *         save_oldaxis = None             # <<<<<<<<<<<<<<
+ *     if newaxis.dot(up) == 0: return [up, save_oldaxis] # axis and up already orthogonal
+ *     cdef double angle = oldaxis.diff_angle(newaxis)
+ */
+    __Pyx_INCREF(Py_None);
+    __Pyx_DECREF_SET(__pyx_v_save_oldaxis, Py_None);
+
+    /* "cyvector.pyx":252
+ *         if save_oldaxis is None: save_oldaxis = oldaxis
+ *         return [up, save_oldaxis]
+ *     if save_oldaxis is not None:             # <<<<<<<<<<<<<<
+ *         # Restore saved oldaxis now that newaxis is nonzero
+ *         oldaxis = save_oldaxis
+ */
+  }
+
+  /* "cyvector.pyx":256
+ *         oldaxis = save_oldaxis
+ *         save_oldaxis = None
+ *     if newaxis.dot(up) == 0: return [up, save_oldaxis] # axis and up already orthogonal             # <<<<<<<<<<<<<<
+ *     cdef double angle = oldaxis.diff_angle(newaxis)
+ *     cdef vector newup
+ */
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_newaxis, __pyx_n_s_dot); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 256, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_1 = NULL;
+  if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_3))) {
+    __pyx_t_1 = PyMethod_GET_SELF(__pyx_t_3);
+    if (likely(__pyx_t_1)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_3);
+      __Pyx_INCREF(__pyx_t_1);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_3, function);
+    }
+  }
+  if (!__pyx_t_1) {
+    __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_v_up); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 256, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_2);
+  } else {
+    #if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(__pyx_t_3)) {
+      PyObject *__pyx_temp[2] = {__pyx_t_1, __pyx_v_up};
+      __pyx_t_2 = __Pyx_PyFunction_FastCall(__pyx_t_3, __pyx_temp+1-1, 1+1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 256, __pyx_L1_error)
+      __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
+      __Pyx_GOTREF(__pyx_t_2);
+    } else
+    #endif
+    #if CYTHON_FAST_PYCCALL
+    if (__Pyx_PyFastCFunction_Check(__pyx_t_3)) {
+      PyObject *__pyx_temp[2] = {__pyx_t_1, __pyx_v_up};
+      __pyx_t_2 = __Pyx_PyCFunction_FastCall(__pyx_t_3, __pyx_temp+1-1, 1+1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 256, __pyx_L1_error)
+      __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
+      __Pyx_GOTREF(__pyx_t_2);
+    } else
+    #endif
+    {
+      __pyx_t_6 = PyTuple_New(1+1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 256, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_GIVEREF(__pyx_t_1); PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_1); __pyx_t_1 = NULL;
+      __Pyx_INCREF(__pyx_v_up);
+      __Pyx_GIVEREF(__pyx_v_up);
+      PyTuple_SET_ITEM(__pyx_t_6, 0+1, __pyx_v_up);
+      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_6, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 256, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_2);
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+    }
+  }
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = __Pyx_PyInt_EqObjC(__pyx_t_2, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 256, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 256, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  if (__pyx_t_4) {
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_3 = PyList_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 256, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_3);
+    __Pyx_INCREF(__pyx_v_up);
+    __Pyx_GIVEREF(__pyx_v_up);
+    PyList_SET_ITEM(__pyx_t_3, 0, __pyx_v_up);
+    __Pyx_INCREF(__pyx_v_save_oldaxis);
+    __Pyx_GIVEREF(__pyx_v_save_oldaxis);
+    PyList_SET_ITEM(__pyx_t_3, 1, __pyx_v_save_oldaxis);
+    __pyx_r = __pyx_t_3;
+    __pyx_t_3 = 0;
+    goto __pyx_L0;
+  }
+
+  /* "cyvector.pyx":257
+ *         save_oldaxis = None
+ *     if newaxis.dot(up) == 0: return [up, save_oldaxis] # axis and up already orthogonal
+ *     cdef double angle = oldaxis.diff_angle(newaxis)             # <<<<<<<<<<<<<<
+ *     cdef vector newup
+ *     cdef vector rotaxis
+ */
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_oldaxis, __pyx_n_s_diff_angle); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 257, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_6 = NULL;
+  if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_2))) {
+    __pyx_t_6 = PyMethod_GET_SELF(__pyx_t_2);
+    if (likely(__pyx_t_6)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_2);
+      __Pyx_INCREF(__pyx_t_6);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_2, function);
+    }
+  }
+  if (!__pyx_t_6) {
+    __pyx_t_3 = __Pyx_PyObject_CallOneArg(__pyx_t_2, __pyx_v_newaxis); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 257, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_3);
+  } else {
+    #if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(__pyx_t_2)) {
+      PyObject *__pyx_temp[2] = {__pyx_t_6, __pyx_v_newaxis};
+      __pyx_t_3 = __Pyx_PyFunction_FastCall(__pyx_t_2, __pyx_temp+1-1, 1+1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 257, __pyx_L1_error)
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_GOTREF(__pyx_t_3);
+    } else
+    #endif
+    #if CYTHON_FAST_PYCCALL
+    if (__Pyx_PyFastCFunction_Check(__pyx_t_2)) {
+      PyObject *__pyx_temp[2] = {__pyx_t_6, __pyx_v_newaxis};
+      __pyx_t_3 = __Pyx_PyCFunction_FastCall(__pyx_t_2, __pyx_temp+1-1, 1+1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 257, __pyx_L1_error)
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_GOTREF(__pyx_t_3);
+    } else
+    #endif
+    {
+      __pyx_t_1 = PyTuple_New(1+1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 257, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_1);
+      __Pyx_GIVEREF(__pyx_t_6); PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_t_6); __pyx_t_6 = NULL;
+      __Pyx_INCREF(__pyx_v_newaxis);
+      __Pyx_GIVEREF(__pyx_v_newaxis);
+      PyTuple_SET_ITEM(__pyx_t_1, 0+1, __pyx_v_newaxis);
+      __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_1, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 257, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+    }
+  }
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_7 = __pyx_PyFloat_AsDouble(__pyx_t_3); if (unlikely((__pyx_t_7 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 257, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_v_angle = __pyx_t_7;
+
+  /* "cyvector.pyx":260
+ *     cdef vector newup
+ *     cdef vector rotaxis
+ *     if angle > 1e-6: # smaller angles lead to catastrophes             # <<<<<<<<<<<<<<
+ *         # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
+ *         if abs(angle-pi) < 1e-6:
+ */
+  __pyx_t_4 = ((__pyx_v_angle > 1e-6) != 0);
+  if (__pyx_t_4) {
+
+    /* "cyvector.pyx":262
+ *     if angle > 1e-6: # smaller angles lead to catastrophes
+ *         # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
+ *         if abs(angle-pi) < 1e-6:             # <<<<<<<<<<<<<<
+ *             newup = -up
+ *         else:
+ */
+    __pyx_t_4 = ((fabs((__pyx_v_angle - __pyx_v_8cyvector_pi)) < 1e-6) != 0);
+    if (__pyx_t_4) {
+
+      /* "cyvector.pyx":263
+ *         # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
+ *         if abs(angle-pi) < 1e-6:
+ *             newup = -up             # <<<<<<<<<<<<<<
+ *         else:
+ *             rotaxis = cross(oldaxis,newaxis)
+ */
+      __pyx_t_3 = PyNumber_Negative(__pyx_v_up); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 263, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      if (!(likely(((__pyx_t_3) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_3, __pyx_ptype_8cyvector_vector))))) __PYX_ERR(0, 263, __pyx_L1_error)
+      __pyx_v_newup = ((struct __pyx_obj_8cyvector_vector *)__pyx_t_3);
+      __pyx_t_3 = 0;
+
+      /* "cyvector.pyx":262
+ *     if angle > 1e-6: # smaller angles lead to catastrophes
+ *         # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
+ *         if abs(angle-pi) < 1e-6:             # <<<<<<<<<<<<<<
+ *             newup = -up
+ *         else:
+ */
+      goto __pyx_L8;
+    }
+
+    /* "cyvector.pyx":265
+ *             newup = -up
+ *         else:
+ *             rotaxis = cross(oldaxis,newaxis)             # <<<<<<<<<<<<<<
+ *             newup = up.rotate(angle=angle, axis=rotaxis)
+ *         return [newup, save_oldaxis]
+ */
+    /*else*/ {
+      __pyx_t_3 = ((PyObject *)__pyx_f_8cyvector_cross(__pyx_v_oldaxis, __pyx_v_newaxis, 0)); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 265, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __pyx_v_rotaxis = ((struct __pyx_obj_8cyvector_vector *)__pyx_t_3);
+      __pyx_t_3 = 0;
+
+      /* "cyvector.pyx":266
+ *         else:
+ *             rotaxis = cross(oldaxis,newaxis)
+ *             newup = up.rotate(angle=angle, axis=rotaxis)             # <<<<<<<<<<<<<<
+ *         return [newup, save_oldaxis]
+ *     else:
+ */
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_up, __pyx_n_s_rotate); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 266, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __pyx_t_2 = PyDict_New(); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 266, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_2);
+      __pyx_t_1 = PyFloat_FromDouble(__pyx_v_angle); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 266, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_1);
+      if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_angle, __pyx_t_1) < 0) __PYX_ERR(0, 266, __pyx_L1_error)
+      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+      if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_axis, ((PyObject *)__pyx_v_rotaxis)) < 0) __PYX_ERR(0, 266, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_empty_tuple, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 266, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_1);
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+      if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_8cyvector_vector))))) __PYX_ERR(0, 266, __pyx_L1_error)
+      __pyx_v_newup = ((struct __pyx_obj_8cyvector_vector *)__pyx_t_1);
+      __pyx_t_1 = 0;
+    }
+    __pyx_L8:;
+
+    /* "cyvector.pyx":267
+ *             rotaxis = cross(oldaxis,newaxis)
+ *             newup = up.rotate(angle=angle, axis=rotaxis)
+ *         return [newup, save_oldaxis]             # <<<<<<<<<<<<<<
+ *     else:
+ *         return [up, save_oldaxis]
+ */
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_1 = PyList_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 267, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_INCREF(((PyObject *)__pyx_v_newup));
+    __Pyx_GIVEREF(((PyObject *)__pyx_v_newup));
+    PyList_SET_ITEM(__pyx_t_1, 0, ((PyObject *)__pyx_v_newup));
+    __Pyx_INCREF(__pyx_v_save_oldaxis);
+    __Pyx_GIVEREF(__pyx_v_save_oldaxis);
+    PyList_SET_ITEM(__pyx_t_1, 1, __pyx_v_save_oldaxis);
+    __pyx_r = __pyx_t_1;
+    __pyx_t_1 = 0;
+    goto __pyx_L0;
+
+    /* "cyvector.pyx":260
+ *     cdef vector newup
+ *     cdef vector rotaxis
+ *     if angle > 1e-6: # smaller angles lead to catastrophes             # <<<<<<<<<<<<<<
+ *         # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
+ *         if abs(angle-pi) < 1e-6:
+ */
+  }
+
+  /* "cyvector.pyx":269
+ *         return [newup, save_oldaxis]
+ *     else:
+ *         return [up, save_oldaxis]             # <<<<<<<<<<<<<<
+ * 
+ * cpdef adjust_axis(oldup, newup, axis, save_oldup): # adjust axis when up is changed
+ */
+  /*else*/ {
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_1 = PyList_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 269, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_INCREF(__pyx_v_up);
+    __Pyx_GIVEREF(__pyx_v_up);
+    PyList_SET_ITEM(__pyx_t_1, 0, __pyx_v_up);
+    __Pyx_INCREF(__pyx_v_save_oldaxis);
+    __Pyx_GIVEREF(__pyx_v_save_oldaxis);
+    PyList_SET_ITEM(__pyx_t_1, 1, __pyx_v_save_oldaxis);
+    __pyx_r = __pyx_t_1;
+    __pyx_t_1 = 0;
+    goto __pyx_L0;
+  }
+
+  /* "cyvector.pyx":247
+ *     return A.rotate(ang, ax)
+ * 
+ * cpdef adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is changed             # <<<<<<<<<<<<<<
+ *     if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:
+ *         # If axis has changed to <0,0,0>, must save the old axis to restore later
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_XDECREF(__pyx_t_2);
+  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_AddTraceback("cyvector.adjust_up", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = 0;
+  __pyx_L0:;
+  __Pyx_XDECREF((PyObject *)__pyx_v_newup);
+  __Pyx_XDECREF((PyObject *)__pyx_v_rotaxis);
+  __Pyx_XDECREF(__pyx_v_oldaxis);
+  __Pyx_XDECREF(__pyx_v_save_oldaxis);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* Python wrapper */
+static PyObject *__pyx_pw_8cyvector_21adjust_up(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_8cyvector_21adjust_up(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+  PyObject *__pyx_v_oldaxis = 0;
+  PyObject *__pyx_v_newaxis = 0;
+  PyObject *__pyx_v_up = 0;
+  PyObject *__pyx_v_save_oldaxis = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("adjust_up (wrapper)", 0);
+  {
+    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_oldaxis,&__pyx_n_s_newaxis,&__pyx_n_s_up,&__pyx_n_s_save_oldaxis,0};
+    PyObject* values[4] = {0,0,0,0};
+    if (unlikely(__pyx_kwds)) {
+      Py_ssize_t kw_args;
+      const Py_ssize_t pos_args = PyTuple_GET_SIZE(__pyx_args);
+      switch (pos_args) {
+        case  4: values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
+        case  3: values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
+        case  2: values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
+        case  1: values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      kw_args = PyDict_Size(__pyx_kwds);
+      switch (pos_args) {
+        case  0:
+        if (likely((values[0] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_oldaxis)) != 0)) kw_args--;
+        else goto __pyx_L5_argtuple_error;
+        case  1:
+        if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_newaxis)) != 0)) kw_args--;
+        else {
+          __Pyx_RaiseArgtupleInvalid("adjust_up", 1, 4, 4, 1); __PYX_ERR(0, 247, __pyx_L3_error)
+        }
+        case  2:
+        if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_up)) != 0)) kw_args--;
+        else {
+          __Pyx_RaiseArgtupleInvalid("adjust_up", 1, 4, 4, 2); __PYX_ERR(0, 247, __pyx_L3_error)
+        }
+        case  3:
+        if (likely((values[3] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_save_oldaxis)) != 0)) kw_args--;
+        else {
+          __Pyx_RaiseArgtupleInvalid("adjust_up", 1, 4, 4, 3); __PYX_ERR(0, 247, __pyx_L3_error)
+        }
+      }
+      if (unlikely(kw_args > 0)) {
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "adjust_up") < 0)) __PYX_ERR(0, 247, __pyx_L3_error)
+      }
+    } else if (PyTuple_GET_SIZE(__pyx_args) != 4) {
+      goto __pyx_L5_argtuple_error;
+    } else {
+      values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
+      values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
+      values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
+      values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
+    }
+    __pyx_v_oldaxis = values[0];
+    __pyx_v_newaxis = values[1];
+    __pyx_v_up = values[2];
+    __pyx_v_save_oldaxis = values[3];
+  }
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("adjust_up", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 247, __pyx_L3_error)
+  __pyx_L3_error:;
+  __Pyx_AddTraceback("cyvector.adjust_up", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  __pyx_r = __pyx_pf_8cyvector_20adjust_up(__pyx_self, __pyx_v_oldaxis, __pyx_v_newaxis, __pyx_v_up, __pyx_v_save_oldaxis);
+
+  /* function exit code */
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_8cyvector_20adjust_up(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_oldaxis, PyObject *__pyx_v_newaxis, PyObject *__pyx_v_up, PyObject *__pyx_v_save_oldaxis) {
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  __Pyx_RefNannySetupContext("adjust_up", 0);
+  __Pyx_XDECREF(__pyx_r);
+  __pyx_t_1 = __pyx_f_8cyvector_adjust_up(__pyx_v_oldaxis, __pyx_v_newaxis, __pyx_v_up, __pyx_v_save_oldaxis, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 247, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_r = __pyx_t_1;
+  __pyx_t_1 = 0;
+  goto __pyx_L0;
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_AddTraceback("cyvector.adjust_up", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "cyvector.pyx":271
+ *         return [up, save_oldaxis]
+ * 
+ * cpdef adjust_axis(oldup, newup, axis, save_oldup): # adjust axis when up is changed             # <<<<<<<<<<<<<<
+ *     if abs(newup.x) + abs(newup.y) + abs(newup.z) == 0:
+ *         # If up will be set to <0,0,0>, must save the old up to restore later
+ */
+
+static PyObject *__pyx_pw_8cyvector_23adjust_axis(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_f_8cyvector_adjust_axis(PyObject *__pyx_v_oldup, PyObject *__pyx_v_newup, PyObject *__pyx_v_axis, PyObject *__pyx_v_save_oldup, CYTHON_UNUSED int __pyx_skip_dispatch) {
+  double __pyx_v_angle;
+  struct __pyx_obj_8cyvector_vector *__pyx_v_newaxis = 0;
+  struct __pyx_obj_8cyvector_vector *__pyx_v_rotaxis = 0;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  PyObject *__pyx_t_2 = NULL;
+  PyObject *__pyx_t_3 = NULL;
+  int __pyx_t_4;
+  int __pyx_t_5;
+  PyObject *__pyx_t_6 = NULL;
+  double __pyx_t_7;
+  __Pyx_RefNannySetupContext("adjust_axis", 0);
+  __Pyx_INCREF(__pyx_v_oldup);
+  __Pyx_INCREF(__pyx_v_save_oldup);
+
+  /* "cyvector.pyx":272
+ * 
+ * cpdef adjust_axis(oldup, newup, axis, save_oldup): # adjust axis when up is changed
+ *     if abs(newup.x) + abs(newup.y) + abs(newup.z) == 0:             # <<<<<<<<<<<<<<
+ *         # If up will be set to <0,0,0>, must save the old up to restore later
+ *         if save_oldup is None: save_oldup = oldup
+ */
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_newup, __pyx_n_s_x); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 272, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_2 = PyNumber_Absolute(__pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 272, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_newup, __pyx_n_s_y); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 272, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_3 = PyNumber_Absolute(__pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 272, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_1 = PyNumber_Add(__pyx_t_2, __pyx_t_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 272, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_newup, __pyx_n_s_z); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 272, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_2 = PyNumber_Absolute(__pyx_t_3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 272, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = PyNumber_Add(__pyx_t_1, __pyx_t_2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 272, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_2 = __Pyx_PyInt_EqObjC(__pyx_t_3, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 272, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 272, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  if (__pyx_t_4) {
+
+    /* "cyvector.pyx":274
+ *     if abs(newup.x) + abs(newup.y) + abs(newup.z) == 0:
+ *         # If up will be set to <0,0,0>, must save the old up to restore later
+ *         if save_oldup is None: save_oldup = oldup             # <<<<<<<<<<<<<<
+ *         return [axis, save_oldup]
+ *     if save_oldup is not None:
+ */
+    __pyx_t_4 = (__pyx_v_save_oldup == Py_None);
+    __pyx_t_5 = (__pyx_t_4 != 0);
+    if (__pyx_t_5) {
+      __Pyx_INCREF(__pyx_v_oldup);
+      __Pyx_DECREF_SET(__pyx_v_save_oldup, __pyx_v_oldup);
+    }
+
+    /* "cyvector.pyx":275
+ *         # If up will be set to <0,0,0>, must save the old up to restore later
+ *         if save_oldup is None: save_oldup = oldup
+ *         return [axis, save_oldup]             # <<<<<<<<<<<<<<
+ *     if save_oldup is not None:
+ *         # Restore saved oldup now that newup is nonzero
+ */
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_2 = PyList_New(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 275, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_2);
+    __Pyx_INCREF(__pyx_v_axis);
+    __Pyx_GIVEREF(__pyx_v_axis);
+    PyList_SET_ITEM(__pyx_t_2, 0, __pyx_v_axis);
+    __Pyx_INCREF(__pyx_v_save_oldup);
+    __Pyx_GIVEREF(__pyx_v_save_oldup);
+    PyList_SET_ITEM(__pyx_t_2, 1, __pyx_v_save_oldup);
+    __pyx_r = __pyx_t_2;
+    __pyx_t_2 = 0;
+    goto __pyx_L0;
+
+    /* "cyvector.pyx":272
+ * 
+ * cpdef adjust_axis(oldup, newup, axis, save_oldup): # adjust axis when up is changed
+ *     if abs(newup.x) + abs(newup.y) + abs(newup.z) == 0:             # <<<<<<<<<<<<<<
+ *         # If up will be set to <0,0,0>, must save the old up to restore later
+ *         if save_oldup is None: save_oldup = oldup
+ */
+  }
+
+  /* "cyvector.pyx":276
+ *         if save_oldup is None: save_oldup = oldup
+ *         return [axis, save_oldup]
+ *     if save_oldup is not None:             # <<<<<<<<<<<<<<
+ *         # Restore saved oldup now that newup is nonzero
+ *         oldup = save_oldup
+ */
+  __pyx_t_5 = (__pyx_v_save_oldup != Py_None);
+  __pyx_t_4 = (__pyx_t_5 != 0);
+  if (__pyx_t_4) {
+
+    /* "cyvector.pyx":278
+ *     if save_oldup is not None:
+ *         # Restore saved oldup now that newup is nonzero
+ *         oldup = save_oldup             # <<<<<<<<<<<<<<
+ *         save_oldup = None
+ *     if newup.dot(axis) == 0: return [axis, save_oldup] # axis and up already orthogonal
+ */
+    __Pyx_INCREF(__pyx_v_save_oldup);
+    __Pyx_DECREF_SET(__pyx_v_oldup, __pyx_v_save_oldup);
+
+    /* "cyvector.pyx":279
+ *         # Restore saved oldup now that newup is nonzero
+ *         oldup = save_oldup
+ *         save_oldup = None             # <<<<<<<<<<<<<<
+ *     if newup.dot(axis) == 0: return [axis, save_oldup] # axis and up already orthogonal
+ *     cdef double angle = oldup.diff_angle(newup)
+ */
+    __Pyx_INCREF(Py_None);
+    __Pyx_DECREF_SET(__pyx_v_save_oldup, Py_None);
+
+    /* "cyvector.pyx":276
+ *         if save_oldup is None: save_oldup = oldup
+ *         return [axis, save_oldup]
+ *     if save_oldup is not None:             # <<<<<<<<<<<<<<
+ *         # Restore saved oldup now that newup is nonzero
+ *         oldup = save_oldup
+ */
+  }
+
+  /* "cyvector.pyx":280
+ *         oldup = save_oldup
+ *         save_oldup = None
+ *     if newup.dot(axis) == 0: return [axis, save_oldup] # axis and up already orthogonal             # <<<<<<<<<<<<<<
+ *     cdef double angle = oldup.diff_angle(newup)
+ *     cdef vector newaxis
+ */
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_newup, __pyx_n_s_dot); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 280, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_t_1 = NULL;
+  if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_3))) {
+    __pyx_t_1 = PyMethod_GET_SELF(__pyx_t_3);
+    if (likely(__pyx_t_1)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_3);
+      __Pyx_INCREF(__pyx_t_1);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_3, function);
+    }
+  }
+  if (!__pyx_t_1) {
+    __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_v_axis); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 280, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_2);
+  } else {
+    #if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(__pyx_t_3)) {
+      PyObject *__pyx_temp[2] = {__pyx_t_1, __pyx_v_axis};
+      __pyx_t_2 = __Pyx_PyFunction_FastCall(__pyx_t_3, __pyx_temp+1-1, 1+1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 280, __pyx_L1_error)
+      __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
+      __Pyx_GOTREF(__pyx_t_2);
+    } else
+    #endif
+    #if CYTHON_FAST_PYCCALL
+    if (__Pyx_PyFastCFunction_Check(__pyx_t_3)) {
+      PyObject *__pyx_temp[2] = {__pyx_t_1, __pyx_v_axis};
+      __pyx_t_2 = __Pyx_PyCFunction_FastCall(__pyx_t_3, __pyx_temp+1-1, 1+1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 280, __pyx_L1_error)
+      __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
+      __Pyx_GOTREF(__pyx_t_2);
+    } else
+    #endif
+    {
+      __pyx_t_6 = PyTuple_New(1+1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 280, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_6);
+      __Pyx_GIVEREF(__pyx_t_1); PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_1); __pyx_t_1 = NULL;
+      __Pyx_INCREF(__pyx_v_axis);
+      __Pyx_GIVEREF(__pyx_v_axis);
+      PyTuple_SET_ITEM(__pyx_t_6, 0+1, __pyx_v_axis);
+      __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_6, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 280, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_2);
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+    }
+  }
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_t_3 = __Pyx_PyInt_EqObjC(__pyx_t_2, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 280, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 280, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  if (__pyx_t_4) {
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_3 = PyList_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 280, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_3);
+    __Pyx_INCREF(__pyx_v_axis);
+    __Pyx_GIVEREF(__pyx_v_axis);
+    PyList_SET_ITEM(__pyx_t_3, 0, __pyx_v_axis);
+    __Pyx_INCREF(__pyx_v_save_oldup);
+    __Pyx_GIVEREF(__pyx_v_save_oldup);
+    PyList_SET_ITEM(__pyx_t_3, 1, __pyx_v_save_oldup);
+    __pyx_r = __pyx_t_3;
+    __pyx_t_3 = 0;
+    goto __pyx_L0;
+  }
+
+  /* "cyvector.pyx":281
+ *         save_oldup = None
+ *     if newup.dot(axis) == 0: return [axis, save_oldup] # axis and up already orthogonal
+ *     cdef double angle = oldup.diff_angle(newup)             # <<<<<<<<<<<<<<
+ *     cdef vector newaxis
+ *     cdef vector rotaxis
+ */
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_oldup, __pyx_n_s_diff_angle); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 281, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_6 = NULL;
+  if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_2))) {
+    __pyx_t_6 = PyMethod_GET_SELF(__pyx_t_2);
+    if (likely(__pyx_t_6)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_2);
+      __Pyx_INCREF(__pyx_t_6);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_2, function);
+    }
+  }
+  if (!__pyx_t_6) {
+    __pyx_t_3 = __Pyx_PyObject_CallOneArg(__pyx_t_2, __pyx_v_newup); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 281, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_3);
+  } else {
+    #if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(__pyx_t_2)) {
+      PyObject *__pyx_temp[2] = {__pyx_t_6, __pyx_v_newup};
+      __pyx_t_3 = __Pyx_PyFunction_FastCall(__pyx_t_2, __pyx_temp+1-1, 1+1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 281, __pyx_L1_error)
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_GOTREF(__pyx_t_3);
+    } else
+    #endif
+    #if CYTHON_FAST_PYCCALL
+    if (__Pyx_PyFastCFunction_Check(__pyx_t_2)) {
+      PyObject *__pyx_temp[2] = {__pyx_t_6, __pyx_v_newup};
+      __pyx_t_3 = __Pyx_PyCFunction_FastCall(__pyx_t_2, __pyx_temp+1-1, 1+1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 281, __pyx_L1_error)
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+      __Pyx_GOTREF(__pyx_t_3);
+    } else
+    #endif
+    {
+      __pyx_t_1 = PyTuple_New(1+1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 281, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_1);
+      __Pyx_GIVEREF(__pyx_t_6); PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_t_6); __pyx_t_6 = NULL;
+      __Pyx_INCREF(__pyx_v_newup);
+      __Pyx_GIVEREF(__pyx_v_newup);
+      PyTuple_SET_ITEM(__pyx_t_1, 0+1, __pyx_v_newup);
+      __pyx_t_3 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_1, NULL); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 281, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+    }
+  }
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_t_7 = __pyx_PyFloat_AsDouble(__pyx_t_3); if (unlikely((__pyx_t_7 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 281, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+  __pyx_v_angle = __pyx_t_7;
+
+  /* "cyvector.pyx":284
+ *     cdef vector newaxis
+ *     cdef vector rotaxis
+ *     if angle > 1e-6: # smaller angles lead to catastrophes             # <<<<<<<<<<<<<<
+ *         # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
+ *         if abs(angle-pi) < 1e-6:
+ */
+  __pyx_t_4 = ((__pyx_v_angle > 1e-6) != 0);
+  if (__pyx_t_4) {
+
+    /* "cyvector.pyx":286
+ *     if angle > 1e-6: # smaller angles lead to catastrophes
+ *         # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
+ *         if abs(angle-pi) < 1e-6:             # <<<<<<<<<<<<<<
+ *             newaxis = -axis
+ *         else:
+ */
+    __pyx_t_4 = ((fabs((__pyx_v_angle - __pyx_v_8cyvector_pi)) < 1e-6) != 0);
+    if (__pyx_t_4) {
+
+      /* "cyvector.pyx":287
+ *         # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
+ *         if abs(angle-pi) < 1e-6:
+ *             newaxis = -axis             # <<<<<<<<<<<<<<
+ *         else:
+ *             rotaxis = cross(oldup,newup)
+ */
+      __pyx_t_3 = PyNumber_Negative(__pyx_v_axis); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 287, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      if (!(likely(((__pyx_t_3) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_3, __pyx_ptype_8cyvector_vector))))) __PYX_ERR(0, 287, __pyx_L1_error)
+      __pyx_v_newaxis = ((struct __pyx_obj_8cyvector_vector *)__pyx_t_3);
+      __pyx_t_3 = 0;
+
+      /* "cyvector.pyx":286
+ *     if angle > 1e-6: # smaller angles lead to catastrophes
+ *         # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
+ *         if abs(angle-pi) < 1e-6:             # <<<<<<<<<<<<<<
+ *             newaxis = -axis
+ *         else:
+ */
+      goto __pyx_L8;
+    }
+
+    /* "cyvector.pyx":289
+ *             newaxis = -axis
+ *         else:
+ *             rotaxis = cross(oldup,newup)             # <<<<<<<<<<<<<<
+ *             newaxis = axis.rotate(angle=angle, axis=rotaxis)
+ *         return [newaxis, save_oldup]
+ */
+    /*else*/ {
+      __pyx_t_3 = ((PyObject *)__pyx_f_8cyvector_cross(__pyx_v_oldup, __pyx_v_newup, 0)); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 289, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __pyx_v_rotaxis = ((struct __pyx_obj_8cyvector_vector *)__pyx_t_3);
+      __pyx_t_3 = 0;
+
+      /* "cyvector.pyx":290
+ *         else:
+ *             rotaxis = cross(oldup,newup)
+ *             newaxis = axis.rotate(angle=angle, axis=rotaxis)             # <<<<<<<<<<<<<<
+ *         return [newaxis, save_oldup]
+ *     else:
+ */
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_axis, __pyx_n_s_rotate); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 290, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __pyx_t_2 = PyDict_New(); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 290, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_2);
+      __pyx_t_1 = PyFloat_FromDouble(__pyx_v_angle); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 290, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_1);
+      if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_angle, __pyx_t_1) < 0) __PYX_ERR(0, 290, __pyx_L1_error)
+      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+      if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_axis, ((PyObject *)__pyx_v_rotaxis)) < 0) __PYX_ERR(0, 290, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_empty_tuple, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 290, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_1);
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+      if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_8cyvector_vector))))) __PYX_ERR(0, 290, __pyx_L1_error)
+      __pyx_v_newaxis = ((struct __pyx_obj_8cyvector_vector *)__pyx_t_1);
+      __pyx_t_1 = 0;
+    }
+    __pyx_L8:;
+
+    /* "cyvector.pyx":291
+ *             rotaxis = cross(oldup,newup)
+ *             newaxis = axis.rotate(angle=angle, axis=rotaxis)
+ *         return [newaxis, save_oldup]             # <<<<<<<<<<<<<<
+ *     else:
+ *         return [axis, save_oldup]
+ */
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_1 = PyList_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 291, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_INCREF(((PyObject *)__pyx_v_newaxis));
+    __Pyx_GIVEREF(((PyObject *)__pyx_v_newaxis));
+    PyList_SET_ITEM(__pyx_t_1, 0, ((PyObject *)__pyx_v_newaxis));
+    __Pyx_INCREF(__pyx_v_save_oldup);
+    __Pyx_GIVEREF(__pyx_v_save_oldup);
+    PyList_SET_ITEM(__pyx_t_1, 1, __pyx_v_save_oldup);
+    __pyx_r = __pyx_t_1;
+    __pyx_t_1 = 0;
+    goto __pyx_L0;
+
+    /* "cyvector.pyx":284
+ *     cdef vector newaxis
+ *     cdef vector rotaxis
+ *     if angle > 1e-6: # smaller angles lead to catastrophes             # <<<<<<<<<<<<<<
+ *         # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
+ *         if abs(angle-pi) < 1e-6:
+ */
+  }
+
+  /* "cyvector.pyx":293
+ *         return [newaxis, save_oldup]
+ *     else:
+ *         return [axis, save_oldup]             # <<<<<<<<<<<<<<
+ * 
+ */
+  /*else*/ {
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_1 = PyList_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 293, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_INCREF(__pyx_v_axis);
+    __Pyx_GIVEREF(__pyx_v_axis);
+    PyList_SET_ITEM(__pyx_t_1, 0, __pyx_v_axis);
+    __Pyx_INCREF(__pyx_v_save_oldup);
+    __Pyx_GIVEREF(__pyx_v_save_oldup);
+    PyList_SET_ITEM(__pyx_t_1, 1, __pyx_v_save_oldup);
+    __pyx_r = __pyx_t_1;
+    __pyx_t_1 = 0;
+    goto __pyx_L0;
+  }
+
+  /* "cyvector.pyx":271
+ *         return [up, save_oldaxis]
+ * 
+ * cpdef adjust_axis(oldup, newup, axis, save_oldup): # adjust axis when up is changed             # <<<<<<<<<<<<<<
+ *     if abs(newup.x) + abs(newup.y) + abs(newup.z) == 0:
+ *         # If up will be set to <0,0,0>, must save the old up to restore later
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_XDECREF(__pyx_t_2);
+  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_AddTraceback("cyvector.adjust_axis", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = 0;
+  __pyx_L0:;
+  __Pyx_XDECREF((PyObject *)__pyx_v_newaxis);
+  __Pyx_XDECREF((PyObject *)__pyx_v_rotaxis);
+  __Pyx_XDECREF(__pyx_v_oldup);
+  __Pyx_XDECREF(__pyx_v_save_oldup);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* Python wrapper */
+static PyObject *__pyx_pw_8cyvector_23adjust_axis(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyObject *__pyx_pw_8cyvector_23adjust_axis(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+  PyObject *__pyx_v_oldup = 0;
+  PyObject *__pyx_v_newup = 0;
+  PyObject *__pyx_v_axis = 0;
+  PyObject *__pyx_v_save_oldup = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("adjust_axis (wrapper)", 0);
+  {
+    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_oldup,&__pyx_n_s_newup,&__pyx_n_s_axis,&__pyx_n_s_save_oldup,0};
+    PyObject* values[4] = {0,0,0,0};
+    if (unlikely(__pyx_kwds)) {
+      Py_ssize_t kw_args;
+      const Py_ssize_t pos_args = PyTuple_GET_SIZE(__pyx_args);
+      switch (pos_args) {
+        case  4: values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
+        case  3: values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
+        case  2: values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
+        case  1: values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      kw_args = PyDict_Size(__pyx_kwds);
+      switch (pos_args) {
+        case  0:
+        if (likely((values[0] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_oldup)) != 0)) kw_args--;
+        else goto __pyx_L5_argtuple_error;
+        case  1:
+        if (likely((values[1] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_newup)) != 0)) kw_args--;
+        else {
+          __Pyx_RaiseArgtupleInvalid("adjust_axis", 1, 4, 4, 1); __PYX_ERR(0, 271, __pyx_L3_error)
+        }
+        case  2:
+        if (likely((values[2] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_axis)) != 0)) kw_args--;
+        else {
+          __Pyx_RaiseArgtupleInvalid("adjust_axis", 1, 4, 4, 2); __PYX_ERR(0, 271, __pyx_L3_error)
+        }
+        case  3:
+        if (likely((values[3] = PyDict_GetItem(__pyx_kwds, __pyx_n_s_save_oldup)) != 0)) kw_args--;
+        else {
+          __Pyx_RaiseArgtupleInvalid("adjust_axis", 1, 4, 4, 3); __PYX_ERR(0, 271, __pyx_L3_error)
+        }
+      }
+      if (unlikely(kw_args > 0)) {
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "adjust_axis") < 0)) __PYX_ERR(0, 271, __pyx_L3_error)
+      }
+    } else if (PyTuple_GET_SIZE(__pyx_args) != 4) {
+      goto __pyx_L5_argtuple_error;
+    } else {
+      values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
+      values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
+      values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
+      values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
+    }
+    __pyx_v_oldup = values[0];
+    __pyx_v_newup = values[1];
+    __pyx_v_axis = values[2];
+    __pyx_v_save_oldup = values[3];
+  }
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("adjust_axis", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 271, __pyx_L3_error)
+  __pyx_L3_error:;
+  __Pyx_AddTraceback("cyvector.adjust_axis", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  __pyx_r = __pyx_pf_8cyvector_22adjust_axis(__pyx_self, __pyx_v_oldup, __pyx_v_newup, __pyx_v_axis, __pyx_v_save_oldup);
+
+  /* function exit code */
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_8cyvector_22adjust_axis(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_oldup, PyObject *__pyx_v_newup, PyObject *__pyx_v_axis, PyObject *__pyx_v_save_oldup) {
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  __Pyx_RefNannySetupContext("adjust_axis", 0);
+  __Pyx_XDECREF(__pyx_r);
+  __pyx_t_1 = __pyx_f_8cyvector_adjust_axis(__pyx_v_oldup, __pyx_v_newup, __pyx_v_axis, __pyx_v_save_oldup, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 271, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_r = __pyx_t_1;
+  __pyx_t_1 = 0;
+  goto __pyx_L0;
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_AddTraceback("cyvector.adjust_axis", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -8199,6 +9291,8 @@ static PyMethodDef __pyx_methods[] = {
   {"comp", (PyCFunction)__pyx_pw_8cyvector_15comp, METH_VARARGS|METH_KEYWORDS, 0},
   {"diff_angle", (PyCFunction)__pyx_pw_8cyvector_17diff_angle, METH_VARARGS|METH_KEYWORDS, 0},
   {"rotate", (PyCFunction)__pyx_pw_8cyvector_19rotate, METH_VARARGS|METH_KEYWORDS, 0},
+  {"adjust_up", (PyCFunction)__pyx_pw_8cyvector_21adjust_up, METH_VARARGS|METH_KEYWORDS, 0},
+  {"adjust_axis", (PyCFunction)__pyx_pw_8cyvector_23adjust_axis, METH_VARARGS|METH_KEYWORDS, 0},
   {0, 0, 0, 0}
 };
 
@@ -8224,7 +9318,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_A, __pyx_k_A, sizeof(__pyx_k_A), 0, 0, 1, 1},
   {&__pyx_kp_s_A_vector_needs_3_components, __pyx_k_A_vector_needs_3_components, sizeof(__pyx_k_A_vector_needs_3_components), 0, 0, 1, 0},
   {&__pyx_n_s_B, __pyx_k_B, sizeof(__pyx_k_B), 0, 0, 1, 1},
-  {&__pyx_kp_s_D_0C_workspace_vpython_jupyter_C, __pyx_k_D_0C_workspace_vpython_jupyter_C, sizeof(__pyx_k_D_0C_workspace_vpython_jupyter_C), 0, 0, 1, 0},
+  {&__pyx_kp_s_D_0C_workspace_vpython_jupyter_v, __pyx_k_D_0C_workspace_vpython_jupyter_v, sizeof(__pyx_k_D_0C_workspace_vpython_jupyter_v), 0, 0, 1, 0},
   {&__pyx_n_s_TypeError, __pyx_k_TypeError, sizeof(__pyx_k_TypeError), 0, 0, 1, 1},
   {&__pyx_kp_s_a_vector_can_only_be_divided_by, __pyx_k_a_vector_can_only_be_divided_by, sizeof(__pyx_k_a_vector_can_only_be_divided_by), 0, 0, 1, 0},
   {&__pyx_kp_s_a_vector_can_only_be_multiplied, __pyx_k_a_vector_can_only_be_multiplied, sizeof(__pyx_k_a_vector_can_only_be_multiplied), 0, 0, 1, 0},
@@ -8243,13 +9337,20 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_mag, __pyx_k_mag, sizeof(__pyx_k_mag), 0, 0, 1, 1},
   {&__pyx_n_s_mag2, __pyx_k_mag2, sizeof(__pyx_k_mag2), 0, 0, 1, 1},
   {&__pyx_n_s_main, __pyx_k_main, sizeof(__pyx_k_main), 0, 0, 1, 1},
+  {&__pyx_n_s_newaxis, __pyx_k_newaxis, sizeof(__pyx_k_newaxis), 0, 0, 1, 1},
+  {&__pyx_n_s_newup, __pyx_k_newup, sizeof(__pyx_k_newup), 0, 0, 1, 1},
   {&__pyx_n_s_norm, __pyx_k_norm, sizeof(__pyx_k_norm), 0, 0, 1, 1},
+  {&__pyx_n_s_oldaxis, __pyx_k_oldaxis, sizeof(__pyx_k_oldaxis), 0, 0, 1, 1},
+  {&__pyx_n_s_oldup, __pyx_k_oldup, sizeof(__pyx_k_oldup), 0, 0, 1, 1},
   {&__pyx_n_s_proj, __pyx_k_proj, sizeof(__pyx_k_proj), 0, 0, 1, 1},
   {&__pyx_n_s_pyx_vtable, __pyx_k_pyx_vtable, sizeof(__pyx_k_pyx_vtable), 0, 0, 1, 1},
   {&__pyx_n_s_random, __pyx_k_random, sizeof(__pyx_k_random), 0, 0, 1, 1},
   {&__pyx_n_s_rotate, __pyx_k_rotate, sizeof(__pyx_k_rotate), 0, 0, 1, 1},
+  {&__pyx_n_s_save_oldaxis, __pyx_k_save_oldaxis, sizeof(__pyx_k_save_oldaxis), 0, 0, 1, 1},
+  {&__pyx_n_s_save_oldup, __pyx_k_save_oldup, sizeof(__pyx_k_save_oldup), 0, 0, 1, 1},
   {&__pyx_n_s_staticmethod, __pyx_k_staticmethod, sizeof(__pyx_k_staticmethod), 0, 0, 1, 1},
   {&__pyx_n_s_test, __pyx_k_test, sizeof(__pyx_k_test), 0, 0, 1, 1},
+  {&__pyx_n_s_up, __pyx_k_up, sizeof(__pyx_k_up), 0, 0, 1, 1},
   {&__pyx_n_s_x, __pyx_k_x, sizeof(__pyx_k_x), 0, 0, 1, 1},
   {&__pyx_n_s_x_2, __pyx_k_x_2, sizeof(__pyx_k_x_2), 0, 0, 1, 1},
   {&__pyx_n_s_y, __pyx_k_y, sizeof(__pyx_k_y), 0, 0, 1, 1},
@@ -8321,7 +9422,7 @@ static int __Pyx_InitCachedConstants(void) {
  *         return vector(-1 + 2*random(), -1 + 2*random(), -1 + 2*random())
  * 
  */
-  __pyx_codeobj__5 = (PyObject*)__Pyx_PyCode_New(0, 0, 0, 0, 0, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_D_0C_workspace_vpython_jupyter_C, __pyx_n_s_random, 18, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__5)) __PYX_ERR(0, 18, __pyx_L1_error)
+  __pyx_codeobj__5 = (PyObject*)__Pyx_PyCode_New(0, 0, 0, 0, 0, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_D_0C_workspace_vpython_jupyter_v, __pyx_n_s_random, 18, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__5)) __PYX_ERR(0, 18, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -9567,6 +10668,91 @@ invalid_keyword:
 bad:
     return -1;
 }
+
+/* PyIntBinop */
+          #if !CYTHON_COMPILING_IN_PYPY
+static PyObject* __Pyx_PyInt_EqObjC(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, CYTHON_UNUSED int inplace) {
+    if (op1 == op2) {
+        Py_RETURN_TRUE;
+    }
+    #if PY_MAJOR_VERSION < 3
+    if (likely(PyInt_CheckExact(op1))) {
+        const long b = intval;
+        long a = PyInt_AS_LONG(op1);
+        if (a == b) {
+            Py_RETURN_TRUE;
+        } else {
+            Py_RETURN_FALSE;
+        }
+    }
+    #endif
+    #if CYTHON_USE_PYLONG_INTERNALS
+    if (likely(PyLong_CheckExact(op1))) {
+        const long b = intval;
+        long a;
+        const digit* digits = ((PyLongObject*)op1)->ob_digit;
+        const Py_ssize_t size = Py_SIZE(op1);
+        if (likely(__Pyx_sst_abs(size) <= 1)) {
+            a = likely(size) ? digits[0] : 0;
+            if (size == -1) a = -a;
+        } else {
+            switch (size) {
+                case -2:
+                    if (8 * sizeof(long) - 1 > 2 * PyLong_SHIFT) {
+                        a = -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                case 2:
+                    if (8 * sizeof(long) - 1 > 2 * PyLong_SHIFT) {
+                        a = (long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                case -3:
+                    if (8 * sizeof(long) - 1 > 3 * PyLong_SHIFT) {
+                        a = -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                case 3:
+                    if (8 * sizeof(long) - 1 > 3 * PyLong_SHIFT) {
+                        a = (long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                case -4:
+                    if (8 * sizeof(long) - 1 > 4 * PyLong_SHIFT) {
+                        a = -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                case 4:
+                    if (8 * sizeof(long) - 1 > 4 * PyLong_SHIFT) {
+                        a = (long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0]));
+                        break;
+                    }
+                #if PyLong_SHIFT < 30 && PyLong_SHIFT != 15
+                default: return PyLong_Type.tp_richcompare(op1, op2, Py_EQ);
+                #else
+                default: Py_RETURN_FALSE;
+                #endif
+            }
+        }
+            if (a == b) {
+                Py_RETURN_TRUE;
+            } else {
+                Py_RETURN_FALSE;
+            }
+    }
+    #endif
+    if (PyFloat_CheckExact(op1)) {
+        const long b = intval;
+        double a = PyFloat_AS_DOUBLE(op1);
+            if ((double)a == (double)b) {
+                Py_RETURN_TRUE;
+            } else {
+                Py_RETURN_FALSE;
+            }
+    }
+    return PyObject_RichCompare(op1, op2, Py_EQ);
+}
+#endif
 
 /* SetVTable */
           static int __Pyx_SetVtable(PyObject *dict, void *vtable) {

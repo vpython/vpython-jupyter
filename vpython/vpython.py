@@ -626,8 +626,8 @@ class standardAttributes(baseObj):
         self._size_units = 'pixels'
         self._texture = None
         self._pickable = True
-        self._oldaxis = None # used in linking axis and up
-        self._oldup = None # used in linking axis and up
+        self._save_oldaxis = None # used in linking axis and up
+        self._save_oldup = None # used in linking axis and up
         cloning = None
         if '_cloneid' in args:
             cloning = args['_cloneid']
@@ -750,52 +750,8 @@ class standardAttributes(baseObj):
             self._normal.on_change = self._on_normal_change
         
     # Ensure that if axis or up is <0,0,0> in constructor, we'll recover eventually:
-        if self._axis.mag2 == 0: self._oldaxis = vector(1,0,0)
-        if self._up.mag2 == 0: self._oldup = vector(0,1,0)
-    
-    def adjust_up(self, oldaxis, newaxis): # adjust up when axis is changed
-        if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:
-            # If axis has changed to <0,0,0>, must save the old axis to restore later
-            if self._oldaxis is None: self._oldaxis = oldaxis
-            return
-        if self._oldaxis is not None:
-            # Restore saved oldaxis now that newaxis is nonzero
-            oldaxis = self._oldaxis
-            self._oldaxis = None
-        if newaxis.dot(self._up) == 0: return self._up # axis and up already orthogonal
-        angle = oldaxis.diff_angle(newaxis)
-        if angle > 1e-6: # smaller angles lead to catastrophes
-            # If axis is flipped 180 degrees, cross(oldaxis,newaxis) is <0,0,0>:
-            if abs(angle-pi) < 1e-6:
-                newup = -self._up
-            else:
-                rotaxis = cross(oldaxis,newaxis)
-                newup = self._up.rotate(angle=angle, axis=rotaxis)
-            return newup
-        else:
-            return self._up
-
-    def adjust_axis(self, oldup, newup): # adjust axis when up is changed
-        if abs(newup.x) + abs(newup.y) + abs(newup.z):
-            # If up will be set to <0,0,0>, must save the old up to restore later
-            if self._oldup is None:
-                self._oldup = oldup
-        if self._oldup is not None:
-            # Restore saved oldup now that newup is nonzero
-            oldup = self._oldup
-            self._oldup = None
-        if newup.dot(self._axis) == 0: return self._axis # axis and up already orthogonal
-        angle = oldup.diff_angle(newup)
-        if angle > 1e-6: # smaller angles lead to catastrophes
-            # If up is flipped 180 degrees, cross(oldup,newup) is <0,0,0>:
-            if abs(angle-pi) < 1e-6:
-                newaxis = -self._axis
-            else:
-                rotaxis = cross(oldup,newup)
-                newaxis = self._axis.rotate(angle=angle, axis=rotaxis)
-            return newaxis
-        else:
-            return self._axis
+        if self._axis.mag2 == 0: self._save_oldaxis = vector(1,0,0)
+        if self._up.mag2 == 0: self._save_oldup = vector(0,1,0)
 
     @property
     def pos(self):
@@ -814,14 +770,33 @@ class standardAttributes(baseObj):
         return self._up  
     @up.setter
     def up(self,value):
-        oldup = vec(self.up)
-        oldaxis = vec(self.axis)
+        oldup = vec(self._up)
+        oldaxis = vec(self._axis)
         self._up.value = value
-        self._axis = self.adjust_axis(norm(oldup), self.up)
+        self._axis, self._save_oldup = adjust_axis(oldup, self._up, self._axis, self._save_oldup)
         if not self._constructing:
             # must update both axis and up when either is changed
-            if not self.axis.equals(oldaxis): self.addattr('axis')
-            if not self.up.equals(oldup): self.addattr('up')
+            if not self._axis.equals(oldaxis): self.addattr('axis')
+            if not self._up.equals(oldup): self.addattr('up')
+
+    @property
+    def axis(self):
+        return self._axis
+    @axis.setter
+    def axis(self,value):
+        oldaxis = vec(self._axis)
+        oldup = vec(self._up)
+        self._axis.value = value
+        self._up, self._save_oldaxis = adjust_up(oldaxis, self._axis, self._up, self._save_oldaxis)
+        if not self._constructing:
+            # must update both axis and up when either is changed
+            if not self._axis.equals(oldaxis): self.addattr('axis')
+            if not self._up.equals(oldup): self.addattr('up')
+        m = value.mag
+        if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
+            self._size._x = m
+            if not self._constructing:
+                self.addattr('size')
             
     @property
     def size(self):
@@ -839,25 +814,6 @@ class standardAttributes(baseObj):
             self._axis.value = a
             if not self._constructing:
                 self.addattr('axis')
-
-    @property
-    def axis(self):
-        return self._axis
-    @axis.setter
-    def axis(self,value):
-        oldaxis = vec(self.axis)
-        oldup = vec(self.up)
-        self._axis.value = value
-        self._up = self.adjust_up(norm(oldaxis), self.axis)
-        if not self._constructing:
-            # must update both axis and up when either is changed
-            if not self.axis.equals(oldaxis): self.addattr('axis')
-            if not self.up.equals(oldup): self.addattr('up')
-        m = value.mag
-        if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
-            self._size._x = m
-            if not self._constructing:
-                self.addattr('size')
             
     @property
     def length(self): 
@@ -1339,7 +1295,7 @@ class arrow(standardAttributes):
         m = value.mag
         if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
             self._size._x = m
-        self.adjust_up(oldaxis, self.axis)
+        self._up, self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
 
     @property
     def shaftwidth(self): 
@@ -3750,7 +3706,7 @@ class text(standardAttributes):
         oldaxis = vec(self.axis)
         u = self.up
         self._axis.value = value
-        self.adjust_up(norm(oldaxis), self.axis)
+        self._up, self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
         self.addattr('axis')
         self.addattr('up')
         
