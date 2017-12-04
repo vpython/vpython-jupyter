@@ -1018,7 +1018,7 @@ class standardAttributes(baseObj):
     def frame(self,value):
         self._frame = value
    
-    def rotate(self, angle=None, axis=None, origin=None):
+    def rotate(self, angle=None, axis=None, origin=None):    
         saveorigin = origin
         if angle == 0:
             return

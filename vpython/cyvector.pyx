@@ -16,7 +16,7 @@ cdef class vector(object):
     
     @staticmethod 
     def random():
-        return vector(-1 + 2*random(), -1 + 2*random(), -1 + 2*random())
+        return vector(-1.0 + 2.0*random(), -1.0 + 2.0*random(), -1.0 + 2.0*random())
 
     def __init__(self, *args):
         if len(args) == 3:
@@ -34,42 +34,20 @@ cdef class vector(object):
         
     cpdef ignore(self):
         pass
-
-    #cpdef void on_change(self):
-    #    pass
-        
-    def __neg__(self):  ## seems like this must come before properties (???)
-        return vector(-1.*self.x, -1.*self.y, -1.*self.z)
-    
-    def __pos__(self):
-        return self
-                  
-    property x:
+            
+    property value:
         def __get__(self):
-            return self._x
-        def __set__(self,value):
-            self._x = value
-            self.on_change()
-    
-    property y:
-        def __get__(self):
-            return self._y
-        def __set__(self,value):
-            self._y = value
-            self.on_change()
-    
-    property z:
-        def __get__(self):
-            return self._z
-        def __set__(self,value):
-            self._z = value
-            self.on_change()
+            return [self.x, self.y, self.z]
+        def __set__(self, other):
+            self._x = other.x
+            self._y = other.y
+            self._z = other.z
 
     def __repr__(self):
-        return '<%f, %f, %f>' % (self._x, self._y, self._z)
+        return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
     
     def __str__(self):
-        return '<%f, %f, %f>' % (self._x, self._y, self._z)
+        return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
 
     def __add__(self,other):
         return vector(self.x + other.x, self.y + other.y, self.z + other.z)
@@ -99,12 +77,39 @@ cdef class vector(object):
         except:
             raise TypeError('a vector can only be multiplied by a scalar', self, other)
         
+    def __neg__(self):  ## seems like this must come before properties (???)
+        return vector(-self.x, -self.y, -self.z)
+    
+    def __pos__(self):
+        return self
+                  
+    property x:
+        def __get__(self):
+            return self._x
+        def __set__(self,value):
+            self._x = value
+            self.on_change()
+    
+    property y:
+        def __get__(self):
+            return self._y
+        def __set__(self,value):
+            self._y = value
+            self.on_change()
+    
+    property z:
+        def __get__(self):
+            return self._z
+        def __set__(self,value):
+            self._z = value
+            self.on_change()
+        
     property mag:
         def __get__(self):
             return sqrt(self.x**2 + self.y**2 + self.z**2)
         def __set__(self, value):
             cdef vector normA
-            normA = self.norm()
+            normA = self.hat
             self.x = value * normA.x
             self.y = value * normA.y
             self.z = value * normA.z
@@ -135,15 +140,6 @@ cdef class vector(object):
             self.y = smag * normA.y
             self.z = smag * normA.z
             
-    property value:
-        def __get__(self):
-            return [self.x, self.y, self.z]
-        def __set__(self, other):
-            self._x = other.x
-            self._y = other.y
-            self._z = other.z
-            
-
     cpdef vector norm(self):
         return self.hat
 
@@ -234,15 +230,8 @@ cpdef double comp(A,B):
 cpdef double diff_angle(A,B):
     return A.diff_angle(B)
                             
-cpdef vector rotate(A, angle = 0., axis = None):
-    cdef double ang
-    cdef vector ax
-    if axis is None:
-        ax = vector(0,0,1)
-    else:
-        ax = axis
-    ang = angle
-    return A.rotate(ang, ax)
+cpdef vector rotate(A, angle=0., axis = None):
+    return A.rotate(angle, axis)
         
 cpdef adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is changed
     if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:
@@ -262,7 +251,7 @@ cpdef adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is ch
         if abs(angle-pi) < 1e-6:
             newup = -up
         else:
-            rotaxis = cross(oldaxis,newaxis)
+            rotaxis = oldaxis.cross(newaxis)
             newup = up.rotate(angle=angle, axis=rotaxis)
         return [newup, save_oldaxis]
     else:
@@ -286,7 +275,7 @@ cpdef adjust_axis(oldup, newup, axis, save_oldup): # adjust axis when up is chan
         if abs(angle-pi) < 1e-6:
             newaxis = -axis
         else:
-            rotaxis = cross(oldup,newup)
+            rotaxis = oldup.cross(newup)
             newaxis = axis.rotate(angle=angle, axis=rotaxis)
         return [newaxis, save_oldup]
     else:

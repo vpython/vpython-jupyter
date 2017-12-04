@@ -8,7 +8,7 @@ class vector(object):
     
     @staticmethod 
     def random():
-        return vector(-1 + 2*random(), -1 + 2*random(), -1 + 2*random())
+        return vector(-1.0 + 2.0*random(), -1.0 + 2.0*random(), -1.0 + 2.0*random())
 
     def __init__(self, *args):
         if len(args) == 3:
@@ -26,12 +26,21 @@ class vector(object):
     
     def ignore(self):
         pass
+
+    @property
+    def value(self):
+        return [self._x, self._y, self._z]
+    @value.setter
+    def value(self,other):  ## ensures a copy; other is a vector
+        self._x = other._x
+        self._y = other._y
+        self._z = other._z
         
     def __str__(self):
-        return '<%f, %f, %f>' % (self._x, self._y, self._z)
+        return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
    
     def __repr__(self):
-        return '<%f, %f, %f>' % (self._x, self._y, self._z)
+        return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
    
     def __add__(self,other):
         return vector(self._x + other._x, self._y + other._y, self._z + other._z)
@@ -64,77 +73,10 @@ class vector(object):
             raise TypeError('a vector can only be multiplied by a scalar')
 
     def __neg__(self):
-        return vector(-1.*self._x, -1.*self._y, -1.*self._z)
+        return vector(-self._x, -self._y, -self._z)
         
-    def norm(self):
-        smag = self.mag
-        if (smag > 0.):
-            return self / smag
-        else:
-            return vector(0.,0.,0.)
-
-    def dot(self,other):
-        return ( self._x*other._x + self._y*other._y + self._z*other._z )
-
-    def cross(self,other):
-        return vector( self._y*other._z-self._z*other._y, 
-                       self._z*other._x-self._x*other._z,
-                       self._x*other._y-self._y*other._x )
-
-    def proj(self,other):
-        normB = other.norm()
-        return self.dot(normB) * normB
-        
-    def equals(self,other):
-        return self._x == other._x and self._y == other._y and self._z == other._z
-
-    def comp(self,other):  ## result is a scalar
-        normB = other.norm()
-        return self.dot(normB)
-
-    def diff_angle(self, other):
-        a = self.norm().dot(other.norm())
-        if a > 1:  # avoid roundoff problems
-            return 0
-        if a < -1:
-            return math.pi
-        return math.acos(a)
-        
-    def rotate(self,angle = 0., axis = None):
-        if axis == None:
-            u = vector(0,0,1)
-        else:
-            u = norm(axis)
-        c = math.cos(angle)
-        s = math.sin(angle)
-        t = 1.0 - c
-        x = u.x
-        y = u.y
-        z = u.z
-        sx = self.x
-        sy = self.y
-        sz = self.z
-        m11 = t*x*x+c
-        m12 = t*x*y-z*s
-        m13 = t*x*z+y*s
-        m21 = t*x*y+z*s
-        m22 = t*y*y+c
-        m23 = t*y*z-x*s
-        m31 = t*x*z-y*s
-        m32 = t*y*z+x*s
-        m33 = t*z*z+c
-        return vector( (m11*sx + m12*sy + m13*sz),
-                    (m21*sx + m22*sy + m23*sz),
-                    (m31*sx + m32*sy + m33*sz) )
-
-    @property
-    def value(self):  ## attribute vectors
-        return [self._x, self._y, self._z]
-    @value.setter
-    def value(self,other):  ## ensures a copy; other is a vector
-        self._x = other._x
-        self._y = other._y
-        self._z = other._z
+    def __pos__(self):
+        return self
     
     @property
     def x(self):
@@ -185,15 +127,76 @@ class vector(object):
         
     @property
     def hat(self):
-        return self.norm()
+        smag = self.mag
+        if ( smag > 0. ):
+            return self / smag
+        else:
+            return vector(0., 0., 0.)
     @hat.setter
     def hat(self, value):
-        mg = self.mag
-        normA = value.norm()
-        self._x = mg * normA._x
-        self._y = mg * normA._y
-        self._z = mg * normA._z
+        smg = self.mag
+        normA = value.hat
+        self._x = smg * normA._x
+        self._y = smg * normA._y
+        self._z = smg * normA._z
         self.on_change()
+        
+    def norm(self):
+        return self.hat
+
+    def dot(self,other):
+        return ( self._x*other._x + self._y*other._y + self._z*other._z )
+
+    def cross(self,other):
+        return vector( self._y*other._z-self._z*other._y, 
+                       self._z*other._x-self._x*other._z,
+                       self._x*other._y-self._y*other._x )
+
+    def proj(self,other):
+        normB = other.norm()
+        return self.dot(normB) * normB
+        
+    def equals(self,other):
+        return self._x == other._x and self._y == other._y and self._z == other._z
+
+    def comp(self,other):  ## result is a scalar
+        normB = other.norm()
+        return self.dot(normB)
+
+    def diff_angle(self, other):
+        a = self.norm().dot(other.norm())
+        if a > 1:  # avoid roundoff problems
+            return 0
+        if a < -1:
+            return math.pi
+        return math.acos(a)
+        
+    def rotate(self, angle = 0., axis = None):
+        if axis == None:
+            u = vector(0,0,1)
+        else:
+            u = axis.hat
+        c = math.cos(angle)
+        s = math.sin(angle)
+        t = 1.0 - c
+        x = u.x
+        y = u.y
+        z = u.z
+        sx = self.x
+        sy = self.y
+        sz = self.z
+        m11 = t*x*x+c
+        m12 = t*x*y-z*s
+        m13 = t*x*z+y*s
+        m21 = t*x*y+z*s
+        m22 = t*y*y+c
+        m23 = t*y*z-x*s
+        m31 = t*x*z-y*s
+        m32 = t*y*z+x*s
+        m33 = t*z*z+c
+        return vector( (m11*sx + m12*sy + m13*sz),
+                    (m21*sx + m22*sy + m23*sz),
+                    (m31*sx + m32*sy + m33*sz) )
 
 def mag(A):
     return A.mag
@@ -202,10 +205,10 @@ def mag2(A):
     return A.mag2
 
 def norm(A):
-    return A.norm()
+    return A.hat
 
 def hat(A):
-    return A.norm()
+    return A.hat
 
 def dot(A,B):
     return A.dot(B)
@@ -222,7 +225,7 @@ def comp(A,B):
 def diff_angle(A,B):
     return A.diff_angle(B)
                             
-def rotate(A,angle = 0., axis = None):
+def rotate(A, angle=0., axis = None):
     return A.rotate(angle,axis)
         
 def adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is changed
@@ -241,7 +244,7 @@ def adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is chan
         if abs(angle-math.pi) < 1e-6:
             newup = -up
         else:
-            rotaxis = cross(oldaxis,newaxis)
+            rotaxis = oldaxis.cross(newaxis)
             newup = up.rotate(angle=angle, axis=rotaxis)
         return [newup, save_oldaxis]
     else:
@@ -263,7 +266,7 @@ def adjust_axis(oldup, newup, axis, save_oldup): # adjust axis when up is change
         if abs(angle-math.pi) < 1e-6:
             newaxis = -axis
         else:
-            rotaxis = cross(oldup,newup)
+            rotaxis = oldup.cross(newup)
             newaxis = axis.rotate(angle=angle, axis=rotaxis)
         return [newaxis, save_oldup]
     else:
