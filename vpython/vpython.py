@@ -770,28 +770,22 @@ class standardAttributes(baseObj):
         return self._up  
     @up.setter
     def up(self,value):
-        oldup = vec(self._up)
-        oldaxis = vec(self._axis)
-        self._up.value = value
-        self._axis, self._save_oldup = adjust_axis(oldup, self._up, self._axis, self._save_oldup)
+        self._save_oldup = adjust_axis(self._up, value, self._axis, self._save_oldup) # this sets self._axis and self._up
         if not self._constructing:
             # must update both axis and up when either is changed
-            if not self._axis.equals(oldaxis): self.addattr('axis')
-            if not self._up.equals(oldup): self.addattr('up')
+            self.addattr('axis')
+            self.addattr('up')
 
     @property
     def axis(self):
         return self._axis
     @axis.setter
     def axis(self,value):
-        oldaxis = vec(self._axis)
-        oldup = vec(self._up)
-        self._axis.value = value
-        self._up, self._save_oldaxis = adjust_up(oldaxis, self._axis, self._up, self._save_oldaxis)
+        self._save_oldaxis = adjust_up(self._axis, value, self._up, self._save_oldaxis) # this sets self._axis and self._up
         if not self._constructing:
             # must update both axis and up when either is changed
-            if not self._axis.equals(oldaxis): self.addattr('axis')
-            if not self._up.equals(oldup): self.addattr('up')
+            self.addattr('axis')
+            self.addattr('up')
         m = value.mag
         if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
             self._size._x = m
@@ -1035,19 +1029,11 @@ class standardAttributes(baseObj):
             if origin is None:
                 origin = self.pos
             pos = self.pos
-        
+            
         # Update local values of axis and up; setting self._axis and self._up to avoid axis/up connections
-        a = vec(self.axis)
-        u = vec(self.up)
-        if diff_angle(self.axis,rotaxis) > 1e-6:
-                self._axis.value = self._axis.rotate(angle=angle, axis=rotaxis)
-                self._up.value = self._up.rotate(angle=angle, axis=rotaxis)
-                if not self.axis.equals(a): self.addattr('axis')
-                if not self.up.equals(u): self.addattr('up')
-        else:
-            self._up = self._up.rotate(angle=angle, axis=rotaxis)
-            if not self.axis.equals(a): self.addattr('axis')
-            if not self.up.equals(u): self.addattr('up')
+        object_rotate(self._axis, self._up, angle, rotaxis)
+        self.addattr('axis')
+        self.addattr('up')
 
         if saveorigin is not None and not origin.equals(self._pos):
             # This code is done only if origin is not the same as the original pos
@@ -1295,7 +1281,7 @@ class arrow(standardAttributes):
         m = value.mag
         if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
             self._size._x = m
-        self._up, self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
+        self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
 
     @property
     def shaftwidth(self): 
@@ -3706,7 +3692,7 @@ class text(standardAttributes):
         oldaxis = vec(self.axis)
         u = self.up
         self._axis.value = value
-        self._up, self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
+        self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
         self.addattr('axis')
         self.addattr('up')
         
