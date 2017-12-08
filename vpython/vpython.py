@@ -1498,6 +1498,26 @@ class compound(standardAttributes):
     def obj_idxs(self):
         return self._obj_idxs
 # no setter; must be set in constructor; this is done in standardAttributes
+
+    @property
+    def axis(self):
+        return self._axis
+    @axis.setter
+    def axis(self,value): # compound axis and size don't interact
+        self._save_oldaxis = adjust_up(self._axis, value, self._up, self._save_oldaxis) # this sets self._axis and self._up
+        if not self._constructing:
+            # must update both axis and up when either is changed
+            self.addattr('axis')
+            self.addattr('up')
+            
+    @property
+    def size(self):
+        return self._size   
+    @size.setter
+    def size(self,value): # compound axis and size don't interact
+        self._size.value = value
+        if not self._constructing:
+            self.addattr('size')
         
     def _world_zaxis(self):
         axis = self._axis
@@ -2638,8 +2658,16 @@ class Camera(object):
         c.center = newpos + newaxis
         c.forward = norm(newaxis)
 
+class meta_canvas(object):
+    @property
+    def selected(self):
+        return getattr(self, '_selected')
+    @selected.setter
+    def selected(self, value):
+        self._selected = value
+
 class canvas(baseObj):
-    selected_canvas = None
+    selected = None
     hasmouse = None
     maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
     
@@ -2651,7 +2679,7 @@ class canvas(baseObj):
         super(canvas, self).__init__()   ## get idx, attrsupdt
         
         self._constructing = True        
-        canvas.selected_canvas = self
+        canvas.selected = self
         
         if 'lights' in args:
             raise AttributeError("Lights for a canvas can be assigned only after the canvas has been created.")
@@ -2739,15 +2767,15 @@ class canvas(baseObj):
         self.addmethod('follow', obj.idx)
 
     def select(self):
-        canvas.selected_canvas = self
+        canvas.selected = self
         self.addmethod('select','None')
-
-    def delete(self):
-        self.addmethod('delete','None')
 
     @classmethod
     def get_selected(cls):
-        return cls.selected_canvas
+        return cls.selected
+
+    def delete(self):
+        self.addmethod('delete','None')
 
     @property
     def title(self):
