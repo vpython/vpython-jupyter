@@ -3566,6 +3566,26 @@ class extrusion(standardAttributes):
         if savesize is not None:
             self._size = savesize
 
+    @property
+    def axis(self):
+        return self._axis
+    @axis.setter
+    def axis(self,value): # extrusion axis and size don't interact
+        self._save_oldaxis = adjust_up(self._axis, value, self._up, self._save_oldaxis) # this sets self._axis and self._up
+        if not self._constructing:
+            # must update both axis and up when either is changed
+            self.addattr('axis')
+            self.addattr('up')
+            
+    @property
+    def size(self):
+        return self._size   
+    @size.setter
+    def size(self,value): # extrusion axis and size don't interact
+        self._size.value = value
+        if not self._constructing:
+            self.addattr('size')
+
     def level(self,a):
     	# Determine format of shape specification:
         #    return 1 if a = [S, S, ...] where S is [x,y]
