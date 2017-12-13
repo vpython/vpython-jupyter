@@ -628,9 +628,9 @@ class standardAttributes(baseObj):
         self._pickable = True
         self._save_oldaxis = None # used in linking axis and up
         self._save_oldup = None # used in linking axis and up
-        cloning = None
-        if '_cloneid' in args:
-            cloning = args['_cloneid']
+        _special_clone = None
+        if '_cloneid' in args: # text, extrusion, or compound is being cloned
+            _special_clone = args['_cloneid']
             del args['_cloneid']
         
         argsToSend = []  ## send to GlowScript only attributes specified in constructor
@@ -725,8 +725,8 @@ class standardAttributes(baseObj):
             self.canvas.objz(self,'add')
                    
         self._constructing = False  ## from now on any setter call will not be from constructor
-        #if cloning is not None: cmd["attrs"].append({"attr":"_cloneid", "value":cloning})
-        if cloning is not None: cmd["_cloneid"] = cloning
+        # _special_clone is True if text, extrusion, or compound objects
+        if _special_clone is not None: cmd["_cloneid"] = _special_clone
         self.appendcmd(cmd)
        
         # if ('frame' in args and args['frame'] != None):
@@ -1068,12 +1068,10 @@ class standardAttributes(baseObj):
         
     def clone(self, **args):
         objName = self._objName
-        ## Deal with compound separately -- with its own clone method:
-        #if objName[:8] == 'compound': objName = 'compound'
         if objName == 'triangle' or objName == 'quad':
             raise TypeError('Cannot clone a '+objName+' object.')
         elif objName == 'text': # the text object is a wrapper around an extrusion, which is a compound
-            newargs = {'pos':self._pos, 'canvas':self.canvas,
+            oldargs = {'pos':self._pos, 'canvas':self.canvas,
                     'color':self._color, 'opacity':self._opacity, 
                     'axis':self._axis, 'up':self._up, '_text':self._text,
                     '_length':self._length, '_height':self._height, '_depth':self._depth,
@@ -1084,37 +1082,38 @@ class standardAttributes(baseObj):
                     '_shininess':self._shininess, '_emissive':self._emissive,
                     '_pickable':self._pickable}
         elif objName == 'curve':
-            newargs = {'origin':self._origin, 'pos':self.pos,
+            oldargs = {'origin':self._origin, 'pos':self.pos,
                     'color':self._color, r'adius':self._radius,
                     'size':self._size, 'axis':self._axis, 'up':self._up,
                     'shininess':self._shininess, 'emissive':self._emissive, 
                     'visible':True, 'pickable':self._pickable}
         elif objName == 'helix':
-            newargs = {'pos':self.pos, 'color':self._color,
+            oldargs = {'pos':self.pos, 'color':self._color,
                     'thickness':self._thickness, 'coils':self._coils,
                     'size':self._size, 'axis':self._axis, 'up':self._up,
                     'shininess':self._shininess, 'emissive':self._emissive, 
                     'visible':True, 'pickable':self._pickable}
         else:
-            newargs = {'pos':self._pos, 'color':self._color,
+            oldargs = {'pos':self._pos, 'color':self._color,
                     'opacity':self._opacity, 'size':self._size, 'axis':self._axis, 'up':self._up,
                     'texture':self.texture, 'shininess':self._shininess, 'emissive':self._emissive,
                     'visible':True, 'pickable':self._pickable}
             if objName == 'arrow':
-                newargs['shaftwidth'] = self._shaftwidth
-                newargs['headwidth'] = self._headwidth
-                newargs['headlength'] = self._headlength
+                oldargs['shaftwidth'] = self._shaftwidth
+                oldargs['headwidth'] = self._headwidth
+                oldargs['headlength'] = self._headlength
         if objName == 'text' or objName == 'extrusion' or objName[:8] == 'compound':
-            newargs['_cloneid'] = self.idx
-        for k, v in args.items():   # overrides and user attrs
-            newargs[k] = v
-        # wait for cloning objects to exist
+            oldargs['_cloneid'] = self.idx
+        # wait for objects being cloned to exist
         while not baseObj.empty():
             rate(60)
         if objName[:8] == 'compound' or objName == 'extrusion':
-            return compound([], **newargs)
+            ret = compound([], **oldargs)
         else:
-            return type(self)(**newargs)
+            ret = type(self)(**oldargs)
+        for k, v in args.items():   # overrides and user attrs
+            setattr(ret, k, v)
+        return ret
     
     def __del__(self):
         super(standardAttributes, self).__del__()
@@ -1145,9 +1144,12 @@ class sphere(standardAttributes):
         return self._axis
     @axis.setter
     def axis(self,value): # changing a sphere axis should not affect size
+        self._save_oldaxis = adjust_up(self._axis, value, self._up, self._save_oldaxis) # this sets self._axis and self._up
         self._axis.value = value
         if not self._constructing:
+            # must update both axis and up when either is changed
             self.addattr('axis')
+            self.addattr('up')
         
 class cylinder(standardAttributes):
     def __init__(self, **args):
@@ -1230,9 +1232,12 @@ class ring(standardAttributes):
     @axis.setter
     def axis(self,value):
         if not isinstance(value, vector): raise TypeError('axis must be a vector')
+        self._save_oldaxis = adjust_up(self._axis, value, self._up, self._save_oldaxis) # this sets self._axis and self._up
         self._axis = value
         if not self._constructing:
+            # must update both axis and up when either is changed
             self.addattr('axis')
+            self.addattr('up')
  
     @property        ## override methods of parent class
     def size(self):
@@ -1276,12 +1281,14 @@ class arrow(standardAttributes):
     def axis(self,value): # no need to send to browser both arrow.size and arrow.axis
         oldaxis = norm(self._axis)
         self._axis.value = value
-        if not self._constructing:
-            self.addattr('axis')
         m = value.mag
         if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
             self._size._x = m
         self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
+        if not self._constructing:
+            # must update both axis and up when either is changed
+            self.addattr('axis')
+            self.addattr('up')
 
     @property
     def shaftwidth(self): 
@@ -1457,9 +1464,9 @@ class compound(standardAttributes):
         self._obj_idxs = None
         idxlist = []
         ineligible = [label, curve, helix, points]  ## type objects
-        cloning =  None
+        _special_clone =  None
         if '_cloneid' in args:
-            cloning = args['_cloneid']
+            _special_clone = args['_cloneid']
         else:
             cvs = objList[0].canvas
             for obj in objList:
@@ -1476,7 +1483,7 @@ class compound(standardAttributes):
             del args['size']
 
         baseObj.sent = False
-        while not baseObj.sent: # wait for compounding or cloning objects to exist
+        while not baseObj.sent: # wait for compounding objects to exist
             if _isnotebook: rate(1000)
             else: time.sleep(0.001)
         
@@ -1488,7 +1495,7 @@ class compound(standardAttributes):
             # GlowScript will make the objects invisible, so need not set obj.visible
             obj._visible = False  ## ideally these should be deleted
             
-        if cloning is None:
+        if _special_clone is None:
             self.canvas._compound = self # used by event handler to update pos and size
             _wait(self.canvas)
         if savesize is not None:
@@ -3704,10 +3711,10 @@ class text(standardAttributes):
         self._lower_right = vector(0,0,0)
         self._start = vector(0,0,0)
         self._end = vector(0,0,0)
-        cloning = None
+        _special_clone = None
         if ('size' in args): raise AttributeError("The text object has no size attribute.")
         if '_cloneid' in args:
-            cloning = args['_cloneid']
+            _special_clone = args['_cloneid']
             self._lines = len(args['_text'].split('\n'))
         else:
             if 'text' in args:
@@ -3720,7 +3727,7 @@ class text(standardAttributes):
 
         super(text, self).setup(args)
         
-        if cloning is None:
+        if _special_clone is None:
             self.canvas._compound = self # used by event handler to update pos and size
             _wait(self.canvas) # sets _length, _descender, up
             
