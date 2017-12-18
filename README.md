@@ -16,7 +16,7 @@ the source code is at https://github.com/BruceSherwood/vpython-jupyter.
 
 ## Installation
 
-For more detailed instructions on how to install vpython, see http://vpython.org, where you will also find a link to the VPython forum.
+For more detailed instructions on how to install vpython, see http://vpython.org, where you will also find a link to the VPython forum, which is the preferred place to report issues and to request assistance.
 
 Briefly:
 
