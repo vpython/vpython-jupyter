@@ -20,11 +20,20 @@ def find_free_port():
 
 __HTTP_PORT = find_free_port()
 __SOCKET_PORT = find_free_port()
+    
+# try: # machinery for reusing ports
+    # fd = open('free_ports')
+    # __HTTP_PORT = int(fd.readline())
+    # __SOCKET_PORT = int(fd.readline())
+# except:
+    # __HTTP_PORT = find_free_port()
+    # __SOCKET_PORT = find_free_port()
+    # fd = open('free_ports', 'w') # this writes to user program's directory
+    # fd.write(str(__HTTP_PORT))
+    # fd.write('\n')
+    # fd.write(str(__SOCKET_PORT))
+
 # Make it possible for glowcomm.html to find out what the websocket port is:
-#js = __file__.replace('no_notebook.py','vpython_libraries'+os.sep+'socket_port.js')
-#fd = open(js,'w')
-#fd.write('function socket_port() {'+'return {}'.format(__SOCKET_PORT)+'}')
-#fd.close()
 js = __file__.replace('no_notebook.py','vpython_libraries'+os.sep+'glowcomm.html')
 fd = open(js)
 glowcomm = fd.read()
@@ -96,7 +105,7 @@ class WSserver(WebSocketServerProtocol):
     # For Python 3.5 and later, the newer syntax eliminates "@asyncio.coroutine"
     # in favor of "async def onMessage...", and "yield from" with "await".
     # Attempting to use the older Python 3.4 syntax was not successful, so this
-    # no-notebook version of VPython requires Python 3.5 or later.
+    # no-notebook version of VPython requires Python 3.5.3 or later.
     #@asyncio.coroutine
     #def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
     async def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound

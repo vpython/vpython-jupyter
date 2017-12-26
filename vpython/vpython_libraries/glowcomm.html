@@ -162,7 +162,7 @@ function update_canvas() { // mouse location and other stuff
     for (var ss in sliders){
 		var ev = sliders[ss]
 		if (ss in lastsliders && ev.value !== lastsliders[ss].value)
-			output_sliders.push(ev) //avoid sending an unchnaged slider value
+			output_sliders.push(ev) //avoid sending an unchanged slider value
 		lastsliders[ss] = ev
     }
 	if (output_sliders.length > 0) {
