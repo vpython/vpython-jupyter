@@ -148,6 +148,7 @@ def _encode_attr2(sendval, val, ismethods):
         s += "{:.16G},{:.16G},{:.16G}".format(val[0], val[1], val[2])
     elif sendval in __textattrs:
         # '\n' doesn't survive JSON transmission, so we replace '\n' with '<br>' (and convert back in glowcomm)
+        if not isinstance(val, str): val = print_to_string(val)
         val = val.replace('\n', '<br>')
         s += val
     elif sendval == 'rotate':
@@ -2060,6 +2061,8 @@ class gobj(baseObj):
             argsToSend.append(a)
             if a == 'graph':
                 val = val.idx
+            elif a == 'fast' and _isnotebook and not val:
+                raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
             setattr(self, '_'+a, val)
                
         cmd = {"cmd": objName, "idx": self.idx}
@@ -2085,6 +2088,8 @@ class gobj(baseObj):
     def fast(self): return self._fast
     @fast.setter
     def fast(self,val): 
+        if _isnotebook and not val:
+            raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
         self._fast = val
         self.addattr('fast')
         
@@ -2318,6 +2323,9 @@ class graph(baseObj):
                 argsToSend.append(a)
                 setattr(self, '_'+a, args[a])
                 del args[a]
+        
+        if _isnotebook and not self._fast:
+            raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
                 
         # user defined attributes
         for a in args:
@@ -2337,7 +2345,9 @@ class graph(baseObj):
     @property
     def fast(self): return self._fast
     @fast.setter
-    def fast(self,val): 
+    def fast(self,val):
+        if _isnotebook and not val:
+            raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.') 
         self._fast = val
         self.addattr('fast')
         
@@ -4024,7 +4034,6 @@ def sleep(dt): # don't use time.sleep because it delays output queued up before 
     t = clock()+dt
     while clock() < t:
         rate(60)
-
 
 def print_to_string(*args): # treatment of <br> vs. \n not quite right here
     s = ''
