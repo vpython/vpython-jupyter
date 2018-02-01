@@ -274,7 +274,7 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
 	events.push(evt)
 }
 
-// attrs are X in {'a': '23X....'}
+// attrs are X in {'a': '23X....'} avaiable: none
 var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: comma, but maybe that would cause trouble
          'e':'ambient', 'f':'axis', 'g':'size', 'h':'origin', 'i':'textcolor',
          'j':'direction', 'k':'linecolor', 'l':'bumpaxis', 'm':'dot_color',
@@ -293,7 +293,7 @@ var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use s
          
          // text attributes: 
          '$':'text', '%':'align', '^':'caption',
-         '-':'title_align', '&':'title', '*':'xtitle', '(':'ytitle',
+         '-':'fast','&':'title', '*':'xtitle', '(':'ytitle',
          
          // Miscellany:
          ')':'lights', '_':'objects', '=':'bind',
@@ -305,7 +305,9 @@ var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use s
 var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':'fov',
               'f':'normal', 'g':'data', 'h':'checked', 'i':'disabled', 'j':'selected',
               'k':'vertical', 'l':'min', 'm':'max', 'n':'step', 'o':'value',
-              'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid'}
+              'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid',
+              'u':'logx', 'v':'logy', 'w':'dot', 'x':'dot_radius', 
+              'y':'markers', 'z':'legend', 'A':'label','B':'delta', 'C':'marker_color'}
 
 // methods are X in {'m': '23X....'}
 var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopvxyzCDFAB
@@ -314,13 +316,13 @@ var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', //
                'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
 		       'M':'delete'}
          
-var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 'textcolor',
-                'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail',
-                '_attach_arrow',
-                'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
+var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_attach_arrow',
+                'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail', 'textcolor',
+                'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
+                'marker_color']
                 
 var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', 'ytitle', 'selected',
-                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
+                 'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 // patt gets idx and attr code; vpatt gets x,y,z of a vector            
 var patt = /(\d+)(.)(.*)/
@@ -454,7 +456,7 @@ function handle_cmds(dcmds) {
 		//assembling cfg
 		var vlst = ['pos', 'color', 'size', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
 				 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'textcolor', 'attrval',
-				 'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color']
+				 'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color', 'marker_color']
 		if ((obj != 'gcurve') && ( obj != 'gdots' ) ) vlst.push( 'size' )
 		var cfg = {}
 		var objects = []
@@ -533,24 +535,25 @@ function handle_cmds(dcmds) {
 		// creating the objects
 		cfg.idx = idx // reinsert idx, having looped thru all other attributes
 		switch (obj) {
-			case 'box':       {glowObjs[idx] = box(cfg); break}
-			case 'sphere':    {glowObjs[idx] = sphere(cfg); break}
-			case 'arrow':     {glowObjs[idx] = arrow(cfg); break}
-			case 'cone':      {glowObjs[idx] = cone(cfg); break}
-			case 'cylinder':  {glowObjs[idx] = cylinder(cfg); break}
-			case 'helix':     {glowObjs[idx] = helix(cfg); break}
-			case 'pyramid':   {glowObjs[idx] = pyramid(cfg); break}
-			case 'ring':      {glowObjs[idx] = ring(cfg); break}
-			case 'curve':     {glowObjs[idx] = curve(cfg); break}
-			case 'points':    {glowObjs[idx] = points(cfg); break}
-			case 'vertex':    {glowObjs[idx] = vertex(cfg); break}
-			case 'triangle':  {glowObjs[idx] = triangle(cfg); break}
-			case 'quad':      {glowObjs[idx] = quad(cfg); break}
-			case 'label':     {glowObjs[idx] = label(cfg); break}
-			case 'ellipsoid': {glowObjs[idx] = sphere(cfg); break}
+			case 'box':           {glowObjs[idx] = box(cfg); break}
+			case 'sphere':        {glowObjs[idx] = sphere(cfg); break}
+			case 'simple_sphere': {glowObjs[idx] = simple_sphere(cfg); break}
+			case 'arrow':         {glowObjs[idx] = arrow(cfg); break}
+			case 'cone':          {glowObjs[idx] = cone(cfg); break}
+			case 'cylinder':      {glowObjs[idx] = cylinder(cfg); break}
+			case 'helix':         {glowObjs[idx] = helix(cfg); break}
+			case 'pyramid':       {glowObjs[idx] = pyramid(cfg); break}
+			case 'ring':          {glowObjs[idx] = ring(cfg); break}
+			case 'curve':         {glowObjs[idx] = curve(cfg); break}
+			case 'points':        {glowObjs[idx] = points(cfg); break}
+			case 'vertex':        {glowObjs[idx] = vertex(cfg); break}
+			case 'triangle':      {glowObjs[idx] = triangle(cfg); break}
+			case 'quad':          {glowObjs[idx] = quad(cfg); break}
+			case 'label':         {glowObjs[idx] = label(cfg); break}
+			case 'ellipsoid':     {glowObjs[idx] = sphere(cfg); break}
 			case 'graph':     { // currently graph gives an error for non-fundamental arguments
 				delete cfg.idx
-				glowObjs[idx] = vp_graph(cfg)
+				glowObjs[idx] = graph(cfg)
 				break
 			}
 			case 'gcurve':    { // currently gcurve give an error for non-fundamental arguments
@@ -559,7 +562,7 @@ function handle_cmds(dcmds) {
 				break
 			}
 			case 'gdots':     { // currently gdots give an error for non-fundamental arguments
-				delete cfg.idx
+                delete cfg.idx
 				glowObjs[idx] = gdots(cfg)
 				break
 			}

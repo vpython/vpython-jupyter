@@ -110,7 +110,7 @@ __attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use sing
          
          # text attributes:
          'text':'$', 'align':'%', 'caption':'^', 
-         'title_align': '-', 'title':'&', 'xtitle':'*', 'ytitle':'(',
+         'fast':'-', 'title':'&', 'xtitle':'*', 'ytitle':'(',
          
          # Miscellany:
          'lights':')', 'objects':'_', 'bind':'=',
@@ -122,7 +122,9 @@ __attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use sing
 __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':'e',
           'normal':'f', 'data':'g', 'checked':'h', 'disabled':'i', 'selected':'j',
           'vertical':'k', 'min':'l', 'max':'m', 'step':'n', 'value':'o', 'left':'p',
-          'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t'}
+          'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
+          'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x', 
+          'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -133,10 +135,11 @@ __methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # un
              'delete':'M'}
 
 __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_attach_arrow',
-            'direction', 'linecolor', 'bumpaxis', 'dot_color', 'add_to_trail', 'textcolor',
-            'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal']
+            'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail', 'textcolor',
+            'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
+            'marker_color']
                 
-__textattrs = ['text', 'align', 'caption', 'title_align', 'title', 'xtitle', 'ytitle', 'selected',
+__textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label',
                  'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 def _encode_attr2(sendval, val, ismethods):
@@ -493,6 +496,12 @@ class standardAttributes(baseObj):
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
                         ['red', 'green', 'blue','length', 'width', 'height']],
                  'sphere':[['pos', 'color', 'trail_color'], 
+                        ['axis', 'size', 'up'],
+                        ['visible', 'opacity','shininess', 'emissive',  
+                         'make_trail', 'trail_type', 'interval', 
+                         'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
+                        ['red', 'green', 'blue','length', 'width', 'height', 'radius']], 
+                 'simple_sphere':[['pos', 'color', 'trail_color'], 
                         ['axis', 'size', 'up'],
                         ['visible', 'opacity','shininess', 'emissive',  
                          'make_trail', 'trail_type', 'interval', 
@@ -1138,6 +1147,16 @@ class sphere(standardAttributes):
     def radius(self,value):
         d = 2*value
         self.size = vector(d,d,d) # size will call addattr
+        
+    @property
+    def size(self):
+        return self._size
+    @size.setter
+    def size(self,value):
+        if not isinstance(value, vector): raise TypeError('size must be a vector')
+        self._size = value
+        if not self._constructing:
+            self.addattr('size') # changing a sphere size should not affect axis
 
     @property
     def axis(self):
@@ -1150,6 +1169,12 @@ class sphere(standardAttributes):
             # must update both axis and up when either is changed
             self.addattr('axis')
             self.addattr('up')
+
+class simple_sphere(sphere):
+    def __init__(self, **args):
+        args['_default_size'] = vector(2,2,2)
+        args['_objName'] = "simple_sphere"
+        super(simple_sphere, self).setup(args)
         
 class cylinder(standardAttributes):
     def __init__(self, **args):
@@ -1719,7 +1744,7 @@ class quad(triangle):
     @property
     def v3(self):
         return self._v3
-    @v3.setter
+    # @v3.setter
     def v3(self, value):
         self._v3 = value
         if not self._constructing:
@@ -2007,7 +2032,6 @@ class gobj(baseObj):
         self._color = vector(0,0,0)
         self._interval = -1
         self._graph = None
-        #self._plot = []
         objName = args['_objName']
         del args['_objName']
         self._constructing = True ## calls are from constructor
@@ -2056,6 +2080,13 @@ class gobj(baseObj):
         if not isinstance(val, vector): raise TypeError('color must be a vector')
         self._color = val
         self.addattr('color')
+
+    @property
+    def fast(self): return self._fast
+    @fast.setter
+    def fast(self,val): 
+        self._fast = val
+        self.addattr('fast')
         
     @property
     def graph(self): return self._graph
@@ -2069,7 +2100,7 @@ class gobj(baseObj):
     @property
     def interval(self): return self._interval
     @interval.setter
-    def size(self,val): 
+    def interval(self,val): 
         self._interval = val
         self.addattr('interval')
 
@@ -2119,9 +2150,20 @@ class gobj(baseObj):
         
     def delete(self):
         self.addmethod('delete', 'None')
-    
-    def data(self, value): # replace existing data with value
-        self.addmethod('data', value)
+
+    @property
+    def label(self): return self._label
+    @label.setter
+    def label(self,val): 
+        self._label = val
+        self.addattr('label')
+
+    @property
+    def legend(self): return self._legend
+    @legend.setter
+    def legend(self,val): 
+        self._legend = val
+        self.addattr('legend')
 
     @property
     def data(self): return self._data
@@ -2151,11 +2193,33 @@ class gcurve(gobj):
         self.addattr('width')
 
     @property
-    def size(self): return self._size
+    def markers(self): return self._markers
+    @markers.setter
+    def markers(self,val): 
+        self._markers = val
+        self.addattr('markers')
+        
+    @property
+    def marker_color(self): return self._marker_color
+    @marker_color.setter
+    def marker_color(self,val): 
+        if not isinstance(val, vector): raise TypeError('marker_color must be a vector')
+        self._marker_color = vector(val)
+        self.addattr('marker_color')
+
+    @property
+    def radius(self): return self._radius
+    @radius.setter
+    def radius(self,val): 
+        self._radius = val
+        self.addattr('radius')
+
+    @property
+    def size(self): return 2*self._radius
     @size.setter
     def size(self,val): 
-        self._size = val
-        self.addattr('size')
+        self._radius = val/2
+        self.addattr('radius')
         
     @property
     def dot(self): return self._dot
@@ -2169,21 +2233,35 @@ class gcurve(gobj):
     @dot_color.setter
     def dot_color(self,val): 
         if not isinstance(val, vector): raise TypeError('dot_color must be a vector')
-        self._dot_color = vector(value)
+        self._dot_color = vector(val)
         self.addattr('dot_color')
+
+    @property
+    def dot_radius(self): return self._dot_radius
+    @dot_radius.setter
+    def dot_radius(self,val): 
+        self._dot_radius = val
+        self.addattr('dot_radius')
         
 class gdots(gobj):
     def __init__(self, **args):
         args['_objName'] = "gdots"
-        self._size = 5
+        self._radius = 5
         super(gdots, self).setup(args)
-       
+
     @property
-    def size(self): return self._size
+    def radius(self): return self._radius
+    @radius.setter
+    def radius(self,val):
+        self._radius = val
+        self.addattr('radius')
+
+    @property
+    def size(self): return 2*self._radius
     @size.setter
     def size(self,val): 
-        self._size = val
-        self.addattr('size')
+        self._radius = val/2
+        self.addattr('radius')
         
 class gvbars(gobj):
     def __init__(self, **args):
@@ -2214,7 +2292,7 @@ class graph(baseObj):
         self._width = 640
         self._height = 400
         self._align = 'none'
-        self._title_align = 'left'
+        self._fast = True
         self._foreground = vector(0,0,0)
         self._background = vector(1,1,1)
         self._title = ""
@@ -2233,8 +2311,8 @@ class graph(baseObj):
                 del args[a]
         
         ## override default scalar attributes
-        scalarAttributes = ['width', 'height', 'title', 'title_align', 'xtitle', 'ytitle','align',
-                            'xmin', 'xmax', 'ymin', 'ymax']
+        scalarAttributes = ['width', 'height', 'title', 'xtitle', 'ytitle','align',
+                            'xmin', 'xmax', 'ymin', 'ymax', 'logx', 'logy', 'fast']
         for a in scalarAttributes:
             if a in args:
                 argsToSend.append(a)
@@ -2254,7 +2332,14 @@ class graph(baseObj):
                 aval = aval.value
             cmd[a] = aval
             
-        self.appendcmd(cmd)                
+        self.appendcmd(cmd)               
+        
+    @property
+    def fast(self): return self._fast
+    @fast.setter
+    def fast(self,val): 
+        self._fast = val
+        self.addattr('fast')
         
     @property
     def width(self): return self._width
@@ -2278,15 +2363,6 @@ class graph(baseObj):
             raise NameError("align must be 'left', 'right', or 'none' (the default).")
         self._align = val
         self.addattr('align')
-
-    @property
-    def title_align(self): return self._title_align
-    @title_align.setter
-    def title_align(self,val):
-        if not (val == 'left' or val == 'right' or val == 'center'):
-            raise NameError("title_align must be 'left' (the default), 'right', or 'center'.")
-        self._align = val
-        self.addattr('title_align')
 
     @property
     def title(self): 
@@ -2354,6 +2430,20 @@ class graph(baseObj):
     def ymax(self,val): 
         self._ymax = val
         self.addattr('ymax')
+        
+    @property
+    def logx(self): return self._logx
+    @logx.setter
+    def logx(self,val): 
+        self._logx = val
+        self.addattr('logx')
+        
+    @property
+    def logy(self): return self._logy
+    @logx.setter
+    def logy(self,val): 
+        self._logy = val
+        self.addattr('logy')
 
     def delete(self):
         self.addmethod('delete','None')
