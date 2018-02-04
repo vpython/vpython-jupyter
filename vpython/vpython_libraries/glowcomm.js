@@ -1,5 +1,5 @@
-define(["nbextensions/vpython_libraries/jquery-ui.custom.min",
-        "nbextensions/vpython_libraries/glow.min"], function() {
+define(["nbextensions/vpython_libraries/glow.min",
+        "nbextensions/vpython_libraries/jquery-ui.custom.min"], function() {
 
 var comm
 

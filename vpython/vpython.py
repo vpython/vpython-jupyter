@@ -2031,6 +2031,14 @@ class gobj(baseObj):
         super(gobj, self).__init__()
     ## default values of shared attributes
         self._color = vector(0,0,0)
+        self._dot_color = vector(0,0,0)
+        self._marker_color = vector(0,0,0)
+        self._dot = False
+        self._delta = 1
+        self._width = 2
+        self._radius = 3
+        self._label = ''
+        self._legend = False
         self._interval = -1
         self._graph = None
         objName = args['_objName']
@@ -2038,16 +2046,20 @@ class gobj(baseObj):
         self._constructing = True ## calls are from constructor
         
         argsToSend = [] ## send to GlowScript only attributes specified in constructor
-                        ## default values will be used for others    
+                        ## default values will be used for others     
 
-        ## process pos here   
-        if 'pos' in args:
+        ## process data here   
+        if 'data' in args:
+            datatemp = args['data'][:] ## make a copy
+            self.plot(datatemp)  ## call plot to resolve pos arguments into self._plot
+            del args['data']  
+        elif 'pos' in args: ## process pos here, an old synonym for data  
             postemp = args['pos'][:] ## make a copy
             self.plot(postemp)  ## call plot to resolve pos arguments into self._plot
             del args['pos']
 
         ## override default vector attributes        
-        vectorAttributes = ['color', 'dot_color']        
+        vectorAttributes = ['color', 'dot_color', 'marker_color']        
         for a in vectorAttributes:
             if a in args:
                 argsToSend.append(a)
@@ -2074,7 +2086,28 @@ class gobj(baseObj):
             cmd[a] = aval
             
         self._constructing = False
-        self.appendcmd(cmd)   
+        self.appendcmd(cmd)
+
+    @property
+    def radius(self): return self._radius
+    @radius.setter
+    def radius(self,val): 
+        self._radius = val
+        self.addattr('radius')
+
+    @property
+    def size(self): return 2*self._radius
+    @size.setter
+    def size(self,val): 
+        self._radius = val/2
+        self.addattr('radius')
+
+    @property
+    def width(self): return self._width
+    @width.setter
+    def width(self,val): 
+        self._width = val
+        self.addattr('width')
          
     @property
     def color(self): return self._color
@@ -2183,19 +2216,8 @@ class gobj(baseObj):
 class gcurve(gobj):
     def __init__(self, **args):
         args['_objName'] = "gcurve"
-    ## default values of unshared attributes
-        self._dot = False
-        self._dot_color = vector(0,0,0)
-        self._size = 8
         
         super(gcurve, self).setup(args)
-
-    @property
-    def width(self): return self._width
-    @width.setter
-    def width(self,val): 
-        self._width = val
-        self.addattr('width')
 
     @property
     def markers(self): return self._markers
@@ -2211,20 +2233,6 @@ class gcurve(gobj):
         if not isinstance(val, vector): raise TypeError('marker_color must be a vector')
         self._marker_color = vector(val)
         self.addattr('marker_color')
-
-    @property
-    def radius(self): return self._radius
-    @radius.setter
-    def radius(self,val): 
-        self._radius = val
-        self.addattr('radius')
-
-    @property
-    def size(self): return 2*self._radius
-    @size.setter
-    def size(self,val): 
-        self._radius = val/2
-        self.addattr('radius')
         
     @property
     def dot(self): return self._dot
@@ -2251,22 +2259,7 @@ class gcurve(gobj):
 class gdots(gobj):
     def __init__(self, **args):
         args['_objName'] = "gdots"
-        self._radius = 5
         super(gdots, self).setup(args)
-
-    @property
-    def radius(self): return self._radius
-    @radius.setter
-    def radius(self,val):
-        self._radius = val
-        self.addattr('radius')
-
-    @property
-    def size(self): return 2*self._radius
-    @size.setter
-    def size(self,val): 
-        self._radius = val/2
-        self.addattr('radius')
         
 class gvbars(gobj):
     def __init__(self, **args):
