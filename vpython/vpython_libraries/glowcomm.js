@@ -340,7 +340,7 @@ function decode(data) {
 	
 	if ('attrs' in data) {
 		var c = data['attrs']
-		for (i in c) { // step through the encoded attributes and methods
+		for (i=0; i<c.length; i++) { // step through the encoded attributes and methods
 			var d = c[i]
 			// constructor or appendcmd not currently compressed
 			var whichlist = d[0] // 'a' or 'b' or 'm'
@@ -439,7 +439,7 @@ function handler(data) {
 function handle_cmds(dcmds) {
     "use strict";
 	//console.log('CMDS')
-	for (var icmds in dcmds) { // constructors, and special operations such as curve.modify
+	for (var icmds=0; icmds<dcmds.length; icmds++) { // constructors, and special operations such as curve.modify
 		var cmd = dcmds[icmds]
 		var obj = cmd.cmd
 		var idx = cmd.idx
@@ -498,7 +498,6 @@ function handle_cmds(dcmds) {
 				cfg[attr] = val
 			} else {
 				cfg[attr] = val
-				// console.log(attr.attr, attr.value)
 			}
 		}
 		if (!construct) { // commands such as "center" (for a canvas)
@@ -734,7 +733,7 @@ function handle_cmds(dcmds) {
 function handle_methods(dmeth) {
     "use strict";
 	//console.log('METHODS')
-	for (var idmeth in dmeth) { // methods; cmd is ['idx':idx, 'attr':method, 'val':val]
+	for (var idmeth=0; idmeth<dmeth.length; idmeth++) { // methods; cmd is ['idx':idx, 'attr':method, 'val':val]
 		var cmd = dmeth[idmeth]
 		var idx = cmd.idx
 		var method = cmd.attr
@@ -799,7 +798,7 @@ function handle_methods(dmeth) {
 function handle_attrs(dattrs) {
     "use strict";
 	//console.log('ATTRS')
-	for (var idattrs in dattrs) { // attributes; cmd is {'idx':idx, 'attr':attr, 'val':val}
+	for (var idattrs=0; idattrs<dattrs.length; idattrs++) { // attributes; cmd is {'idx':idx, 'attr':attr, 'val':val}
 		var cmd = dattrs[idattrs]
 		var idx = cmd.idx
 		var obj = glowObjs[idx]
