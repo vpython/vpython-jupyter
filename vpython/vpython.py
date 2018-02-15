@@ -2317,9 +2317,6 @@ class graph(baseObj):
                 setattr(self, '_'+a, args[a])
                 del args[a]
         
-        if _isnotebook and not self._fast:
-            raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
-                
         # user defined attributes
         for a in args:
             setattr(self, '_'+a, args[a])

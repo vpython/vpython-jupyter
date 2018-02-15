@@ -1,7 +1,8 @@
-define(["nbextensions/vpython_libraries/glow.min",
-        "nbextensions/vpython_libraries/jquery-ui.custom.min"], function() {
+define(["nbextensions/vpython_libraries/plotly-latest.min","nbextensions/vpython_libraries/glow.min","nbextensions/vpython_libraries/jquery-ui.custom.min"], function(Plotly) {
 
 var comm
+
+window.Plotly = Plotly
 
 IPython.notebook.kernel.comm_manager.register_target('glow',
     function(commChannel, msg) {
