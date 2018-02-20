@@ -2073,8 +2073,8 @@ class gobj(baseObj):
             argsToSend.append(a)
             if a == 'graph':
                 val = val.idx
-            elif a == 'fast' and _isnotebook and not val:
-                raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
+            # elif a == 'fast' and _isnotebook and not val:
+                # raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
             setattr(self, '_'+a, val)
                
         cmd = {"cmd": objName, "idx": self.idx}
@@ -2121,8 +2121,8 @@ class gobj(baseObj):
     def fast(self): return self._fast
     @fast.setter
     def fast(self,val): 
-        if _isnotebook and not val:
-            raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
+        # if _isnotebook and not val:
+            # raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
         self._fast = val
         self.addattr('fast')
         
@@ -2336,8 +2336,8 @@ class graph(baseObj):
     def fast(self): return self._fast
     @fast.setter
     def fast(self,val):
-        if _isnotebook and not val:
-            raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.') 
+        # if _isnotebook and not val:
+            # raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.') 
         self._fast = val
         self.addattr('fast')
         
