@@ -124,7 +124,8 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'vertical':'k', 'min':'l', 'max':'m', 'step':'n', 'value':'o', 'left':'p',
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x', 
-          'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C'}
+          'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
+          'size_units':'D'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -534,7 +535,7 @@ class standardAttributes(baseObj):
                          ['red', 'green', 'blue','length', 'width', 'height']],
                  'points':[['color'],  
                          [],
-                         ['visible', 'shininess', 'emissive', 'radius', 'retain'],
+                         ['visible', 'shininess', 'emissive', 'radius', 'retain', 'pickable', 'size_units'],
                          ['red', 'green', 'blue']],
                  'label':[['pos', 'color', 'background', 'linecolor'],  
                          [],
@@ -2015,13 +2016,20 @@ class points(curveMethods):
             self.append(tpos)
         if len(args1) > 0:
             self.append(*args1)    
-                
+
     @property
     def origin(self):   
         raise AttributeError('The points object does not have an origin')
     @origin.setter
     def origin(self,value):
-        raise AttributeError('The points object does not have an origin')
+        raise AttributeError('The points object does not have an origin')   
+
+    @property
+    def size_units(self):
+        return self._size_units
+    @size_units.setter
+    def size_units(self,value):
+        self._size_units = value
 
     def rotate(self, **args):
         raise AttributeError('The points object has no rotate method.')        
