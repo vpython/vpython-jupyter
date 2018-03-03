@@ -17,9 +17,10 @@ height = 0.4*L/N
 for x in range(N):
     for y in range(N):
         for z in range(N):
-            b = box(color=vector(x/N,y/N,z/N),
+            b = box(color=vector(x/N,y/N,z/N), 
                 pos=vector(L*(x/(N-1)-.5),L*(y/(N-1)-.5),L*(z/(N-1)-.5)),
                 size=vector(length,height,length))
+            #b.axis = length*vector(1,1,0)
             boxes.append(b)
 
 t = 0
@@ -38,10 +39,11 @@ while True:
         loops = 0
         start = clock()
     rate(N)
-    t += dt
     ct = clock()
-    v = length*vector(sin(t), 0, cos(t))
+    v = length*vector(cos(t), 0, -sin(t))
     for b in boxes:
         b.axis = v
+##        b.rotate(angle=dt, axis=vector(0,1,0))
+    t += dt
     ctime += clock()-ct
     loops += 1

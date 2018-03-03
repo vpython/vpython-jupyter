@@ -14,7 +14,7 @@ scene.caption = """<i>f</i>(<i>x,y,t</i>) = 0.7+0.2sin(10<i>x</i>)cos(10<i>y</i>
 In GlowScript programs:
    Right button drag or Ctrl-drag to rotate "camera" to view scene.
    To zoom, drag with mid1e button or Alt/Option depressed, or use scroll wheel.
-     On a two-button mouse, mid1e is left + right.
+     On a two-button mouse, midd1e is left + right.
    Touch screen: pinch/extend to zoom, swipe or two-finger rotate."""
 #MathJax.Hub.Queue(["Typeset",MathJax.Hub]) # format the LaTeX; see http://www.glowscript.org/docs/VPythonDocs/MathJax.html
 

@@ -17,10 +17,8 @@ E1 = extrusion(path=[vec(0,0,0), vec(0,0,-0.7)], texture=textures.wood_old,
 copper = vec(0.722,0.451,0.200)
 E2 = extrusion(path=paths.arc(radius=1.7, angle2=pi), texture=textures.metal, 
     shape=[ [shapes.triangle(length=2), shapes.circle(pos=[0,.5], radius=0.2),
-    shapes.trapezoid(pos=[0,-0.2],
-    width=0.6, height=0.4)],
-    [shapes.rectangle(pos=[0,1.8],
-    width=1,height=0.3)] ],
+    shapes.trapezoid(pos=[0,-0.2], width=0.6, height=0.4)],
+    [shapes.rectangle(pos=[0,1.8], width=1,height=0.3)] ],
     start_face_color=copper, end_face_color=copper)
 E2center = E2.pos    # initial pos of center of extrusion
 E2.pos = vec(3,2,0)  # new pos of center of extrsion

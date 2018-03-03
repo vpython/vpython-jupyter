@@ -1,4 +1,5 @@
 from vpython import *
+from time import clock
 
 # Hard-sphere gas.
 
@@ -17,8 +18,16 @@ k = 1.4E-23 # Boltzmann constant
 T = 300 # around room temperature
 dt = 1E-5
 
-animation = canvas( width=win, height=win, align='left')
+animation = canvas( width=win, height=win)
 animation.range = L
+animation.title = 'A "hard-sphere" gas'
+s = """&nbsp;&nbsp;Theoretical and averaged speed distributions (meters/sec).
+&nbsp;&nbsp;Initially all atoms have the same speed, but collisions
+&nbsp;&nbsp;change the speeds of the colliding atoms. One of the atoms is
+&nbsp;&nbsp;marked and leaves a trail so you can follow its path.
+&nbsp
+"""
+animation.caption = s
 
 d = L/2+Ratom
 r = 0.005
@@ -36,19 +45,18 @@ vert3.append([vector(d,-d,d), vector(d,d,d)])
 vert4.append([vector(d,-d,-d), vector(d,d,-d)])
 
 Atoms = []
-apos = []
 p = []
+apos = []
 pavg = sqrt(2*mass*1.5*k*T) # average kinetic energy p**2/(2mass) = (3/2)kT
-r = 0.005*L
     
 for i in range(Natoms):
     x = L*random()-L/2
     y = L*random()-L/2
     z = L*random()-L/2
     if i == 0:
-        Atoms.append(sphere(pos=vector(x,y,z), radius=Ratom, color=color.cyan, make_trail=True, retain=100))
+        Atoms.append(sphere(pos=vector(x,y,z), radius=Ratom, color=color.cyan, make_trail=True, retain=100, trail_radius=0.3*Ratom))
     else: Atoms.append(sphere(pos=vector(x,y,z), radius=Ratom, color=gray))
-    apos.append(vector(x,y,z))
+    apos.append(vec(x,y,z))
     theta = pi*random()
     phi = 2*pi*random()
     px = pavg*sin(theta)*cos(phi)
@@ -56,25 +64,20 @@ for i in range(Natoms):
     pz = pavg*cos(theta)
     p.append(vector(px,py,pz))
 
-animation.title = 'A "hard-sphere" gas'
-s = """ Theoretical and averaged speed distributions (meters/sec).
- Initially all atoms have the same speed, but collisions
- change the speeds of the colliding atoms. One of the atoms is
- marked and leaves a trail so you can follow its path."""
-animation.caption = s
-
 deltav = 100 # binning for v histogram
 
 def barx(v):
     return int(v/deltav) # index into bars array
 
-nhisto = int(4000/deltav)
+nhisto = int(4500/deltav)
 histo = []
 for i in range(nhisto): histo.append(0.0)
 histo[barx(pavg/mass)] = Natoms
 
-graph( width=win, height=0.4*win, xmax=3000, ymax=Natoms*deltav/1000, align='right' )
-theory = gcurve( color=color.cyan )
+gg = graph( width=win, height=0.4*win, xmax=3000, fast=False,
+           xtitle='speed, m/s', ytitle='Number of atoms', ymax=Natoms*deltav/1000)
+
+theory = gcurve( color=color.cyan, label='Theory' )
 dv = 10
 for v in range(0,3001+dv,dv):  # theoretical prediction
     theory.plot( v, (deltav/dv)*Natoms*4*pi*((mass/(2*pi*k*T))**1.5) *exp(-0.5*mass*(v**2)/(k*T))*(v**2)*dv )
@@ -86,13 +89,46 @@ vdist = gvbars(color=color.red, delta=deltav )
 def interchange(v1, v2):  # remove from v1 bar, add to v2 bar
     barx1 = barx(v1)
     barx2 = barx(v2)
-    if barx1 == barx2:  return 
+    if barx1 == barx2:  return
     histo[barx1] -= 1
     histo[barx2] += 1
-    
-def checkCollisions(apos):
+
+def process_collisions(hitlist):
+    # If any collisions took place, update momenta of the two atoms
+    for ij in hitlist:
+        i = ij[0]
+        j = ij[1]
+        ptot = p[i]+p[j]
+        posi = apos[i]
+        posj = apos[j]
+        vi = p[i]/mass
+        vj = p[j]/mass
+        vrel = vj-vi
+        a = vrel.mag2
+        if a == 0: continue;  # exactly same velocities
+        rrel = posi-posj
+        b = 2*rrel.dot(vrel)
+        c = rrel.mag2-4*Ratom*Ratom
+        d = b*b-4*a*c
+        if d < 0: continue  # something wrong; ignore this rare case
+        deltat = (-b+sqrt(d))/(2*a) # t-deltat is when they made contact
+        posi = posi-vi*deltat # back up to contact configuration
+        posj = posj-vj*deltat
+        mtot = 2*mass
+        pcmi = p[i]-ptot*mass/mtot # transform momenta to cm frame
+        pcmj = p[j]-ptot*mass/mtot
+        rrel = norm(rrel)
+        pcmi = pcmi-2*pcmi.dot(rrel)*rrel # bounce in cm frame
+        pcmj = pcmj-2*pcmj.dot(rrel)*rrel
+        p[i] = pcmi+ptot*mass/mtot # transform momenta back to lab frame
+        p[j] = pcmj+ptot*mass/mtot
+        apos[i] = posi+(p[i]/mass)*deltat # move forward deltat in time
+        apos[j] = posj+(p[j]/mass)*deltat
+        interchange(vi.mag, p[i].mag/mass)
+        interchange(vj.mag, p[j].mag/mass)
+
+def checkCollisions():
     hitlist = []
-    Natoms = len(apos)
     r2 = 2*Ratom
     r2 *= r2
     for i in range(Natoms):
@@ -101,12 +137,13 @@ def checkCollisions(apos):
             aj = apos[j]
             dr = ai - aj
             if mag2(dr) < r2: hitlist.append([i,j])
-    return hitlist
+    if (len(hitlist) > 0): process_collisions(hitlist)
 
 nhisto = 0 # number of histogram snapshots to average
+timer = clock()
 
 while True:
-    rate(150)
+    rate(100)
     # Accumulate and average histogram snapshots
     for i in range(len(accum)): accum[i][1] = (nhisto*accum[i][1] + histo[i])/(nhisto+1)
     if nhisto % 10 == 0:
@@ -117,38 +154,8 @@ while True:
     for i in range(Natoms): Atoms[i].pos = apos[i] = apos[i] + (p[i]/mass)*dt
     
     # Check for collisions
-    hitlist = checkCollisions(apos)
+    hitlist = checkCollisions()
 
-    # If any collisions took place, update momenta of the two atoms
-    for ij in hitlist:
-        i = ij[0]
-        j = ij[1]
-        ptot = p[i]+p[j]
-        vi = p[i]/mass
-        vj = p[j]/mass
-        vrel = vj-vi
-        a = vrel.mag2
-        if a == 0: continue;  # exactly same velocities
-        rrel = apos[i]-apos[j]
-        b = 2*rrel.dot(vrel)
-        c = rrel.mag2-4*Ratom*Ratom
-        d = b*b-4*a*c
-        if d < 0: continue  # something wrong; ignore this rare case
-        deltat = (-b+sqrt(d))/(2*a) # t-deltat is when they made contact
-        apos[i] = apos[i]-vi*deltat # back up to contact configuration
-        apos[j] = apos[j]-vj*deltat
-        mtot = 2*mass
-        pcmi = p[i]-ptot*mass/mtot # transform momenta to cm frame
-        pcmj = p[j]-ptot*mass/mtot
-        rrel = norm(rrel)
-        pcmi = pcmi-2*pcmi.dot(rrel)*rrel # bounce in cm frame
-        pcmj = pcmj-2*pcmj.dot(rrel)*rrel
-        p[i] = pcmi+ptot*mass/mtot # transform momenta back to lab frame
-        p[j] = pcmj+ptot*mass/mtot
-        apos[i] = apos[i]+(p[i]/mass)*deltat # move forward deltat in time
-        apos[j] = apos[j]+(p[j]/mass)*deltat
-        interchange(vi.mag, p[i].mag/mass)
-        interchange(vj.mag, p[j].mag/mass)
     
     for i in range(Natoms):
         loc = apos[i]
@@ -163,3 +170,6 @@ while True:
         if abs(loc.z) > L/2:
             if loc.z < 0: p[i].z =  abs(p[i].z)
             else: p[i].z =  -abs(p[i].z)
+    
+timer = clock()-timer
+print(timer)
