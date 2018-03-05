@@ -21,7 +21,6 @@ if 'nbextensions' in os.listdir(jd):
         v = open(nbdir+'/vpython_version.txt').read()
         transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
 
-#transfer = True ### use when testing, so that changes are active
 if transfer:
     if IPython.__version__ >= '4.0.0' :
         notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
