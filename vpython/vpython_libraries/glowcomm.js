@@ -1,4 +1,6 @@
-define(["nbextensions/vpython_libraries/plotly.min","nbextensions/vpython_libraries/glow.min","nbextensions/vpython_libraries/jquery-ui.custom.min"], function(Plotly) {
+define(["nbextensions/vpython_libraries/plotly.min",
+        "nbextensions/vpython_libraries/glow.min",
+        "nbextensions/vpython_libraries/jquery-ui.custom.min"], function(Plotly) {
 
 var comm
 
