@@ -125,7 +125,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x', 
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D'}
+          'size_units':'D', 'userpan':'E'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -2814,6 +2814,7 @@ class canvas(baseObj):
         
         self._userzoom = True
         self._userspin = True
+        self._userpan = True
         self._pixel_to_world = 0
         self._title = ''
         self._caption = ''
@@ -2832,7 +2833,7 @@ class canvas(baseObj):
         
         canvasVecAttrs = ['background', 'ambient','forward','up', 'center']
         canvasNonVecAttrs = ['visible', 'height', 'width', 'title','fov', 'range','align',
-                             'autoscale', 'userzoom', 'userspin', 'title', 'caption']
+                             'autoscale', 'userzoom', 'userspin', 'userpan', 'title', 'caption']
  
         for a in canvasNonVecAttrs:
             if a in args:
@@ -3063,6 +3064,15 @@ class canvas(baseObj):
         self._userspin = value
         if not self._constructing:
             self.appendcmd({"userspin":value})
+
+    @property
+    def userpan(self):
+        return self._userpan    
+    @userpan.setter
+    def userpan(self,value):
+        self._userpan = value
+        if not self._constructing:
+            self.appendcmd({"userpan":value})
             
     @property
     def lights(self):
