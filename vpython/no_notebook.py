@@ -2,6 +2,7 @@ from .vpython import *
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
+import platform
 import threading
 import json
 import webbrowser as _webbrowser
@@ -20,7 +21,13 @@ def find_free_port():
 
 __HTTP_PORT = find_free_port()
 __SOCKET_PORT = find_free_port()
-    
+
+try:
+    if platform.python_implementation() == 'PyPy':
+        __SOCKET_PORT = 9000 + __SOCKET_PORT % 1000     # use port number between 9000 and 9999 for PyPy
+except:
+    pass
+
 # try: # machinery for reusing ports
     # fd = open('free_ports')
     # __HTTP_PORT = int(fd.readline())
@@ -145,8 +152,18 @@ class WSserver(WebSocketServerProtocol):
         #print("Server WebSocket connection closed: {0}".format(reason))
         self.connection = None
 
-__server = HTTPServer(('', __HTTP_PORT), serveHTTP)
-_webbrowser.open('http://localhost:{}'.format(__HTTP_PORT)) # or webbrowser.open_new_tab()
+try:
+    if platform.python_implementation() == 'PyPy':
+        server_address = ('', 0)      # let HTTPServer choose a free port
+        __server = HTTPServer(server_address, serveHTTP)
+        port = __server.server_port   # get the chosen port
+        _webbrowser.open('http://localhost:{}'.format(port)) # or webbrowser.open_new_tab()
+    else:
+        __server = HTTPServer(('', __HTTP_PORT), serveHTTP)
+        _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT)) # or webbrowser.open_new_tab()     
+except:
+    pass
+
 __w = threading.Thread(target=__server.serve_forever)
 __w.start()
 
