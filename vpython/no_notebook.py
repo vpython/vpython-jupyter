@@ -9,6 +9,13 @@ import webbrowser as _webbrowser
 import asyncio
 from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
 
+import signal 
+
+# Check for Ctrl+C 
+def signal_handler(signal, frame):
+    os._exit(0)
+signal.signal(signal.SIGINT, signal_handler)
+
 # Requests from client to http server can be the following:
 #    get glowcomm.html, library .js files, images, or font files
 
@@ -151,6 +158,7 @@ class WSserver(WebSocketServerProtocol):
     def onClose(self, wasClean, code, reason):
         #print("Server WebSocket connection closed: {0}".format(reason))
         self.connection = None
+        os._exit(0)
 
 try:
     if platform.python_implementation() == 'PyPy':
@@ -165,6 +173,7 @@ except:
     pass
 
 __w = threading.Thread(target=__server.serve_forever)
+__w.daemon = True
 __w.start()
 
 __factory = WebSocketServerFactory(u"ws://localhost:{}/".format(__SOCKET_PORT))
@@ -179,6 +188,7 @@ __interact_loop.run_until_complete(__coro)
 # Need to put interact loop inside a thread in order to get a display
 # in the absence of a loop containing a rate statement.
 __t = threading.Thread(target=__interact_loop.run_forever)
+__t.daemon = True
 __t.start()
 
 while not (httpserving and websocketserving): # try to make sure setup is complete
