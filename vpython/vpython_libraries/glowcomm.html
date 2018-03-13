@@ -16,6 +16,11 @@ var sock = 'XXX' // a port number generated and inserted here by no_notebook.py
 window.__context = { glowscript_container: $("#glowscript") }
 window.Jupyter_VPython = '/' // prefix used by glow.min.js for textures
 
+function windowClose() {
+window.open('','_parent','');
+window.close();
+}
+
 console.log('START OF GLOWCOMM')
 
 function fontloading() { // trigger loading of fonts for 3D text
@@ -71,6 +76,7 @@ window.onload = function() {
 	ws.onclose = function(e) {
 		ws = null
 		isopen = false
+		windowClose()
 	}
 
 	ws.onerror = function(e) {

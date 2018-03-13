@@ -173,7 +173,6 @@ except:
     pass
 
 __w = threading.Thread(target=__server.serve_forever)
-__w.daemon = True
 __w.start()
 
 __factory = WebSocketServerFactory(u"ws://localhost:{}/".format(__SOCKET_PORT))
@@ -188,7 +187,6 @@ __interact_loop.run_until_complete(__coro)
 # Need to put interact loop inside a thread in order to get a display
 # in the absence of a loop containing a rate statement.
 __t = threading.Thread(target=__interact_loop.run_forever)
-__t.daemon = True
 __t.start()
 
 while not (httpserving and websocketserving): # try to make sure setup is complete
