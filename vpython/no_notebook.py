@@ -96,7 +96,6 @@ class serveHTTP(BaseHTTPRequestHandler):
                 loc = cwd + path
                 if not os.path.isfile(loc):
                     loc = mime[1] + path # look in vpython_data
-                print('loc', loc)
                 fd = open(loc, 'rb')
                 self.wfile.write(fd.read())
             else:
