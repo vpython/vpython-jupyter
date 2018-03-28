@@ -9,7 +9,8 @@ import webbrowser as _webbrowser
 import asyncio
 from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
 
-import signal 
+import signal
+from urllib.parse import unquote
 
 # Check for Ctrl+C 
 def signal_handler(signal, frame):
@@ -81,22 +82,26 @@ class serveHTTP(BaseHTTPRequestHandler):
         f = self.path.rfind('.')
         fext = None
         if f > 0: fext = self.path[f+1:]
-        try:
-            if fext in self.mimes:
-                mime = self.mimes[fext]
-                self.send_response(200)
-                self.send_header('Content-type', mime[0])
-                self.end_headers()
-                if not html:
-                    loc = mime[1] + self.path
-                    fd = open(loc, 'rb')
-                    self.wfile.write(fd.read())
-                    fd.close()
-                else:
-                    # string.encode() is not available in Python 2.7, but neither is async
-                    self.wfile.write(glowcomm.encode('utf-8'))
-        except IOError:
-                self.send_error(404,'File Not Found: {}'.format(self.path))
+        if fext in self.mimes:
+            mime = self.mimes[fext] 
+            # For example, mime[0] is image/jpg, 
+            # mime[1] is C:\Users\Bruce\Anaconda3\lib\site-packages\vpython\vpython_data
+            self.send_response(200)
+            self.send_header('Content-type', mime[0])
+            self.end_headers()
+            if not html:
+                path = unquote(self.path) # convert %20 to space, for example
+                # Now path can be for example \Fig 4.6.jpg
+                cwd = os.getcwd() # user current working directory, e.g. D:\Documents\0GlowScriptWork\LocalServer
+                loc = cwd + path
+                if not os.path.isfile(loc):
+                    loc = mime[1] + path # look in vpython_data
+                print('loc', loc)
+                fd = open(loc, 'rb')
+                self.wfile.write(fd.read())
+            else:
+                # string.encode() is not available in Python 2.7, but neither is async
+                self.wfile.write(glowcomm.encode('utf-8'))
                     
     def log_message(self, format, *args): # this overrides server stderr output
         return
