@@ -34,7 +34,7 @@ install:
 
     # Install a couple of dependencies we need for sure.
     # Not sure why cython is necessary since it is listed as a build dependency.
-    - conda install --quiet jinja2 conda-build anaconda-client cython
+    - conda install --quiet jinja2 conda-build anaconda-client cython twine
 
     # make a wheel building environment to ensure correct python version.
     - conda create --quiet -n wheel-build python=$CONDA_PY wheel cython
