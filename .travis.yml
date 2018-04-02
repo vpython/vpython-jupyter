@@ -40,6 +40,16 @@ install:
     - conda create --quiet -n wheel-build python=$CONDA_PY wheel cython
 
 script:
+    # Define a variable that will be YES for exactly one os/python
+    # combination and use it to decide whether to upload an sdist.
+    # This should prevent spurious failures at the deploy stage.
+    - export UPLOAD_SDIST="NO"
+    - if [ $TRAVIS_OS_NAME == "linux" ]; then
+        if [ $CONDA_PY == "3.6" ]; then
+            export UPLOAD_SDIST="YES"
+        fi
+      fi
+    - echo $UPLOAD_SDIST
     # Not much of a real test yet, just try to build myself...
     - conda build --quiet vpython.recipe
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
@@ -92,3 +102,4 @@ deploy:
     tags: true
     distributions: "sdist"
     repo: BruceSherwood/vpython-jupyter
+    condition: $UPLOAD_SDIST = "YES"
