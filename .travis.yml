@@ -44,9 +44,9 @@ script:
     # combination and use it to decide whether to upload an sdist.
     # This should prevent spurious failures at the deploy stage.
     - export UPLOAD_SDIST="NO"
-    - if [ $TRAVIS_OS_NAME == "linux" ]; then
-        if [ $CONDA_PY == "3.6" ]; then
-            export UPLOAD_SDIST="YES"
+    - if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+        if [ "$CONDA_PY" == "3.6" ]; then
+            export UPLOAD_SDIST="YES";
         fi
       fi
     - echo $UPLOAD_SDIST
