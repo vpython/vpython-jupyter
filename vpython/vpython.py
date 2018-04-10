@@ -445,6 +445,7 @@ class color(object):
     magenta = vector(1,0,1)
 
     orange = vector(1,0.6,0)
+    purple = vector(0.4,0.2,0.6)
 
     @classmethod
     def gray(cls,luminance):
