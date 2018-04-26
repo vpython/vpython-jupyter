@@ -14,7 +14,7 @@ except:
     from .vector import *
 from .shapespaths import *
 
-# Need to import the following for consistency across VPythons
+# # Need to import the following for consistency across VPythons
 from math import *
 from numpy import arange
 
@@ -706,7 +706,7 @@ class standardAttributes(baseObj):
                 setattr(self, a, args[a])  ## use setter to take care of side effects
                 if scalarInteractions[a] not in argsToSend:
                     argsToSend.append(scalarInteractions[a])  # e.g. if a is radius, send size
-                del args[a]                
+                del args[a]
                  
     # set values of user-defined attributes
         for key, value in args.items(): # Assign all other properties
@@ -748,6 +748,7 @@ class standardAttributes(baseObj):
     # attribute vectors have these methods which call self.addattr()
     # The vector class calls a change function when there's a change in x, y, or z.
         noSize = ['points', 'label', 'vertex', 'triangle', 'quad', 'attach_arrow', 'attach_trail']
+        self._color.on_change = self._on_color_change
         if objName not in noSize:
             self._axis.on_change = self._on_axis_change
             self._size.on_change = self._on_size_change
@@ -1070,7 +1071,10 @@ class standardAttributes(baseObj):
         self.addattr('axis')
 
     def _on_up_change(self): # the vector class calls this when there's a change in x, y, or z
-        self.addattr('up')        
+        self.addattr('up') 
+
+    def _on_color_change(self): # the vector class calls this when there's a change in x, y, or z
+        self.addattr('color')       
         
     def clear_trail(self):
         self.addmethod('clear_trail', 'None')
@@ -1734,7 +1738,7 @@ class quad(triangle):
             vlist = ['v0', 'v1', 'v2', 'v3']
             for i,val in enumerate(args['vs']):
                 args[vlist[i]] = val
-            del args['vs']  
+            del args['vs'] 
         super(quad, self).setup(args)
         
     def __del__(self):
@@ -1747,7 +1751,7 @@ class quad(triangle):
     @property
     def v3(self):
         return self._v3
-    # @v3.setter
+    @v3.setter
     def v3(self, value):
         self._v3 = value
         if not self._constructing:
@@ -1769,7 +1773,7 @@ class quad(triangle):
             if i == 0: self.v0 = val
             elif i == 1: self.v1 = val
             elif i == 2: self.v2 = val
-            elif i == 4: self.v3 = val
+            elif i == 3: self.v3 = val
     
 class curveMethods(standardAttributes):
     def curveSetup(self, *args1, **args):
@@ -1837,10 +1841,10 @@ class curveMethods(standardAttributes):
                 if not isinstance(v, vector): # legal in GlowScript: pos=[(x,y,z), (x,y,z)] and pos=[[x,y,z], [x,y,z]]
                     v = list_to_vec(v)
                 if not self._constructing:
-                    ret.append({'pos':v})
+                    ret.append({'pos':vec(v)}) # make a copy of the vector; it could be (and often is, e.g. in a trail) object.pos
                 else:
-                    ret.append(v)
-            elif isinstance(v, dict) and not self._constructing: ret.append(v)
+                    ret.append(vec(v))
+            elif isinstance(v, dict) and not self._constructing: ret.append(vec(v))
             else: 
                 if not self._constructing:
                     raise AttributeError("Point information must be a vector or a dictionary")
