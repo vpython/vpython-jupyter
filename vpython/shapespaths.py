@@ -3,13 +3,13 @@ from __future__ import division
 from math import sqrt, sin, cos, tan, asin, acos, atan, floor, pi
 import platform
 try:
-    if platform.python_implementation() == 'PyPy':
-        from .vector import vector, mag, norm      # use pure python vector for PyPy
-    else:
-        from .cyvector import vector, mag, norm
-        v = vector(0.,0.,0.)
+   if platform.python_implementation() == 'PyPy':
+       from .vector import vector, mag, norm      # use pure python vector for PyPy
+   else:
+       from .cyvector import vector, mag, norm
+       v = vector(0.,0.,0.)
 except:
-    from .vector import vector, mag, norm
+   from .vector import vector, mag, norm
 vec = vector
 
  # The path and shape objects were designed and implemented by Kadir Haldenbilen
