@@ -93,7 +93,7 @@ GSversion = [__gs_version__, 'glowscript']
 
 # attrs are X in {'a': '23X....'}
 __attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: comma, but maybe that would cause trouble
-         'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h', 'textcolor':'i',
+         'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h',
          'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 'dot_color':'m',
          'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 'resizable':'+', 
          
@@ -136,7 +136,7 @@ __methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # un
              'delete':'M'}
 
 __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_attach_arrow',
-            'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail', 'textcolor',
+            'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
             'marker_color']
                 
@@ -1876,11 +1876,14 @@ class curveMethods(standardAttributes):
         if not self._constructing:
             self.addattr('radius')   
                              
-    def pop(self):
+    def pop(self, *args):
         if len(self._pts) == 0: return None
-        val = self._pts[-1]
-        self._pts = self._pts[0:-1]
-        self.appendcmd({"val":"None","method":"pop","idx":self.idx})
+        if len(args) == 0:
+            index = -1
+        else:
+            index = args[0]
+        val = self._pts.pop(index)
+        self.appendcmd({"val":index,"method":"pop","idx":self.idx})
         return val
 
     def point(self,N):
@@ -3330,12 +3333,12 @@ class wtext(standardAttributes):
             self.addattr('text')
 
 class controls(baseObj):
-    attrlists = { 'button': ['text', 'textcolor', 'background', 'disabled'],
-                  'checkbox':['checked', 'text'],
-                  'radio':['checked', 'text'],
-                  'menu':['selected', 'choices', 'index'],
+    attrlists = { 'button': ['text', 'color', 'textcolor', 'background', 'disabled'],
+                  'checkbox':['checked', 'text', 'disabled'],
+                  'radio':['checked', 'text', 'disabled'],
+                  'menu':['selected', 'choices', 'index', 'disabled'],
                   'slider':['vertical', 'min', 'max', 'step', 'value', 'length',
-                            'width', 'left', 'right', 'top', 'bottom', 'align']
+                            'width', 'left', 'right', 'top', 'bottom', 'align', 'disabled']
                 }
     def setup(self, args):
         super(controls, self).__init__()  ## get idx, attrsupdt from baseObj
@@ -3363,14 +3366,16 @@ class controls(baseObj):
             raise AttributeError('bind missing')
             
         ## override default vector attributes        
-        vectorAttributes = ['textcolor', 'background']        
+        vectorAttributes = ['color', 'textcolor', 'background']        
         for a in vectorAttributes:
             if a in args:
-                argsToSend.append(a)
                 val = args[a]
+                if a == 'textcolor':
+                    del args[a] 
+                    a = 'color' # textcolor is a legacy attribute; now use color
+                argsToSend.append(a)
                 if isinstance(val, vector): setattr(self, '_'+a, val)
                 else: raise AttributeError(a+' must be a vector')
-                del args[a] 
                 
         ## override default scalar attributes
         for a,val in args.items():
@@ -3405,6 +3410,18 @@ class controls(baseObj):
     @pos.setter
     def pos(self, value):
         raise AttributeError(objName+' pos attribute cannot be changed.')
+            
+    @property
+    def disabled(self):
+        return self._disabled
+    @disabled.setter
+    def disabled(self, value):
+        self._disabled = value
+        if not self._constructing:
+            self.addattr('disabled')
+        
+    def delete(self):
+        self.addmethod('delete', 'None')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) object
         pass
@@ -3413,7 +3430,7 @@ class button(controls):
     def __init__(self, **args):
         args['_objName'] = 'button'
         self._text = ""
-        self._textcolor = color.black
+        self._color = color.black
         self._background = color.white
         self._disabled = False
         super(button, self).setup(args)
@@ -3428,13 +3445,22 @@ class button(controls):
             self.addattr('text')   
 
     @property
-    def textcolor(self):
-        return self._textcolor
+    def textcolor(self): # legacy; now use color instead of textcolor
+        return self._color
     @textcolor.setter
     def textcolor(self, value):
-        self._textcolor = vector(value)
+        self._color = vector(value)
         if not self._constructing:
-            self.addattr('textcolor')
+            self.addattr('color')  
+
+    @property
+    def color(self): # legacy; now use color instead of textcolor
+        return self._color
+    @color.setter
+    def color(self, value):
+        self._color = vector(value)
+        if not self._constructing:
+            self.addattr('color')
     
     @property
     def background(self):
@@ -3444,15 +3470,6 @@ class button(controls):
         self._background = vector(value)
         if not self._constructing:
             self.addattr('background')
-            
-    @property
-    def disabled(self):
-        return self._disabled
-    @disabled.setter
-    def disabled(self, value):
-        self._disabled = value
-        if not self._constructing:
-            self.addattr('disabled')
 
 class checkbox(controls): 
     def __init__(self, **args):
