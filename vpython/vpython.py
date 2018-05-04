@@ -2817,6 +2817,7 @@ class canvas(baseObj):
         # Reject JavaScript canvas_update user values immediately following Python setting of values:
         self._set_range = False
         self._set_forward = False
+        self._set_center = False
         self._set_up = False
         self._set_autoscale = False
         
@@ -3004,7 +3005,7 @@ class canvas(baseObj):
     @center.setter
     def center(self,value):
         if isinstance(value, vector):
-            self._center = vector(value)
+            self._center = self._set_center = vector(value)
             if not self._constructing:
                 self.appendcmd({"center":value.value})
         else:
@@ -3189,7 +3190,7 @@ class canvas(baseObj):
                         if len(a.args) > 0: fct( evt1 ) 
                         else: fct()
                 self._waitfor = evt1 # what pause and waitfor are looking for
-            else:  ## user can change forward with spin, range/autoscale with zoom, up with touch gesture
+            else:  ## user can change forward (spin), range/autoscale (zoom), up (touch), center (pan)
                 if 'forward' in evt and self.userspin and not self._set_forward:
                     fwd = evt['forward']
                     self._forward = list_to_vec(fwd)
@@ -3198,6 +3199,10 @@ class canvas(baseObj):
                     cup = evt['up']
                     self._up = list_to_vec(cup)
                 self._set_up = False
+                if 'center' in evt and self.userpan and not self._set_center:
+                    center = evt['center']
+                    self._center = list_to_vec(center)
+                self._set_center = False
                 if 'range' in evt and self.userzoom and not self._set_range:
                     self._range = evt['range']
                 self._set_range = False
