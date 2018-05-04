@@ -125,6 +125,7 @@ var lastpos = vec(0,0,0)
 var lastray = vec(0,0,0)
 var lastforward = vec(0,0,0)
 var lastup = vec(0,0,0)
+var lastcenter = vec(0,0,0)
 var lastrange = 1
 var lastautoscale = true
 var lastsliders = {}
@@ -153,9 +154,20 @@ function update_canvas() { // mouse location and other stuff
 			}
 			lastforward = forward
 			var up = cvs.up
-			if (!up.equals(lastup)) {evt.up = [up.x,up.y,up.z]; dosend=true}
+			if (!up.equals(lastup)) {
+                evt.up = [up.x,up.y,up.z]
+                dosend=true
+            }
 			lastup = up
 		}
+        if (cvs.userpan) {
+            var center = cvs.center
+            if (!center.equals(lastcenter)) {
+                evt.center = [center.x,center.y,center.z]
+                dosend=true
+            }
+            lastcenter = center
+        }
 		if (cvs.userzoom) {
 			var range = cvs.range
 			if (range !== lastrange) {evt.range=range; dosend=true}
