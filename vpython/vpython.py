@@ -3315,7 +3315,7 @@ class wtext(standardAttributes):
         objName = 'wtext'
         self._text = ''
         if 'text' in args:
-            self._text = args['text']
+            self._text = str(args['text'])
         self.location = None
         if 'pos' in args:
             self.location = args['pos']
@@ -3333,7 +3333,7 @@ class wtext(standardAttributes):
         return self._text
     @text.setter
     def text(self, value):
-        self._text = value
+        self._text = str(value)
         if not self._constructing:
             self.addattr('text')
 
