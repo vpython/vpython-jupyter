@@ -38,6 +38,7 @@ controls available to zoom and rotate the camera:
     Right button drag or Ctrl-drag to rotate "camera" to view scene.
     To zoom, drag with middle button or Alt/Option depressed, or use scroll wheel.
          On a two-button mouse, middle is left + right.
+    Shift-drag to pan left/right and up/down.
     Touch screen: pinch/extend to zoom, swipe or two-finger rotate.
 
 Currently, to re-run a VPython program you need to click the circular arrow icon to "restart the kernel" and then click the red-highlighted button, then click in the first cell, then click the run icon. Alternatively, if you insert "scene = canvas()" at the start of your program, you can rerun the program without restarting the kernel.
