@@ -3266,11 +3266,11 @@ class event_return(object):
         self.canvas = args['canvas']
         self.event = args['event']
         self.which = args['which']
+        self.shift = args['shift']
+        self.ctrl = args['ctrl']
+        self.alt = args['alt']
         if self.event[:3] == 'key':
             self.key = args['key']
-            self.shift = args['shift']
-            self.ctrl = args['ctrl']
-            self.alt = args['alt']
         else:
             self.pos = args['pos']
             self.press = args['press']
@@ -3315,7 +3315,7 @@ class wtext(standardAttributes):
         objName = 'wtext'
         self._text = ''
         if 'text' in args:
-            self._text = print_to_string(args['text'])
+            self._text = str(args['text'])
         self.location = None
         if 'pos' in args:
             self.location = args['pos']
@@ -3853,8 +3853,7 @@ class text(standardAttributes):
             self._lines = len(args['_text'].split('\n'))
         else:
             if 'text' in args:
-                a = print_to_string(args['text'])
-                self._lines = len(a.split('\n'))
+                self._lines = len(args['text'].split('\n'))
             else:
                 raise AttributeError('A text object must have a text attribute')
         if 'color' in args:
@@ -4074,9 +4073,6 @@ def sleep(dt): # don't use time.sleep because it delays output queued up before 
 def print_to_string(*args): # treatment of <br> vs. \n not quite right here
     s = ''
     for a in args:
-        if isinstance(a, float):
-            s += '{:.6g} '.format(a)
-        else:
-            s += str(a)+' '
+        s += str(a)+' '
     s = s[:-1]
     return(s)
