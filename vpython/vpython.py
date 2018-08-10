@@ -1776,19 +1776,11 @@ class quad(triangle):
             elif i == 3: self.v3 = val
     
 class curveMethods(standardAttributes):
-    def curveSetup(self, *args1, **args):
-        self._constructing = True
-        
-        self.append(list(args))
-        self.append(list(args1))
-
-        self._constructing = False
 
     def process_args(self, *args1, **args):
         c = None
         r = None
         vis = None
-        ret = None
         if 'color' in args:
             c = args['color']
         if 'radius' in args:
@@ -1809,22 +1801,25 @@ class curveMethods(standardAttributes):
         pts = []
         cps = []
         for pt in tpos:
+            col = c
+            rad = r
+            vi = vis
             cp = {'pos':pt['pos'].value}
             if 'color' in pt:
-                c = pt['color']
+                col = pt['color']
             if 'radius' in pt:
-                r = pt['radius']
+                rad = pt['radius']
             if 'visible' in pt:
-                vis = pt['visible']
-            if c is not None:
-                pt['color'] = c
-                cp['color'] = c.value
-            if r is not None:
-                pt['radius'] = r
-                cp['radius'] = r
-            if vis is not None:
-                pt['visible'] = vis
-                cp['visible'] = vis
+                vi = pt['visible']
+            if col is not None:
+                pt['color'] = col
+                cp['color'] = col.value
+            if rad is not None:
+                pt['radius'] = rad
+                cp['radius'] = rad
+            if vi is not None:
+                pt['visible'] = vi
+                cp['visible'] = vi
             pts.append(pt)
             cps.append(cp)
         return [pts, cps]
@@ -1844,8 +1839,9 @@ class curveMethods(standardAttributes):
                     ret.append({'pos':vec(v)}) # make a copy of the vector; it could be (and often is, e.g. in a trail) object.pos
                 else:
                     ret.append(vec(v))
-            elif isinstance(v, dict) and not self._constructing: ret.append(vec(v))
-            else: 
+            elif isinstance(v, dict) and not self._constructing:
+                ret.append(v)
+            else:
                 if not self._constructing:
                     raise AttributeError("Point information must be a vector or a dictionary")
                 else:
@@ -1999,7 +1995,7 @@ class curve(curveMethods):
             if len(args1) > 0: raise AttributeError('Malformed constructor')
             self.append(tpos)
         if len(args1) > 0:
-            self.append(*args1)
+            self.append(*args1, color=self.color, radius=self.radius, visible=self.visible)
 
     def _on_origin_change(self): 
         self.addattr('origin')
@@ -2023,7 +2019,7 @@ class points(curveMethods):
             if len(args1) > 0: raise AttributeError('Malformed constructor')
             self.append(tpos)
         if len(args1) > 0:
-            self.append(*args1)    
+            self._pts.append(*args1)    
 
     @property
     def origin(self):   
