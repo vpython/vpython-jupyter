@@ -2,7 +2,7 @@ from __future__ import print_function, division, absolute_import
 
 # Cythonize the encode machinery?
 import colorsys
-from .rate_control import *
+from .rate_control import simulateDelay, RateKeeper, INTERACT_PERIOD
 import platform
 try:
     if platform.python_implementation() == 'PyPy':
