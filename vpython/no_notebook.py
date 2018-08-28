@@ -12,6 +12,8 @@ from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerF
 import signal
 from urllib.parse import unquote
 
+from .rate_control import rate
+
 
 # Check for Ctrl+C
 def signal_handler(signal, frame):

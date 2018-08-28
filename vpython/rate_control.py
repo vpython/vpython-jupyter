@@ -3,6 +3,11 @@ import time
 import sys
 import platform
 
+from ._notebook_helpers import _isnotebook
+
+if _isnotebook:
+    import IPython
+
 # Unresolved bug: rate(X) yields only about 0.8X iterations per second.
 
 MIN_RENDERS = 10
@@ -210,3 +215,32 @@ class RateKeeper(object):
         self.rateCount += 1
 
         self.lastEndRate = _clock()
+
+
+class _RateKeeper2(RateKeeper):
+
+    def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
+        self.rval = 30
+        self.tocall = None
+        super(_RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
+
+    def sendtofrontend(self):
+        # This is called by the rate() function, through rate_control _RateKeeper callInteract().
+        # See the function commsend() for details of how the browser is updated.
+
+        # Check if events to process from front end
+        if _isnotebook:
+            if IPython.__version__ >= '3.0.0' :
+                kernel = get_ipython().kernel
+                parent = kernel._parent_header
+                ident = kernel._parent_ident
+                kernel.do_one_iteration()
+                kernel.set_parent(ident, parent)
+
+    def __call__(self, N): # rate(N) calls this function
+        self.rval = N
+        if self.rval < 1: raise ValueError("rate value must be greater than or equal to 1")
+        super(_RateKeeper2, self).__call__(self.rval) ## calls __call__ in rate_control.py
+
+# The rate function:
+rate = _RateKeeper2(interactFunc = simulateDelay(delayAvg = 0.001))

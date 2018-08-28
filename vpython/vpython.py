@@ -27,6 +27,7 @@ import sys
 import queue
 import json
 from . import __version__, __gs_version__
+from ._notebook_helpers import _isnotebook
 
 vec = vector # synonyms in GlowScript
 ws_queue = queue.Queue()
