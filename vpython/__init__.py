@@ -38,4 +38,5 @@ if _isnotebook:
     from .with_notebook import *
 else:
     from .no_notebook import *
+    from .vpython import *
 

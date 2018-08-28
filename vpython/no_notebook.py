@@ -1,4 +1,4 @@
-from .vpython import *
+from .vpython import GlowWidget, baseObj, canvas, vec
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
@@ -8,6 +8,7 @@ import json
 import webbrowser as _webbrowser
 import asyncio
 from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
+import copy
 
 import signal
 from urllib.parse import unquote

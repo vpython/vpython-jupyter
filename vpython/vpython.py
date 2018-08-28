@@ -22,7 +22,6 @@ import inspect
 from time import clock
 import time
 import os
-import copy
 import sys
 import queue
 import json
