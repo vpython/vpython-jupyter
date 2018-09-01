@@ -1,4 +1,4 @@
-from .vpython import GlowWidget, baseObj, canvas, vec
+from .vpython import GlowWidget, baseObj, canvas, vector
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
@@ -157,7 +157,7 @@ class WSserver(WebSocketServerProtocol):
         for a in attrdata:  # a is [idx, attr]
             idx, attr = a
             val = getattr(baseObj.object_registry[idx], attr)
-            if type(val) is vec:
+            if type(val) is vector:
                 val = [val.x, val.y, val.z]
             if idx in objdata['attrs']:
                 objdata['attrs'][idx][attr] = val

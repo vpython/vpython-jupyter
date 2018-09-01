@@ -39,6 +39,7 @@ from .vpython import canvas
 scene = canvas(no_view=True)
 from .vpython import *
 from .shapespaths import *
+from ._vector_import_helper import *
 from .rate_control import rate
 
 # import for backwards compatibility

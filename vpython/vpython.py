@@ -4,14 +4,6 @@ from __future__ import print_function, division, absolute_import
 import colorsys
 from .rate_control import simulateDelay, RateKeeper, INTERACT_PERIOD, rate
 import platform
-try:
-    if platform.python_implementation() == 'PyPy':
-        from .vector import *    # use pure python vector for PyPy
-    else:
-        from .cyvector import *
-        v = vector(0,0,0)
-except:
-    from .vector import *
 from .shapespaths import *
 
 # # Need to import the following for consistency across VPythons
@@ -27,6 +19,7 @@ import queue
 import json
 from . import __version__, __gs_version__
 from ._notebook_helpers import _isnotebook
+from ._vector_import_helper import vector, mag, norm, dot, adjust_up, adjust_axis, object_rotate
 
 vec = vector # synonyms in GlowScript
 ws_queue = queue.Queue()
@@ -52,6 +45,7 @@ if _isnotebook:
         import notebook
         from ipykernel.comm import Comm
         if (ipykernel.__version__ >= '5.0.0'):
+
             import asyncio    
             async def wsperiodic():
                 while True:
@@ -370,7 +364,7 @@ class baseObj(object):
             for a in baseObj.attrs:
                 idx, attr = a
                 val = getattr(baseObj.object_registry[idx], attr)
-                if type(val) is vec: val = [val.x, val.y, val.z]
+                if type(val) is vector: val = [val.x, val.y, val.z]
                 if idx in baseObj.updates['attrs']:
                     baseObj.updates['attrs'][idx][attr] = val
                 else:
@@ -1879,9 +1873,9 @@ class curveMethods(standardAttributes):
                 if not isinstance(v, vector): # legal in GlowScript: pos=[(x,y,z), (x,y,z)] and pos=[[x,y,z], [x,y,z]]
                     v = list_to_vec(v)
                 if not self._constructing:
-                    ret.append({'pos':vec(v)}) # make a copy of the vector; it could be (and often is, e.g. in a trail) object.pos
+                    ret.append({'pos':vector(v)}) # make a copy of the vector; it could be (and often is, e.g. in a trail) object.pos
                 else:
-                    ret.append(vec(v))
+                    ret.append(vector(v))
             elif isinstance(v, dict) and not self._constructing:
                 ret.append(v)
             else:
@@ -3921,7 +3915,7 @@ class text(standardAttributes):
         return self._axis
     @axis.setter
     def axis(self,value): # changing axis does not affect size
-        oldaxis = vec(self.axis)
+        oldaxis = vector(self.axis)
         u = self.up
         self._axis.value = value
         self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
