@@ -1,6 +1,5 @@
 from __future__ import division, print_function
 import time
-import sys
 import platform
 
 from ._notebook_helpers import _isnotebook

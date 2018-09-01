@@ -7,7 +7,7 @@ import IPython
 from IPython.display import display, Javascript
 
 from .vpython import GlowWidget, baseObj, canvas
-from . import __version__, __gs_version__
+from . import __version__
 
 import tornado.httpserver
 import tornado.websocket

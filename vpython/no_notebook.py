@@ -1,4 +1,4 @@
-from .vpython import GlowWidget, baseObj, canvas, vector
+from .vpython import GlowWidget, baseObj, vector
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
