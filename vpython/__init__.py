@@ -38,7 +38,12 @@ from .vpython import canvas
 # Need to initialize canvas before user does anything...
 scene = canvas(no_view=True)
 from .vpython import *
+from .shapespaths import *
 from .rate_control import rate
+
+# import for backwards compatibility
+from math import *
+
 if _isnotebook:
     from .with_notebook import *
 

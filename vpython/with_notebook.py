@@ -1,4 +1,12 @@
-from .vpython import *
+import os
+import time
+
+from jupyter_core.paths import jupyter_data_dir
+import notebook
+import IPython
+from IPython.display import display, Javascript
+
+from .vpython import GlowWidget, baseObj, canvas
 from . import __version__, __gs_version__
 
 import tornado.httpserver

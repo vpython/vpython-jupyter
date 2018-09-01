@@ -422,6 +422,7 @@ class GlowWidget(object):
         global sender
         baseObj.glow = self
         if _isnotebook:
+            from ipykernel.comm import Comm
             if (wsport):
                 self.comm = Comm(target_name='glow', data={'wsport':wsport, 'wsuri':wsuri})
             else:
@@ -2825,6 +2826,7 @@ class canvas(baseObj):
     def __init__(self, **args):
         baseObj._canvas_constructing = True
         if _isnotebook:
+            from IPython.display import display, HTML, Javascript
             display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
             display(Javascript("""if (typeof Jupyter !== "undefined") { window.__context = { glowscript_container: $("#glowscript").removeAttr("id")};}else{ element.textContent = ' ';}"""))
 
