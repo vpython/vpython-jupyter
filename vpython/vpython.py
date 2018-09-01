@@ -2,18 +2,13 @@ from __future__ import print_function, division, absolute_import
 
 # Cythonize the encode machinery?
 import colorsys
-from .rate_control import simulateDelay, RateKeeper, INTERACT_PERIOD, rate
+from .rate_control import rate
 import platform
-from .shapespaths import *
 
-# # Need to import the following for consistency across VPythons
-from math import *
-from numpy import arange
+from math import sqrt, tan, pi
 
-import inspect
 from time import clock
 import time
-import os
 import sys
 import queue
 import json
