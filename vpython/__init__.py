@@ -34,9 +34,11 @@ if __require_notebook and (not _isnotebook):
         s += "\nvpython does work on Python 2.7 and 3.4 in the Jupyter notebook environment."
         raise Exception(s)
 
+from .vpython import canvas
+# Need to initialize canvas before user does anything...
+scene = canvas(no_view=True)
+from .vpython import *
+from .rate_control import rate
 if _isnotebook:
     from .with_notebook import *
-else:
-    from .no_notebook import *
-    from .vpython import *
 

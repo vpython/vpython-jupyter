@@ -2,7 +2,7 @@ from __future__ import print_function, division, absolute_import
 
 # Cythonize the encode machinery?
 import colorsys
-from .rate_control import simulateDelay, RateKeeper, INTERACT_PERIOD
+from .rate_control import simulateDelay, RateKeeper, INTERACT_PERIOD, rate
 import platform
 try:
     if platform.python_implementation() == 'PyPy':
@@ -257,7 +257,8 @@ class baseObj(object):
     glow = None
     objCnt = 0
     sent = True # set to True by a render in the non-notebook case
-    
+    _view_constructed = False
+    _canvas_constructing = False
     # 'cmds': list of constructors,
     # 'attrs': {idx:{'pos':vec, etc.}, idx:{'pos':vec, etc.}, etc.},
     # 'methods': [ [idx, method, date], [idx, method, date], etc. ]
@@ -302,15 +303,24 @@ class baseObj(object):
             if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
                 continue
             aa._last_val = fval
-    
+
     def __init__(self, **kwargs):
+        #from .no_notebok import foo
+        #import pdb; pdb.set_trace()
+        print('In init, and\n\t{}\t{}\t{}'.format(_isnotebook, baseObj._view_constructed, baseObj._canvas_constructing), flush=True)
+        if (not _isnotebook and
+            not baseObj._view_constructed and
+            not baseObj._canvas_constructing):
+
+            from .no_notebook import _
+            baseObj._view_constructed = True
         self.idx = baseObj.objCnt   ## an integer
-        self.object_registry[self.idx] = self        
+        self.object_registry[self.idx] = self
         if kwargs is not None:
             for key, value in kwargs.items():
                 object.__setattr__(self, key, value)
         baseObj.incrObjCnt()
-        
+
     def delete(self):
         baseObj.decrObjCnt()
         cmd = {"cmd": "delete", "idx": self.idx}
@@ -2813,6 +2823,7 @@ class canvas(baseObj):
     maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
     
     def __init__(self, **args):
+        baseObj._canvas_constructing = True
         if _isnotebook:
             display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
             display(Javascript("""if (typeof Jupyter !== "undefined") { window.__context = { glowscript_container: $("#glowscript").removeAttr("id")};}else{ element.textContent = ' ';}"""))
@@ -2905,7 +2916,8 @@ class canvas(baseObj):
         # Add the standard lighting (these lights will be added to self._lights):
         distant_light(direction=vector( 0.22,  0.44,  0.88), color=color.gray(0.8))
         distant_light(direction=vector(-0.88, -0.22, -0.44), color=color.gray(0.3))
-        
+        baseObj._canvas_constructing = False
+
     def follow(self, obj):    ## should allow a function also
         self.addmethod('follow', obj.idx)
 
