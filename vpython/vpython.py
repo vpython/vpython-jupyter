@@ -294,9 +294,6 @@ class baseObj(object):
             aa._last_val = fval
 
     def __init__(self, **kwargs):
-        #from .no_notebok import foo
-        #import pdb; pdb.set_trace()
-        print('In init, and\n\t{}\t{}\t{}'.format(_isnotebook, baseObj._view_constructed, baseObj._canvas_constructing), flush=True)
         if (not _isnotebook and
             not baseObj._view_constructed and
             not baseObj._canvas_constructing):
