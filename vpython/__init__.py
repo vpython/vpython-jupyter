@@ -44,7 +44,7 @@ from .rate_control import rate
 
 # import for backwards compatibility
 from math import *
+from numpy import arange
 
 if _isnotebook:
     from .with_notebook import *
-
