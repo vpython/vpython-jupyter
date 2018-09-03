@@ -6,8 +6,9 @@ __gs_version__ = glowscript_version()
 del get_versions
 del glowscript_version
 
-# Keep this import last to ensure that __version__ and __gs_version__ exist
-# before importing vpython, which itself imports both of those.
+# Keep the remaining imports later to  ensure that __version__ and
+#  __gs_version__ exist before importing vpython, which itself imports
+# both of those.
 
 def __checkisnotebook(): # returns True if running in Jupyter notebook
     try:
@@ -41,6 +42,7 @@ from .vpython import *
 from .shapespaths import *
 from ._vector_import_helper import *
 from .rate_control import rate
+from .gsprint import GSprint
 
 # import for backwards compatibility
 from math import *
