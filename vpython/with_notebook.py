@@ -100,8 +100,10 @@ display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextension
 display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");});}else{element.textContent = ' ';}"""))
 
 time.sleep(1)      # allow some time for javascript code above to run before attempting to setup Comm Channel
+
 baseObj.glow = GlowWidget()     # Setup Comm Channel
 
+baseObj.trigger() # start the trigger ping-pong process
 
 wsConnected = False
 
@@ -153,13 +155,5 @@ class MISC(baseObj):
     def prnt(self, s):
         self.addmethod('GSprint', s)
 
-__misc = MISC()
-
-def GSprint(*args):
-    s = ''
-    for a in args:
-        s += str(a)+' '
-    s = s[:-1]
-    __misc.prnt(s)
-
-baseObj.trigger() # start the trigger ping-pong process
+# Dummy name to import...
+_ = None

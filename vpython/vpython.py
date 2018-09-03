@@ -294,12 +294,14 @@ class baseObj(object):
             aa._last_val = fval
 
     def __init__(self, **kwargs):
-        if (not _isnotebook and
-            not baseObj._view_constructed and
-            not baseObj._canvas_constructing):
-
+        if not (baseObj._view_constructed or
+                baseObj._canvas_constructing):
+            if _isnotebook:
+                from .with_notebook import _
+            else:
             from .no_notebook import _
             baseObj._view_constructed = True
+
         self.idx = baseObj.objCnt   ## an integer
         self.object_registry[self.idx] = self
         if kwargs is not None:

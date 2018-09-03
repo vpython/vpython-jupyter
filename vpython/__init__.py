@@ -36,8 +36,11 @@ if __require_notebook and (not _isnotebook):
         raise Exception(s)
 
 from .vpython import canvas
-# Need to initialize canvas before user does anything...
+
+# Need to initialize canvas before user does anything and before
+# importing GSprint
 scene = canvas()
+
 from .vpython import *
 from .shapespaths import *
 from ._vector_import_helper import *
@@ -47,6 +50,3 @@ from .gsprint import GSprint
 # import for backwards compatibility
 from math import *
 from numpy import arange
-
-if _isnotebook:
-    from .with_notebook import *
