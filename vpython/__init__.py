@@ -37,7 +37,7 @@ if __require_notebook and (not _isnotebook):
 
 from .vpython import canvas
 # Need to initialize canvas before user does anything...
-scene = canvas(no_view=True)
+scene = canvas()
 from .vpython import *
 from .shapespaths import *
 from ._vector_import_helper import *
