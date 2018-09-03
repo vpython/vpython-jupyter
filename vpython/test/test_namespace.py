@@ -5,7 +5,6 @@ API_NAMES = [
     'GSprint',
     'GSversion',
     'GlowWidget',
-    'MISC',
     'Mouse',
     'RackOutline',
     'RateKeeper',

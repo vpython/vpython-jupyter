@@ -1,5 +1,11 @@
 from random import random
 
+# List of names imported from this module with import *
+__all__ = ['adjust_axis', 'adjust_up', 'comp', 'cross', 'diff_angle', 'dot',
+           'hat', 'mag', 'mag2', 'norm', 'object_rotate', 'proj', 'rotate',
+           'vector']
+
+
 cdef extern from "math.h":
     double cos(double theta)
     double sin(double theta)
