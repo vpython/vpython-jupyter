@@ -100,6 +100,7 @@ display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextension
 display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");});}else{element.textContent = ' ';}"""))
 
 time.sleep(1)      # allow some time for javascript code above to run before attempting to setup Comm Channel
+baseObj.glow = GlowWidget()     # Setup Comm Channel
 
 
 wsConnected = False
