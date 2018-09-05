@@ -7,7 +7,7 @@ from time import clock
 
 win = 500
 
-Natoms = 100  # change this to have more or fewer atoms
+Natoms = 200  # change this to have more or fewer atoms
 
 # Typical values
 L = 1 # container is a cube L on a side
@@ -54,8 +54,8 @@ for i in range(Natoms):
     y = L*random()-L/2
     z = L*random()-L/2
     if i == 0:
-        Atoms.append(sphere(pos=vector(x,y,z), radius=Ratom, color=color.cyan, make_trail=True, retain=100, trail_radius=0.3*Ratom))
-    else: Atoms.append(sphere(pos=vector(x,y,z), radius=Ratom, color=gray))
+        Atoms.append(simple_sphere(pos=vector(x,y,z), radius=Ratom, color=color.cyan, make_trail=True, retain=100, trail_radius=0.3*Ratom))
+    else: Atoms.append(simple_sphere(pos=vector(x,y,z), radius=Ratom, color=gray))
     apos.append(vec(x,y,z))
     theta = pi*random()
     phi = 2*pi*random()
@@ -143,7 +143,7 @@ nhisto = 0 # number of histogram snapshots to average
 timer = clock()
 
 while True:
-    rate(100)
+    rate(1000)
     # Accumulate and average histogram snapshots
     for i in range(len(accum)): accum[i][1] = (nhisto*accum[i][1] + histo[i])/(nhisto+1)
     if nhisto % 10 == 0:

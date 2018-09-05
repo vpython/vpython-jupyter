@@ -117,7 +117,7 @@ scene.bind('mousedown', running)
 scene.forward = vec(-0.7,-0.5,-1)
 
 while True:
-    rate(30)
+    rate(1000)
     if run:
         p.replot()
         t += dt
