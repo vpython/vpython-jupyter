@@ -2,7 +2,7 @@ from vpython import *
 
 # Bruce Sherwood
 
-N = 3 # N by N by N array of atoms
+N = 4 # N by N by N array of atoms
 # Surrounding the N**3 atoms is another layer of invisible fixed-position atoms
 # that provide stability to the lattice.
 k = 1

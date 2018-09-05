@@ -1,5 +1,5 @@
 from vpython import *
-scene.caption = """Right button drag or Ctrl-drag to rotate "camera" to view scene.
+scene.caption = """Right! button drag or Ctrl-drag to rotate "camera" to view scene.
 To zoom, drag with middle button or Alt/Option depressed, or use scroll wheel.
      On a two-button mouse, middle is left + right.
 Touch screen: pinch/extend to zoom, swipe or two-finger rotate."""

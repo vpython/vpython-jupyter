@@ -1,6 +1,6 @@
 from vpython import *
 s = '    Test of <b><i>graphing</i></b>. Move the mouse over the graph to display data.'
-test = graph(title=s, xtitle='time', ytitle='value', fast=True)
+test = graph(title=s, xtitle='time', ytitle='value', fast=False)
 funct1 = gcurve(color=color.blue, width=4, dot=True, 
         dot_color=color.green, dot_radius=15, radius=5, markers=True, marker_color=color.cyan)
 funct2 = gvbars(delta=0.4, color=color.red, label='bars')

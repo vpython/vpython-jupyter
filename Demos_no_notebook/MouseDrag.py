@@ -31,3 +31,5 @@ scene.bind('mousedown',grab)
 scene.bind('mousemove',move)
 scene.bind('mouseup',drop)
 
+while True:
+    rate(1)

@@ -4,6 +4,7 @@ from time import clock
 N = 10
 
 scene.title = "{} by {} by {} = {} rotating boxes".format(N,N,N,N**3)
+scene.append_to_title("\nGPU performance: <scan id='fps'/>")
 ##sphere()
 ##scene.pause()
 
