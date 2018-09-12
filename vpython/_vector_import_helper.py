@@ -9,5 +9,8 @@ try:
 except:
     from .vector import *
 
+# Remove platform from the namespace now that we are done with it
+del platform
+
 # synonyms in GlowScript
 vec = vector
