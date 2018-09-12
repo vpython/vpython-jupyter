@@ -230,7 +230,7 @@ class _RateKeeper2(RateKeeper):
         # Check if events to process from front end
         if _isnotebook:
             if IPython.__version__ >= '3.0.0' :
-                kernel = get_ipython().kernel
+                kernel = IPython.get_ipython().kernel
                 parent = kernel._parent_header
                 ident = kernel._parent_ident
                 kernel.do_one_iteration()
