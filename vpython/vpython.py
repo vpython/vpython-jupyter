@@ -17,14 +17,14 @@ from ._notebook_helpers import _isnotebook
 from ._vector_import_helper import vector, mag, norm, dot, adjust_up, adjust_axis, object_rotate
 
 # List of names that will be imported form this file with import *
-__all__ = ['Camera', 'GlowWidget', 'Mouse', 'arrow', 'attach_arrow',
+__all__ = ['Camera', 'GlowWidget', 'GSversion', 'Mouse', 'arrow', 'attach_arrow',
            'attach_trail', 'baseObj', 'box', 'bumpmaps', 'button',
-           'canvas', 'checkbox', 'color', 'compound', 'cone', 'controls',
+           'canvas', 'checkbox', 'clock', 'color', 'combin', 'compound', 'cone', 'controls',
            'curve', 'curveMethods', 'cylinder', 'distant_light', 'ellipsoid',
            'event_return', 'extrusion', 'faces', 'frame', 'gcurve', 'gdots',
            'ghbars', 'gobj', 'graph', 'gvbars', 'helix', 'label',
            'local_light', 'menu', 'meta_canvas', 'points', 'pyramid',
-           'quad', 'radio', 'ring', 'simple_sphere', 'slider', 'sphere',
+           'quad', 'radio', 'ring', 'simple_sphere', 'sleep', 'slider', 'sphere',
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
            'wtext']
 vec = vector # synonyms in GlowScript
