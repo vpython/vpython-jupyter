@@ -156,5 +156,10 @@ def test_names_in_base_namspace():
                         if not name.startswith('_'))
     api_name_set = set(API_NAMES)
     print(sorted(api_name_set - current_names))
-    # We may have added new names
+
+    # We may have added new names, so start with this weaker test
     assert api_name_set.issubset(current_names)
+
+    # Ideally this test also passes -- everything in the API is what
+    # we should expose and everything we expose is in the API.
+    assert api_name_set == current_names
