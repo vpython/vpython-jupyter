@@ -27,6 +27,10 @@ _isnotebook = __checkisnotebook()
 
 import platform
 __p = platform.python_version()
+
+# Delete platform now that we are done with it
+del platform
+
 __ispython3 = (__p[0] == '3')
 __require_notebook = (not __ispython3) or (__p[2] < '5') # Python 2.7 or 3.4 require Jupyter notebook
 
@@ -34,6 +38,7 @@ if __require_notebook and (not _isnotebook):
         s = "The non-notebook version of vpython requires Python 3.5 or later."
         s += "\nvpython does work on Python 2.7 and 3.4 in the Jupyter notebook environment."
         raise Exception(s)
+
 
 from .vpython import canvas
 
@@ -46,6 +51,10 @@ from .shapespaths import *
 from ._vector_import_helper import *
 from .rate_control import rate
 from .gsprint import GSprint
+
+# For some reason gsprint and vpython are showing up in the
+# namespace, so delete them
+del gsprint, vpython
 
 # import for backwards compatibility
 from math import *
