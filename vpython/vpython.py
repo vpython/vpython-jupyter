@@ -310,7 +310,7 @@ class baseObj(object):
             if _isnotebook:
                 from .with_notebook import _
             else:
-            from .no_notebook import _
+                from .no_notebook import _
             baseObj._view_constructed = True
 
         self.idx = baseObj.objCnt   ## an integer
