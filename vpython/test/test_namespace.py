@@ -44,7 +44,6 @@ API_NAMES = [
     'curve',
     'curveMethods',
     'cylinder',
-    'cyvector',
     'degrees',
     'diff_angle',
     'distant_light',
