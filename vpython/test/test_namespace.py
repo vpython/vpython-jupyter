@@ -1,3 +1,4 @@
+import sys
 import vpython
 
 API_NAMES = [
@@ -145,6 +146,14 @@ def test_names_in_base_namspace():
     current_names = set(name for name in dir(vpython)
                         if not name.startswith('_'))
     api_name_set = set(API_NAMES)
+
+    python_version = sys.version_info
+
+    # Python 3.7 added remainder to math, so add it to what we
+    # expect to see.
+    if python_version.major == 3 and python_version.minor >= 7:
+        api_name_set.add('remainder')
+
     print(sorted(api_name_set - current_names))
 
     # We may have added new names, so start with this weaker test
