@@ -6,7 +6,9 @@ try:
     else:
         from .cyvector import *
         v = vector(0,0,0)
-except:
+        # Delete v so it doesn't show up in the name space
+        del v
+except ImportError:
     from .vector import *
 
 # Remove platform from the namespace now that we are done with it

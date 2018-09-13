@@ -52,10 +52,17 @@ from ._vector_import_helper import *
 from .rate_control import rate
 from .gsprint import GSprint
 
-# For some reason gsprint and vpython are showing up in the
+# gsprint and vpython are showing up in the
 # namespace, so delete them
 del gsprint, vpython
+
+# cyvector may be in the namespace. Get rid of it
+try:
+    del cyvector
+except NameError:
+    pass
 
 # import for backwards compatibility
 from math import *
 from numpy import arange
+from random import random

@@ -134,7 +134,6 @@ API_NAMES = [
     'textures',
     'triangle',
     'trunc',
-    'v',
     'vec',
     'vector',
     'vertex',
