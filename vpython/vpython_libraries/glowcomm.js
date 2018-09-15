@@ -21,33 +21,46 @@ var datadir = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/
 window.Jupyter_VPython = datadir // prefix used by glow.min.js for textures
 
 function fontloading() {
-    var fsans = datadir+'Roboto-Medium.ttf'
-    opentype_load(fsans, function(err, fontrefsans) {
-        if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
-        window.__font_sans = fontrefsans // an opentype.js Font object
-        console.log('SANS-SERIF FONT LOADED')
-    })
-    var fserif = datadir+'NimbusRomNo9L-Med.otf'
-    opentype_load(fserif, function(err, fontrefserif) {
-        if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
-        window.__font_serif = fontrefserif // an opentype.js Font object
-        console.log('SERIF FONT LOADED')
-    })
+    "use strict";
+	// override the fontloading url's in the GlowScript library
+	if (window.__font_sans === undefined) {
+        var fsans = datadir+'Roboto-Medium.ttf'
+        opentype_load(fsans, function(err, fontrefsans) {
+            if (err) {
+                throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
+            } else {
+                window.__font_sans = fontrefsans // an opentype.js Font object
+                console.log('SANS-SERIF FONT LOADED')
+            }
+        })
+    }
+	if (window.__font_serif === undefined) {
+        var fserif = datadir+'NimbusRomNo9L-Med.otf'
+        opentype_load(fserif, function(err, fontrefserif) {
+            if (err) {
+                throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
+            } else {
+                window.__font_serif = fontrefserif // an opentype.js Font object
+                console.log('SERIF FONT LOADED')
+            }
+        })
+    }
 }
 fontloading()
 
 function onmessage(msg) {
-		if (timer !== null) clearTimeout(timer)
-		var t1 = msclock()
-		data = msg.content.data
-		if (data != 'trigger') {
-			var msg = decode(data)
-			handler(msg)
-		}
-		var t2 = msclock()
-		var dt = Math.floor(t1+interval-t2) // attempt to keep the time between renders constant
-		if (dt < 15) dt = 0     // becaause setTimeout is inaccurate for small dt's
-		timer = setTimeout(send, dt)
+    "use strict";
+    if (timer !== null) clearTimeout(timer)
+    var t1 = msclock()
+    var data = msg.content.data
+    if (data != 'trigger') {
+        var msg = decode(data)
+        handler(msg)
+    }
+    var t2 = msclock()
+    var dt = Math.floor(t1+interval-t2) // attempt to keep the time between renders constant
+    if (dt < 15) dt = 0     // becaause setTimeout is inaccurate for small dt's
+    timer = setTimeout(send, dt)
 }
 
 // The following is necessary to be able to re-run programs.
