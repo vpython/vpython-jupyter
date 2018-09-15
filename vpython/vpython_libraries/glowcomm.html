@@ -23,25 +23,31 @@ window.close();
 
 console.log('START OF GLOWCOMM')
 
-function fontloading() { // trigger loading of fonts for 3D text
+function fontloading() {
     "use strict";
 	// override the fontloading url's in the GlowScript library
 	if (window.__font_sans === undefined) {
-		var fsans
-		fsans =  'Roboto-Medium.ttf' // a sans serif font; no_notebook server prepends vpython_data/
-		opentype_load(fsans, function(err, fontrefsans) {
-			if (err) throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
-			window.__font_sans = fontrefsans // an opentype.js Font object
-		})
-	}
+        var fsans = 'Roboto-Medium.ttf' // a sans serif font; no_notebook server prepends vpython_data/
+        opentype_load(fsans, function(err, fontrefsans) {
+            if (err) {
+                throw new Error('Font ' + fsans + ' could not be loaded: ' + err)
+            } else {
+                window.__font_sans = fontrefsans // an opentype.js Font object
+                console.log('SANS-SERIF FONT LOADED')
+            }
+        })
+    }
 	if (window.__font_serif === undefined) {
-		var fserif
-		fserif = 'NimbusRomNo9L-Med.otf' // a serif font; no_notebook server prepends vpython_data/
-		opentype_load(fserif, function(err, fontrefserif) {
-			if (err) throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
-			window.__font_serif = fontrefserif // an opentype.js Font object
-		})
-	}
+        var fserif = 'NimbusRomNo9L-Med.otf' // a serif font; no_notebook server prepends vpython_data/
+        opentype_load(fserif, function(err, fontrefserif) {
+            if (err) {
+                throw new Error('Font ' + fserif + ' could not be loaded: ' + err)
+            } else {
+                window.__font_serif = fontrefserif // an opentype.js Font object
+                console.log('SERIF FONT LOADED')
+            }
+        })
+    }
 }
 fontloading() // get the sans and serif font files used by 3D text
 
