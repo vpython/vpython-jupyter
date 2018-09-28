@@ -638,8 +638,21 @@ function handle_cmds(dcmds) {
 			case 'local_light':   {glowObjs[idx] = local_light(cfg); break}
 			case 'distant_light': {glowObjs[idx] = distant_light(cfg); break}
 			case 'canvas':        {
+				var container = document.getElementById("glowscript");
+				if (container !== null) {
+					window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}
+				}
 				glowObjs[idx] = canvas(cfg)
 				glowObjs[idx]['idx'] = idx
+				try{
+					glowObjs[idx].wrapper[0].addEventListener("contextmenu", function(event){
+						event.preventDefault(); 
+						event.stopPropagation(); 
+					});
+				}
+				catch(err) {
+					console.log("glowcomm canvas contextmenu event : ",err.message);
+				}
 				break
 					// Display frames per second and render time:
 					//$("<div id='fps'/>").appendTo(glowObjs[idx].title)

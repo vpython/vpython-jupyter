@@ -2783,7 +2783,7 @@ class canvas(baseObj):
     def __init__(self, **args):
         if _isnotebook:
             display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
-            display(Javascript("""window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
+            display(Javascript("""if (typeof Jupyter !== "undefined") window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}"""))
 
         super(canvas, self).__init__()   ## get idx, attrsupdt
         

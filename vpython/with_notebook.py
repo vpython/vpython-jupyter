@@ -1,5 +1,6 @@
 from .vpython import *
 from . import __version__, __gs_version__
+from IPython.display import clear_output
 
 #### Setup for Jupyter VPython
 
@@ -60,15 +61,22 @@ if transfer:
     fd.write(__version__)    
     fd.close()
 
-display(Javascript("""require.undef("nbextensions/vpython_libraries/glow.min");"""))
-display(Javascript("""require.undef("nbextensions/vpython_libraries/glowcomm");"""))
-display(Javascript("""require.undef("nbextensions/vpython_libraries/jquery-ui.custom.min");"""))
+display(Javascript("""if (typeof Jupyter !== "undefined") require.undef("nbextensions/vpython_libraries/glow.min");"""))
+clear_output(wait=True)     # clear above javascript messages in output area
+display(Javascript("""if (typeof Jupyter !== "undefined") require.undef("nbextensions/vpython_libraries/glowcomm");"""))
+clear_output(wait=True)     # clear above javascript messages in output area
+display(Javascript("""if (typeof Jupyter !== "undefined") require.undef("nbextensions/vpython_libraries/jquery-ui.custom.min");"""))
+clear_output(wait=True)     # clear above javascript messages in output area
 
-display(Javascript("""require(["nbextensions/vpython_libraries/glow.min"], function(){console.log("GLOW LOADED");})"""))
-display(Javascript("""require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");})"""))
-display(Javascript("""require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
+display(Javascript("""if (typeof Jupyter !== "undefined") require(["nbextensions/vpython_libraries/glow.min"], function(){console.log("GLOW LOADED");})"""))
+clear_output(wait=True)     # clear above javascript messages in output area
+display(Javascript("""if (typeof Jupyter !== "undefined") require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");})"""))
+clear_output(wait=True)     # clear above javascript messages in output area
+display(Javascript("""if (typeof Jupyter !== "undefined") require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");})"""))
+clear_output()     # clear above javascript messages in output area	
            
 time.sleep(1)      # allow some time for javascript code above to run before attempting to setup Comm Channel
+clear_output()     # clear above javascript messages in output area	
 
 baseObj.glow = GlowWidget()     # Setup Comm Channel
 
