@@ -1,3 +1,4 @@
+import os
 from ._version import get_versions
 from .gs_version import glowscript_version
 __version__ = get_versions()['version']
@@ -10,6 +11,8 @@ del glowscript_version
 
 def __checkisnotebook(): # returns True if running in Jupyter notebook
     try:
+        if any('SPYDER' in name for name in os.environ):
+            return False    # Spyder detected so return False
         shell = get_ipython().__class__.__name__
         if shell == 'ZMQInteractiveShell':  # Jupyter notebook or qtconsole?
             return True
