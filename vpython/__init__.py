@@ -1,4 +1,3 @@
-import os
 from ._version import get_versions
 from .gs_version import glowscript_version
 __version__ = get_versions()['version']
@@ -10,21 +9,7 @@ del glowscript_version
 #  __gs_version__ exist before importing vpython, which itself imports
 # both of those.
 
-def __checkisnotebook(): # returns True if running in Jupyter notebook
-    try:
-        if any('SPYDER' in name for name in os.environ):
-            return False    # Spyder detected so return False
-        shell = get_ipython().__class__.__name__
-        if shell == 'ZMQInteractiveShell':  # Jupyter notebook or qtconsole?
-            return True
-        elif shell == 'TerminalInteractiveShell':  # Terminal running IPython?
-            return False
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False      # Probably standard Python interpreter
-_isnotebook = __checkisnotebook()
-
+from ._notebook_helpers import _isnotebook
 import platform
 __p = platform.python_version()
 

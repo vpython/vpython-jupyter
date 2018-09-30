@@ -1,5 +1,13 @@
-def __checkisnotebook(): # returns True if running in Jupyter notebook
+import os
+
+
+def __checkisnotebook():
+    """
+    Check whether we are running in a notebook or not
+    """
     try:
+        if any('SPYDER' in name for name in os.environ):
+            return False    # Spyder detected so return False
         shell = get_ipython().__class__.__name__
         if shell == 'ZMQInteractiveShell':  # Jupyter notebook or qtconsole?
             return True
@@ -10,4 +18,6 @@ def __checkisnotebook(): # returns True if running in Jupyter notebook
     except NameError:
         return False      # Probably standard Python interpreter
 
+
+# IMPORTANT NOTE: this is evaluated ONCE the first time this is imported.
 _isnotebook = __checkisnotebook()
