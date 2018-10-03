@@ -6,6 +6,8 @@ var comm
 
 window.Plotly = Plotly
 
+console.log('START OF GLOWCOMM')
+
 IPython.notebook.kernel.comm_manager.register_target('glow',
     function(commChannel, msg) {
         // commChannel is the frontend comm instance
@@ -16,7 +18,6 @@ IPython.notebook.kernel.comm_manager.register_target('glow',
         comm.on_close(function(msg) {console.log("glow comm channel closed")});
     });
 
-//var datadir = '../vpython_data/'
 var datadir = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/'
 window.Jupyter_VPython = datadir // prefix used by glow.min.js for textures
 
@@ -48,7 +49,25 @@ function fontloading() {
 }
 fontloading()
 
-function onmessage(msg) {
+// The following machinery makes sure the fonts are loaded before the user program starts.
+// Otherwise there are problems when user program tries to create a 3D text object and
+// the fonts aren't yet available. The Python code has to wait for the text object to be
+// created before proceeding (because Python needs the size etc. of the object), but
+// this file can't create the object until the fonts have been loaded. So both Python and
+// JavaScript could end up paralyzed due to lack of the normal messaging back and forth.
+var firstcall = true
+var firstmsg
+
+function checkloading() {
+    "use strict";
+    if (window.__font_sans === undefined || window.__font_serif === undefined) {
+        setTimeout(checkloading,0)
+    } else {
+        domessage(firstmsg)
+    }
+}
+
+function domessage(msg) {
     "use strict";
     if (timer !== null) clearTimeout(timer)
     var t1 = msclock()
@@ -61,6 +80,19 @@ function onmessage(msg) {
     var dt = Math.floor(t1+interval-t2) // attempt to keep the time between renders constant
     if (dt < 15) dt = 0     // becaause setTimeout is inaccurate for small dt's
     timer = setTimeout(send, dt)
+}
+
+// vpython.py calls onmessage, which responds through domessage, using send
+// Both vpython.py and this file are kept alive by sending messages back and forth.
+function onmessage(msg) {
+    "use strict";
+    if (firstcall) {
+        firstcall = false
+        firstmsg = msg
+        checkloading()
+    } else {
+        domessage(msg)
+    }
 }
 
 // The following is necessary to be able to re-run programs.
