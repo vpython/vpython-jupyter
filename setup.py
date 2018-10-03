@@ -50,5 +50,7 @@ setup(
     ],
     ext_modules=extensions,
     install_requires=install_requires,
-    package_data={'vpython': ['vpython_data/*', 'vpython_libraries/*']},
+    package_data={'vpython': ['vpython_data/*',
+                              'vpython_libraries/*',
+                              'vpython_libraries/images/*']},
 )
