@@ -43,6 +43,7 @@ requirements:
     - ujson
     - autobahn # [not py2k and not py34]
     - numpy
+    - ipykernel <5
 
 outputs:
     - type: wheel   # [not win]

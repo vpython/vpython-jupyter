@@ -20,7 +20,7 @@ except ImportError:
 
 import versioneer
 
-install_requires = ['jupyter', 'vpnotebook', 'numpy']
+install_requires = ['jupyter', 'vpnotebook', 'numpy', 'ipykernel<5']
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 5:
     install_requires.append('autobahn')
@@ -50,5 +50,7 @@ setup(
     ],
     ext_modules=extensions,
     install_requires=install_requires,
-    package_data={'vpython': ['vpython_data/*', 'vpython_libraries/*']},
+    package_data={'vpython': ['vpython_data/*',
+                              'vpython_libraries/*',
+                              'vpython_libraries/images/*']},
 )

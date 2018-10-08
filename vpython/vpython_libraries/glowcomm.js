@@ -77,7 +77,6 @@ function fontloading() {
 }
 fontloading()
 
-
 // The following machinery makes sure the fonts are loaded before the user program starts.
 // Otherwise there are problems when user program tries to create a 3D text object and
 // the fonts aren't yet available. The Python code has to wait for the text object to be
