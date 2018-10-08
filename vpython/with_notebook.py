@@ -1,6 +1,28 @@
 from .vpython import *
 from . import __version__, __gs_version__
 
+import tornado.httpserver
+import tornado.websocket
+import tornado.ioloop
+import tornado.web
+import socket
+import json
+import asyncio
+
+def find_free_port():
+    s = socket.socket()
+    s.bind(('',0)) # find an available port
+    return s.getsockname()[1]
+
+__SOCKET_PORT = find_free_port()
+
+try:
+    if platform.python_implementation() == 'PyPy':
+        __SOCKET_PORT = 9000 + __SOCKET_PORT % 1000     # use port number between 9000 and 9999 for PyPy
+except:
+    pass
+
+
 #### Setup for Jupyter VPython
 
 # The following file operations check whether nbextensions already has the correct files.
@@ -70,8 +92,44 @@ display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextension
 
 time.sleep(1)      # allow some time for javascript code above to run before attempting to setup Comm Channel
 
-baseObj.glow = GlowWidget()     # Setup Comm Channel
 
+wsConnected = False
+
+class WSHandler(tornado.websocket.WebSocketHandler):
+    def open(self):
+        global wsConnected
+        wsConnected = True
+      
+    def on_message(self, message):
+        ws_queue.put(message)
+ 
+    def on_close(self):
+        self.stopTornado()
+
+    def stop_tornado(self):
+        ioloop = tornado.ioloop.IOLoop.instance()
+        ioloop.add_callback(ioloop.stop)
+ 
+    def check_origin(self, origin):
+        return True
+ 
+def start_server():
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    application = tornado.web.Application([(r'/ws', WSHandler),])
+    http_server = tornado.httpserver.HTTPServer(application)
+    http_server.listen(__SOCKET_PORT)
+    tornado.ioloop.IOLoop.instance().start()
+
+if (ipykernel.__version__ >= '5.0.0'):
+	from threading import Thread
+	t = Thread(target=start_server, args=())
+	t.start()
+	baseObj.glow = GlowWidget(wsport= __SOCKET_PORT, wsuri='/ws')     # Setup Comm Channel and websocket
+	while (not wsConnected):
+		time.sleep(0.1)          # wait for websocket to connect
+else:
+	baseObj.glow = GlowWidget()     # Setup Comm Channel
+	
 scene = canvas()
 
 # This must come after creating a canvas

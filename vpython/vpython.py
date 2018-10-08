@@ -24,9 +24,12 @@ import time
 import os
 import copy
 import sys
+import queue
+import json
 from . import __version__, __gs_version__
 
 vec = vector # synonyms in GlowScript
+ws_queue = queue.Queue()
 
 def __checkisnotebook(): # returns True if running in Jupyter notebook
     try:
@@ -48,6 +51,23 @@ if _isnotebook:
         import ipykernel
         import notebook
         from ipykernel.comm import Comm
+        if (ipykernel.__version__ >= '5.0.0'):
+            import asyncio    
+            async def wsperiodic():
+                while True:
+                    if ws_queue.qsize() > 0:
+                        data = ws_queue.get()
+                        d = json.loads(data)
+                        for m in d:
+                            # Must send events one at a time to GW.handle_msg because bound events need the loop code:
+                            msg = {'content':{'data':[m]}} # message format used by notebook
+                            baseObj.glow.handle_msg(msg)
+
+                    await asyncio.sleep(0)
+
+            loop = asyncio.get_event_loop()
+            loop.create_task(wsperiodic())
+
     else:
         import IPython.html.nbextensions
         from IPython.kernel.comm.comm import Comm
@@ -203,7 +223,16 @@ class _RateKeeper2(RateKeeper):
         
         # Check if events to process from front end
         if _isnotebook:
-            if IPython.__version__ >= '3.0.0' :
+            if IPython.__version__ >= '7.0.0' :
+                while ws_queue.qsize() > 0:
+                    data = ws_queue.get()
+                    d = json.loads(data) # update_canvas info
+                    for m in d:
+                        # Must send events one at a time to GW.handle_msg because bound events need the loop code:
+                        msg = {'content':{'data':[m]}} # message format used by notebook
+                        baseObj.glow.handle_msg(msg)
+				
+            elif IPython.__version__ >= '3.0.0' :
                 kernel = get_ipython().kernel
                 parent = kernel._parent_header
                 ident = kernel._parent_ident
@@ -379,11 +408,14 @@ class baseObj(object):
 # and sent as a block to the browser at render times.
 
 class GlowWidget(object):    
-    def __init__(self): 
+    def __init__(self, wsport = None, wsuri = None): 
         global sender
         baseObj.glow = self
         if _isnotebook:
-            self.comm = Comm(target_name='glow')
+            if (wsport):
+                self.comm = Comm(target_name='glow', data={'wsport':wsport, 'wsuri':wsuri})
+            else:
+                self.comm = Comm(target_name='glow')
             self.comm.on_close(self.handle_close)
             self.comm.on_msg(self.handle_msg)
             sender = self.comm.send
