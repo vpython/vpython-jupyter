@@ -3,6 +3,8 @@ define(["nbextensions/vpython_libraries/plotly.min",
         "nbextensions/vpython_libraries/jquery-ui.custom.min"], function(Plotly) {
 
 var comm
+var ws = null
+var isopen = false
 
 window.Plotly = Plotly
 
@@ -16,7 +18,33 @@ IPython.notebook.kernel.comm_manager.register_target('glow',
         // Register handlers for later messages:
         comm.on_msg(onmessage);
         comm.on_close(function(msg) {console.log("glow comm channel closed")});
-    });
+		
+        if (msg.content.data.wsport !== undefined) {
+            // create websocket instance
+		    var port = msg.content.data.wsport
+		    var uri = msg.content.data.wsuri
+            ws = new WebSocket("ws://localhost:" + port + uri);
+	        ws.binaryType = "arraybuffer";
+           
+            // Handle incoming websocket message callback
+            ws.onmessage = function(evt) {
+                console.log("WebSocket Message Received: " + evt.data)
+            };
+ 
+            // Close Websocket callback
+            ws.onclose = function(evt) {
+                ws = null
+                isopen = false
+                console.log("***WebSocket Connection Closed***");
+            };
+ 
+            // Open Websocket callback
+            ws.onopen = function(evt) {
+                isopen = true
+                console.log("***WebSocket Connection Opened***");
+            };
+        }
+ });
 
 var datadir = requirejs.s.contexts._.config.paths.nbextensions + '/vpython_data/'
 window.Jupyter_VPython = datadir // prefix used by glow.min.js for textures
@@ -104,7 +132,12 @@ function send() { // periodically send events and update_canvas and request obje
 	var update = update_canvas()
 	if (update !== null) events = events.concat(update)
 	if (events.length === 0) events = [{event:'update_canvas', 'trigger':1}]
-	if (comm) comm.send( events )
+	if (ws && isopen) {
+		var msg = JSON.stringify(events)
+		ws.send(msg)
+	} else if (comm) {
+	     comm.send( events )
+    }
 	events = []
 }
 
