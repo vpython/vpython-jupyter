@@ -8,6 +8,7 @@ import tornado.web
 import socket
 import json
 import asyncio
+import logging
 
 def find_free_port():
     s = socket.socket()
@@ -118,6 +119,9 @@ def start_server():
     application = tornado.web.Application([(r'/ws', WSHandler),])
     http_server = tornado.httpserver.HTTPServer(application)
     http_server.listen(__SOCKET_PORT)
+    Log = logging.getLogger('tornado.access')
+    level = logging.getLevelName('WARN')
+    Log.setLevel(level)
     tornado.ioloop.IOLoop.instance().start()
 
 if (ipykernel.__version__ >= '5.0.0'):

@@ -223,7 +223,7 @@ class _RateKeeper2(RateKeeper):
         
         # Check if events to process from front end
         if _isnotebook:
-            if IPython.__version__ >= '7.0.0' :
+            if (IPython.__version__ >= '7.0.0') or (ipykernel.__version__ >= '5.0.0'):
                 while ws_queue.qsize() > 0:
                     data = ws_queue.get()
                     d = json.loads(data) # update_canvas info
