@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["ES5", "ES2015.Promise", "DOM"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+	"noImplicitAny": true,
+    "noEmitOnError": true,
+    "noUnusedLocals": true,
+    "outDir": "./lib",
+    "target": "ES5",
+    "strict": true,
+    "strictNullChecks": false,
+    "types": []
+  },
+  "include": ["src/*"]
+}

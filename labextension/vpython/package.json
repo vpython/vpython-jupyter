@@ -1,0 +1,48 @@
+{
+  "name": "vpython",
+  "version": "0.2.7",
+  "description": "VPython extension for Jupyterlab",
+  "keywords": [
+    "jupyter",
+    "jupyterlab",
+    "jupyterlab-extension"
+  ],
+  "homepage": "",
+  "bugs": {
+    "url": ""
+  },
+  "license": "BSD-3-Clause",
+  "author": "John Coady",
+  "files": [
+    "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf}",
+    "style/**/*.{css,eot,gif,html,jpg,json,png,svg,woff2,ttf}"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "repository": {
+    "type": "",
+    "url": ""
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf lib",
+    "watch": "tsc -w",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "^0.19.1",
+    "@jupyterlab/apputils": "^0.19.1",
+    "@jupyterlab/docregistry": "^0.19.1",
+    "@jupyterlab/notebook": "^0.19.1",
+    "@phosphor/disposable": "^1.1.2",
+    "script-loader": "^0.7.2"
+  },
+  "devDependencies": {
+    "rimraf": "^2.6.1",
+    "script-loader": "^0.7.2",
+    "typescript": "~2.9.2"
+  },
+  "jupyterlab": {
+    "extension": true
+  }
+}
