@@ -26,55 +26,6 @@ __all__ = ['Camera', 'GlowWidget', 'GSversion', 'Mouse', 'arrow', 'attach_arrow'
            'quad', 'radio', 'ring', 'simple_sphere', 'sleep', 'slider', 'sphere',
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
            'wtext']
-vec = vector # synonyms in GlowScript
-
-def __checkisnotebook(): # returns True if running in Jupyter notebook
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == 'ZMQInteractiveShell':  # Jupyter notebook or qtconsole?
-            return True
-        elif shell == 'TerminalInteractiveShell':  # Terminal running IPython?
-            return False
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False      # Probably standard Python interpreter
-_isnotebook = __checkisnotebook()
-
-if _isnotebook:
-    #### Imports for Jupyter VPython
-    import IPython
-    if IPython.__version__ >= '4.0.0' :
-        import ipykernel
-        import notebook
-        from ipykernel.comm import Comm
-        if (ipykernel.__version__ >= '5.0.0'):
-
-            import asyncio
-            async def wsperiodic():
-                while True:
-                    if ws_queue.qsize() > 0:
-                        data = ws_queue.get()
-                        d = json.loads(data)
-                        for m in d:
-                            # Must send events one at a time to GW.handle_msg because bound events need the loop code:
-                            msg = {'content':{'data':[m]}} # message format used by notebook
-                            baseObj.glow.handle_msg(msg)
-
-                    await asyncio.sleep(0)
-
-            loop = asyncio.get_event_loop()
-            loop.create_task(wsperiodic())
-
-    else:
-        import IPython.html.nbextensions
-        from IPython.kernel.comm.comm import Comm
-    from IPython.display import HTML
-    from IPython.display import display
-    from IPython.display import Javascript
-    from IPython.core.getipython import get_ipython
-    from jupyter_core.paths import jupyter_data_dir
-    from . import __version__, __gs_version__
 
 __p = platform.python_version()
 _ispython3 = (__p[0] == '3')
@@ -379,7 +330,7 @@ class baseObj(object):
 # and sent as a block to the browser at render times.
 
 class GlowWidget(object):
-    def __init__(self, wsport = None, wsuri = None):
+    def __init__(self, wsport=None, wsuri=None):
         global sender
         baseObj.glow = self
         if _isnotebook:
