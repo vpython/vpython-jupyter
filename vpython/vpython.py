@@ -10,11 +10,10 @@ from math import sqrt, tan, pi
 from time import clock
 import time
 import sys
-import queue
-import json
 from . import __version__, __gs_version__
 from ._notebook_helpers import _isnotebook
-from ._vector_import_helper import vector, mag, norm, dot, adjust_up, adjust_axis, object_rotate
+from ._vector_import_helper import (vector, mag, norm, dot, adjust_up,
+                                    adjust_axis, object_rotate)
 
 # List of names that will be imported form this file with import *
 __all__ = ['Camera', 'GlowWidget', 'GSversion', 'Mouse', 'arrow', 'attach_arrow',
@@ -28,7 +27,6 @@ __all__ = ['Camera', 'GlowWidget', 'GSversion', 'Mouse', 'arrow', 'attach_arrow'
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
            'wtext']
 vec = vector # synonyms in GlowScript
-ws_queue = queue.Queue()
 
 def __checkisnotebook(): # returns True if running in Jupyter notebook
     try:
@@ -210,45 +208,9 @@ def _encode_attr(D, ismethods): # ismethods is True if a list of method operatio
                 out.append(s)
     return out
 
-class _RateKeeper2(RateKeeper):
-
-    def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
-        self.rval = 30
-        self.tocall = None
-        super(_RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
-
-    def sendtofrontend(self):
-        # This is called by the rate() function, through rate_control _RateKeeper callInteract().
-        # See the function commsend() for details of how the browser is updated.
-
-        # Check if events to process from front end
-        if _isnotebook:
-            if (IPython.__version__ >= '7.0.0') or (ipykernel.__version__ >= '5.0.0'):
-                while ws_queue.qsize() > 0:
-                    data = ws_queue.get()
-                    d = json.loads(data) # update_canvas info
-                    for m in d:
-                        # Must send events one at a time to GW.handle_msg because bound events need the loop code:
-                        msg = {'content':{'data':[m]}} # message format used by notebook
-                        baseObj.glow.handle_msg(msg)
-
-            elif IPython.__version__ >= '3.0.0' :
-                kernel = get_ipython().kernel
-                parent = kernel._parent_header
-                ident = kernel._parent_ident
-                kernel.do_one_iteration()
-                kernel.set_parent(ident, parent)
-
-    def __call__(self, N): # rate(N) calls this function
-        self.rval = N
-        if self.rval < 1: raise ValueError("rate value must be greater than or equal to 1")
-        super(_RateKeeper2, self).__call__(self.rval) ## calls __call__ in rate_control.py
-
 if sys.version > '3':
     long = int
 
-# The rate function:
-rate = _RateKeeper2(interactFunc = simulateDelay(delayAvg = 0.001))
 
 def list_to_vec(L):
     return vector(L[0], L[1], L[2])

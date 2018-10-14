@@ -5,8 +5,10 @@ from jupyter_core.paths import jupyter_data_dir
 import notebook
 import IPython
 from IPython.display import display, Javascript
+import ipykernel
 
 from .vpython import GlowWidget, baseObj, canvas
+from .rate_control import ws_queue
 from . import __version__
 
 import tornado.httpserver
@@ -88,7 +90,7 @@ if transfer:
         if libready and dataready: break
     # Mark with the version number that the files have been transferred successfully:
     fd = open(nbdir+'/vpython_version.txt', 'w')
-    fd.write(__version__)    
+    fd.write(__version__)
     fd.close()
 
 display(Javascript("""if (typeof Jupyter !== "undefined") {require.undef("nbextensions/vpython_libraries/glow.min");}else{element.textContent = ' ';}"""))
@@ -101,30 +103,26 @@ display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextension
 
 time.sleep(1)      # allow some time for javascript code above to run before attempting to setup Comm Channel
 
-baseObj.glow = GlowWidget()     # Setup Comm Channel
-
-baseObj.trigger() # start the trigger ping-pong process
-
 wsConnected = False
 
 class WSHandler(tornado.websocket.WebSocketHandler):
     def open(self):
         global wsConnected
         wsConnected = True
-      
+
     def on_message(self, message):
         ws_queue.put(message)
- 
+
     def on_close(self):
         self.stopTornado()
 
     def stop_tornado(self):
         ioloop = tornado.ioloop.IOLoop.instance()
         ioloop.add_callback(ioloop.stop)
- 
+
     def check_origin(self, origin):
         return True
- 
+
 def start_server():
     asyncio.set_event_loop(asyncio.new_event_loop())
     application = tornado.web.Application([(r'/ws', WSHandler),])
@@ -135,6 +133,7 @@ def start_server():
     Log.setLevel(level)
     tornado.ioloop.IOLoop.instance().start()
 
+
 if (ipykernel.__version__ >= '5.0.0'):
 	from threading import Thread
 	t = Thread(target=start_server, args=())
@@ -144,16 +143,27 @@ if (ipykernel.__version__ >= '5.0.0'):
 		time.sleep(0.1)          # wait for websocket to connect
 else:
 	baseObj.glow = GlowWidget()     # Setup Comm Channel
-	
-scene = canvas()
 
-# This must come after creating a canvas
-class MISC(baseObj):
-    def __init__(self):
-        super(MISC, self).__init__() 
-    
-    def prnt(self, s):
-        self.addmethod('GSprint', s)
+baseObj.trigger()  # start the trigger ping-pong process
+
+if IPython.__version__ >= '4.0.0':
+    if (ipykernel.__version__ >= '5.0.0'):
+        async def wsperiodic():
+            while True:
+                if ws_queue.qsize() > 0:
+                    data = ws_queue.get()
+                    d = json.loads(data)
+                    # Must send events one at a time to GW.handle_msg because
+                    # bound events need the loop code
+                    for m in d:
+                        # message format used by notebook
+                        msg = {'content': {'data': [m]}}
+                        baseObj.glow.handle_msg(msg)
+
+                await asyncio.sleep(0)
+
+        loop = asyncio.get_event_loop()
+        loop.create_task(wsperiodic())
 
 # Dummy name to import...
 _ = None
