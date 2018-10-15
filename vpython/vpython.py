@@ -2,81 +2,30 @@ from __future__ import print_function, division, absolute_import
 
 # Cythonize the encode machinery?
 import colorsys
-from .rate_control import *
+from .rate_control import rate
 import platform
-try:
-    if platform.python_implementation() == 'PyPy':
-        from .vector import *    # use pure python vector for PyPy
-    else:
-        from .cyvector import *
-        v = vector(0,0,0)
-except:
-    from .vector import *
-from .shapespaths import *
 
-# # Need to import the following for consistency across VPythons
-from math import *
-from numpy import arange
+from math import sqrt, tan, pi
 
-import inspect
 from time import clock
 import time
-import os
-import copy
 import sys
-import queue
-import json
 from . import __version__, __gs_version__
+from ._notebook_helpers import _isnotebook
+from ._vector_import_helper import (vector, mag, norm, dot, adjust_up,
+                                    adjust_axis, object_rotate)
 
-vec = vector # synonyms in GlowScript
-ws_queue = queue.Queue()
-
-def __checkisnotebook(): # returns True if running in Jupyter notebook
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == 'ZMQInteractiveShell':  # Jupyter notebook or qtconsole?
-            return True
-        elif shell == 'TerminalInteractiveShell':  # Terminal running IPython?
-            return False
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False      # Probably standard Python interpreter
-_isnotebook = __checkisnotebook()
-
-if _isnotebook:
-    #### Imports for Jupyter VPython
-    import IPython
-    if IPython.__version__ >= '4.0.0' :
-        import ipykernel
-        import notebook
-        from ipykernel.comm import Comm
-        if (ipykernel.__version__ >= '5.0.0'):
-            import asyncio    
-            async def wsperiodic():
-                while True:
-                    if ws_queue.qsize() > 0:
-                        data = ws_queue.get()
-                        d = json.loads(data)
-                        for m in d:
-                            # Must send events one at a time to GW.handle_msg because bound events need the loop code:
-                            msg = {'content':{'data':[m]}} # message format used by notebook
-                            baseObj.glow.handle_msg(msg)
-
-                    await asyncio.sleep(0)
-
-            loop = asyncio.get_event_loop()
-            loop.create_task(wsperiodic())
-
-    else:
-        import IPython.html.nbextensions
-        from IPython.kernel.comm.comm import Comm
-    from IPython.display import HTML
-    from IPython.display import display
-    from IPython.display import Javascript
-    from IPython.core.getipython import get_ipython
-    from jupyter_core.paths import jupyter_data_dir
-    from . import __version__, __gs_version__
+# List of names that will be imported form this file with import *
+__all__ = ['Camera', 'GlowWidget', 'GSversion', 'Mouse', 'arrow', 'attach_arrow',
+           'attach_trail', 'baseObj', 'box', 'bumpmaps', 'button',
+           'canvas', 'checkbox', 'clock', 'color', 'combin', 'compound', 'cone', 'controls',
+           'curve', 'curveMethods', 'cylinder', 'distant_light', 'ellipsoid',
+           'event_return', 'extrusion', 'faces', 'frame', 'gcurve', 'gdots',
+           'ghbars', 'gobj', 'graph', 'gvbars', 'helix', 'label',
+           'local_light', 'menu', 'meta_canvas', 'points', 'pyramid',
+           'quad', 'radio', 'ring', 'simple_sphere', 'sleep', 'slider', 'sphere',
+           'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
+           'wtext']
 
 __p = platform.python_version()
 _ispython3 = (__p[0] == '3')
@@ -96,14 +45,14 @@ GSversion = [__gs_version__, 'glowscript']
 
 ##def eprint(*args, **kwargs): # this may output when ordinary print won't
 ##    print(*args, file=sys.stderr, **kwargs)
-##    
+##
 ##def jprint(s): # prints to terminal, for debugging purposes
 ##    os.write(1, json.dumps(s, separators=(',', ':')).encode('utf_8')+ b'\n')
 
 # scalar attribute:  { <'a' or 'b'>: string }
-# string is str(idx)+attrs[<attributename>]+str(attributevalue) 
+# string is str(idx)+attrs[<attributename>]+str(attributevalue)
 # for example:  {'a':'23K1.72'}  thickness of object 23 is 1.72
-# vector attrribute: 
+# vector attrribute:
 # string is str(idx)+ attrs[<attributename>]+str(val.x)+','+str(val.y)+','+str(val.z)
 # for example: {'a':'37f23.54678,32.12345,-65.00123'}  axis of object 37
 # text attribute:
@@ -115,35 +64,35 @@ GSversion = [__gs_version__, 'glowscript']
 __attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: comma, but maybe that would cause trouble
          'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h',
          'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 'dot_color':'m',
-         'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 'resizable':'+', 
-         
+         'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 'resizable':'+',
+
          # scalar attributes
-         'graph':'q', 'canvas':'r', 'trail_radius':'s', 
-         'visible':'t', 'opacity':'u','shininess':'v', 'emissive':'w',  
-         'make_trail':'x', 'trail_type':'y', 'interval':'z', 'pps':'A', 'retain':'B',  
+         'graph':'q', 'canvas':'r', 'trail_radius':'s',
+         'visible':'t', 'opacity':'u','shininess':'v', 'emissive':'w',
+         'make_trail':'x', 'trail_type':'y', 'interval':'z', 'pps':'A', 'retain':'B',
          'red':'C', 'green':'D', 'blue':'F','length':'G', 'width':'H', 'height':'I', 'radius':'J',
          'thickness':'K', 'shaftwidth':'L', 'headwidth':'M', 'headlength':'N', 'pickable':'O',
-         'coils':'P', 'xoffset':'Q', 'yoffset':'R', 
+         'coils':'P', 'xoffset':'Q', 'yoffset':'R',
          'border':'S', 'line':'T', 'box':'U', 'space':'V', 'linewidth':'W',
          'xmin':'X', 'xmax':'Y', 'ymin':'Z', 'ymax':'`',
          'ctrl':'~', 'shift':'!', 'alt':'@',
-         
+
          # text attributes:
-         'text':'$', 'align':'%', 'caption':'^', 
+         'text':'$', 'align':'%', 'caption':'^',
          'fast':'-', 'title':'&', 'xtitle':'*', 'ytitle':'(',
-         
+
          # Miscellany:
          'lights':')', 'objects':'_', 'bind':'=',
-         'pixel_pos':'[', 'texpos':']', 
+         'pixel_pos':'[', 'texpos':']',
          'v0':'{', 'v1':'}', 'v2':';', 'v3':':', 'vs':'<', 'type':'>',
          'font':'?', 'texture':'/'}
-         
+
 # attrsb are X in {'b': '23X....'}; ran out of easily typable one-character codes
 __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':'e',
           'normal':'f', 'data':'g', 'checked':'h', 'disabled':'i', 'selected':'j',
           'vertical':'k', 'min':'l', 'max':'m', 'step':'n', 'value':'o', 'left':'p',
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
-          'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x', 
+          'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
           'size_units':'D', 'userpan':'E'}
 
@@ -159,7 +108,7 @@ __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_a
             'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
             'marker_color']
-                
+
 __textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label',
                  'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
@@ -210,45 +159,9 @@ def _encode_attr(D, ismethods): # ismethods is True if a list of method operatio
                 out.append(s)
     return out
 
-class _RateKeeper2(RateKeeper):
-    
-    def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
-        self.rval = 30
-        self.tocall = None
-        super(_RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
-
-    def sendtofrontend(self):
-        # This is called by the rate() function, through rate_control _RateKeeper callInteract().
-        # See the function commsend() for details of how the browser is updated.
-        
-        # Check if events to process from front end
-        if _isnotebook:
-            if (IPython.__version__ >= '7.0.0') or (ipykernel.__version__ >= '5.0.0'):
-                while ws_queue.qsize() > 0:
-                    data = ws_queue.get()
-                    d = json.loads(data) # update_canvas info
-                    for m in d:
-                        # Must send events one at a time to GW.handle_msg because bound events need the loop code:
-                        msg = {'content':{'data':[m]}} # message format used by notebook
-                        baseObj.glow.handle_msg(msg)
-				
-            elif IPython.__version__ >= '3.0.0' :
-                kernel = get_ipython().kernel
-                parent = kernel._parent_header
-                ident = kernel._parent_ident
-                kernel.do_one_iteration()
-                kernel.set_parent(ident, parent)
-            
-    def __call__(self, N): # rate(N) calls this function
-        self.rval = N          
-        if self.rval < 1: raise ValueError("rate value must be greater than or equal to 1")
-        super(_RateKeeper2, self).__call__(self.rval) ## calls __call__ in rate_control.py
-
 if sys.version > '3':
     long = int
 
-# The rate function:
-rate = _RateKeeper2(interactFunc = simulateDelay(delayAvg = 0.001))
 
 def list_to_vec(L):
     return vector(L[0], L[1], L[2])
@@ -257,7 +170,8 @@ class baseObj(object):
     glow = None
     objCnt = 0
     sent = True # set to True by a render in the non-notebook case
-    
+    _view_constructed = False
+    _canvas_constructing = False
     # 'cmds': list of constructors,
     # 'attrs': {idx:{'pos':vec, etc.}, idx:{'pos':vec, etc.}, etc.},
     # 'methods': [ [idx, method, date], [idx, method, date], etc. ]
@@ -271,7 +185,7 @@ class baseObj(object):
     def initialize(cls):
         cls.updates = {'cmds':[], 'methods':[], 'attrs':{}}
         cls.attrs = set()
-            
+
     @classmethod
     def empty(cls):
         b = cls.updates
@@ -289,7 +203,7 @@ class baseObj(object):
                 continue
             aa.addmethod('_attach_arrow', vval.value)
             aa._last_val = vval
-        
+
         ## update every attach_trail that depends on a function
         for aa in cls.attach_trails:
             if aa._obj == '_func':
@@ -302,15 +216,23 @@ class baseObj(object):
             if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
                 continue
             aa._last_val = fval
-    
+
     def __init__(self, **kwargs):
+        if not (baseObj._view_constructed or
+                baseObj._canvas_constructing):
+            if _isnotebook:
+                from .with_notebook import _
+            else:
+                from .no_notebook import _
+            baseObj._view_constructed = True
+
         self.idx = baseObj.objCnt   ## an integer
-        self.object_registry[self.idx] = self        
+        self.object_registry[self.idx] = self
         if kwargs is not None:
             for key, value in kwargs.items():
                 object.__setattr__(self, key, value)
         baseObj.incrObjCnt()
-        
+
     def delete(self):
         baseObj.decrObjCnt()
         cmd = {"cmd": "delete", "idx": self.idx}
@@ -326,12 +248,12 @@ class baseObj(object):
         while not baseObj.sent: # baseObj.sent is always True in the notebook case
             time.sleep(0.001)
         baseObj.updates['cmds'].append(cmd) # this is an "atomic" (uninterruptable) operation
-        
+
     def addmethod(self, method, data):
         while not baseObj.sent: # baseObj.sent is always True in the notebook case
             time.sleep(0.001)
         baseObj.updates['methods'].append((self.idx, method, data)) # this is an "atomic" (uninterruptable) operation
-    
+
     def addattr(self, attr):
         while not baseObj.sent: # baseObj.sent is always True in the notebook case
             time.sleep(0.001)
@@ -360,17 +282,17 @@ class baseObj(object):
             for a in baseObj.attrs:
                 idx, attr = a
                 val = getattr(baseObj.object_registry[idx], attr)
-                if type(val) is vec: val = [val.x, val.y, val.z]
+                if type(val) is vector: val = [val.x, val.y, val.z]
                 if idx in baseObj.updates['attrs']:
                     baseObj.updates['attrs'][idx][attr] = val
                 else:
-                    baseObj.updates['attrs'][idx] = {attr:val}                
+                    baseObj.updates['attrs'][idx] = {attr:val}
             objdata = cls.package(baseObj.updates)
         cls.handle_attach()
         sender(objdata)
         cls.initialize()
         baseObj.sent = True
-            
+
     @classmethod
     def incrObjCnt(cls):
         cls.objCnt += 1
@@ -385,7 +307,7 @@ class baseObj(object):
             sender([cmd])
         else:
             baseObj.appendcmd(cmd)
-    
+
 # Jupyter does not immediately transmit data to the browser from a thread,
 # which made for an awkward thread in early versions of Jupyter VPython, and
 # even caused display mistakes due to losing portions of data sent to the browser
@@ -407,11 +329,12 @@ class baseObj(object):
 # In both the notebook and non-notebook cases output is buffered in baseObj.updates
 # and sent as a block to the browser at render times.
 
-class GlowWidget(object):    
-    def __init__(self, wsport = None, wsuri = None): 
+class GlowWidget(object):
+    def __init__(self, wsport=None, wsuri=None):
         global sender
         baseObj.glow = self
         if _isnotebook:
+            from ipykernel.comm import Comm
             if (wsport):
                 self.comm = Comm(target_name='glow', data={'wsport':wsport, 'wsuri':wsuri})
             else:
@@ -445,7 +368,7 @@ class GlowWidget(object):
                     else: obj._bind()
                 else: # Python 2
                     a = getargspec(obj._bind)
-                    if len(a.args) > 0: obj._bind( obj ) 
+                    if len(a.args) > 0: obj._bind( obj )
                     else: obj._bind()
             else:   ## a canvas event
                 if 'trigger' not in evt:
@@ -499,7 +422,7 @@ class color(object):
     def rgb_to_grayscale(cls,v):
       luminance = 0.21*v.x + 0.71*v.y + 0.07*v.z
       return vector(luminance, luminance, luminance)
-  
+
 class textures(object):
     flower = ":flower_texture.jpg"
     granite=":granite_texture.jpg"
@@ -513,7 +436,7 @@ class textures(object):
     stucco=":stucco_texture.jpg"
     wood=":wood_texture.jpg"
     wood_old=":wood_old_texture.jpg"
-    
+
 class bumpmaps(object):
     gravel=":gravel_bumpmap.jpg"
     rock=":rock_bumpmap.jpg"
@@ -524,72 +447,72 @@ class bumpmaps(object):
 class standardAttributes(baseObj):
 # vector-no-interactions, vector-interactions, scalar-no-interactions, scalar-interactions
 
-    attrLists = {'box':[['pos', 'color', 'trail_color'], 
+    attrLists = {'box':[['pos', 'color', 'trail_color'],
                         ['axis', 'size', 'up'],
-                        ['visible', 'opacity','shininess', 'emissive',  
-                         'make_trail', 'trail_type', 'interval', 
+                        ['visible', 'opacity','shininess', 'emissive',
+                         'make_trail', 'trail_type', 'interval',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
                         ['red', 'green', 'blue','length', 'width', 'height']],
-                 'sphere':[['pos', 'color', 'trail_color'], 
+                 'sphere':[['pos', 'color', 'trail_color'],
                         ['axis', 'size', 'up'],
-                        ['visible', 'opacity','shininess', 'emissive',  
-                         'make_trail', 'trail_type', 'interval', 
+                        ['visible', 'opacity','shininess', 'emissive',
+                         'make_trail', 'trail_type', 'interval',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
-                        ['red', 'green', 'blue','length', 'width', 'height', 'radius']], 
-                 'simple_sphere':[['pos', 'color', 'trail_color'], 
+                        ['red', 'green', 'blue','length', 'width', 'height', 'radius']],
+                 'simple_sphere':[['pos', 'color', 'trail_color'],
                         ['axis', 'size', 'up'],
-                        ['visible', 'opacity','shininess', 'emissive',  
-                         'make_trail', 'trail_type', 'interval', 
+                        ['visible', 'opacity','shininess', 'emissive',
+                         'make_trail', 'trail_type', 'interval',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
-                        ['red', 'green', 'blue','length', 'width', 'height', 'radius']],                        
+                        ['red', 'green', 'blue','length', 'width', 'height', 'radius']],
                  'arrow':[['pos', 'color', 'trail_color'],
                          ['axis', 'size', 'up'],
                          ['visible', 'opacity',
                           'shininess', 'emissive', 'texture', 'frame', 'material',
-                          'make_trail', 'trail_type', 'interval', 
+                          'make_trail', 'trail_type', 'interval',
                           'retain', 'trail_color', 'trail_radius', 'texture',
                           'shaftwidth', 'headwidth', 'headlength', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
-                 'ring':[['pos', 'color', 'trail_color', 'size'],  
+                 'ring':[['pos', 'color', 'trail_color', 'size'],
                         ['axis', 'up'],
-                        ['visible', 'opacity','shininess', 'emissive', 
-                         'make_trail', 'trail_type', 'interval', 
+                        ['visible', 'opacity','shininess', 'emissive',
+                         'make_trail', 'trail_type', 'interval',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable'],
-                        ['red', 'green', 'blue','length', 'width', 'height', 'thickness']],                       
+                        ['red', 'green', 'blue','length', 'width', 'height', 'thickness']],
                  'helix':[['pos', 'color', 'trail_color'],
                          ['axis', 'size', 'up'],
-                         ['visible', 'opacity','shininess', 'emissive', 
-                         'make_trail', 'trail_type', 'interval', 
+                         ['visible', 'opacity','shininess', 'emissive',
+                         'make_trail', 'trail_type', 'interval',
                          'retain', 'trail_color', 'trail_radius', 'coils', 'thickness', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
-                 'curve':[['origin', 'color'],  
+                 'curve':[['origin', 'color'],
                          ['axis', 'size', 'up'],
                          ['visible', 'shininess', 'emissive', 'radius', 'retain', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
-                 'points':[['color'],  
+                 'points':[['color'],
                          [],
                          ['visible', 'shininess', 'emissive', 'radius', 'retain', 'pickable', 'size_units'],
                          ['red', 'green', 'blue']],
-                 'label':[['pos', 'color', 'background', 'linecolor'],  
+                 'label':[['pos', 'color', 'background', 'linecolor'],
                          [],
-                         ['visible', 'xoffset', 'yoffset', 'font', 'height', 'opacity', 
+                         ['visible', 'xoffset', 'yoffset', 'font', 'height', 'opacity',
                            'border', 'line', 'box', 'space', 'align', 'linewidth', 'pixel_pos'],
                          ['text']],
-                 'local_light':[['pos', 'color'],  
+                 'local_light':[['pos', 'color'],
                          [],
                          ['visible'],
                          []],
-                 'distant_light':[['direction', 'color'],  
+                 'distant_light':[['direction', 'color'],
                          [],
                          ['visible'],
                          []],
-                 'compound':[['pos', 'color', 'trail_color'], 
+                 'compound':[['pos', 'color', 'trail_color'],
                          ['axis', 'size', 'up'],
-                         ['visible', 'opacity','shininess', 'emissive',  
-                         'make_trail', 'trail_type', 'interval', 'texture', 
+                         ['visible', 'opacity','shininess', 'emissive',
+                         'make_trail', 'trail_type', 'interval', 'texture',
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs', 'pickable'],
                          ['red', 'green', 'blue', 'length', 'width', 'height']],
-                 'vertex':[['pos', 'color', 'normal', 'bumpaxis', 'texpos'], 
+                 'vertex':[['pos', 'color', 'normal', 'bumpaxis', 'texpos'],
                         [],
                         ['visible', 'opacity','shininess', 'emissive'],
                         ['red', 'green', 'blue']],
@@ -609,53 +532,53 @@ class standardAttributes(baseObj):
                         [],
                         ['radius', 'pps', 'retain', 'type', '_obj'],
                         [] ],
-                 'wtext': [[],  
+                 'wtext': [[],
                          [],
                          ['location', 'text'],
                          []],
                  'extrusion':[ ['pos', 'color', 'start_face_color', 'end_face_color'],
                         [ 'axis', 'size', 'up' ],
-                        ['path', 'shape', 'visible', 'opacity','shininess', 'emissive',  
+                        ['path', 'shape', 'visible', 'opacity','shininess', 'emissive',
                          'show_start_face', 'show_end_face',
                          'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable' ],
                         ['red', 'green', 'blue','length', 'width', 'height'] ],
                  'text': [ ['pos', 'up', 'color', 'start_face_color', 'end_face_color', 'axis'],
                           [],
-                          ['visible', 'opacity','shininess', 'emissive',  
-                         'make_trail', 'trail_type', 'interval', 
+                          ['visible', 'opacity','shininess', 'emissive',
+                         'make_trail', 'trail_type', 'interval',
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs', 'pickable',
                          'align', 'text', 'font', 'billboard', 'show_start_face', 'show_end_face', 'descender',
                          'vertical_spacing', 'depth', 'length', 'width', 'height'],
                           ['red', 'green', 'blue'] ]
                         }
- 
+
     attrLists['pyramid'] = attrLists['box']
     attrLists['cylinder'] = attrLists['sphere']
     attrLists['cone'] = attrLists['sphere']
     attrLists['ellipsoid'] = attrLists['sphere']
-    
+
     def setup(self, args):
-        super(standardAttributes, self).__init__() 
+        super(standardAttributes, self).__init__()
         self._constructing = True  ## calls to setters are from constructor
 
         objName = self._objName = args['_objName']  ## identifies object type
         if objName[:8] == 'compound': objName = 'compound'
         del args['_objName']
-        
+
     # default values
         self._pos = vector(0,0,0)
         self._axis = vector(1,0,0)
         self._up = vector(0,1,0)
         self._color = vector(1,1,1)
-        defaultSize = args['_default_size'] 
-        if defaultSize is not None: # is not points or vertex or triangle or quad 
+        defaultSize = args['_default_size']
+        if defaultSize is not None: # is not points or vertex or triangle or quad
             self._size = defaultSize  ## because VP differs from JS
-            del args['_default_size']        
+            del args['_default_size']
         self._texture = None
         self._opacity = 1.0
         self._shininess = 0.6
-        self._emissive = False      
+        self._emissive = False
         self._make_trail = False
         self._trail_type = 'curve'
         self._trail_color = self._color
@@ -664,7 +587,7 @@ class standardAttributes(baseObj):
         self._trail_radius = None  # set by default after size set
         self._canvas = None
         if 'canvas' in args:  ## converted to idx below
-            self._canvas = args['canvas']  
+            self._canvas = args['canvas']
         self._visible = True
         self._frame = None
         self._size_units = 'pixels'
@@ -676,10 +599,10 @@ class standardAttributes(baseObj):
         if '_cloneid' in args: # text, extrusion, or compound is being cloned
             _special_clone = args['_cloneid']
             del args['_cloneid']
-        
+
         argsToSend = []  ## send to GlowScript only attributes specified in constructor
-        
-    ## override defaults for vector attributes without side effects 
+
+    ## override defaults for vector attributes without side effects
         attrs = standardAttributes.attrLists[objName][0]
         for a in attrs:
             if a in args:
@@ -688,9 +611,9 @@ class standardAttributes(baseObj):
                 if isinstance(val, vector): setattr(self, '_'+a, vector(val))  ## '_' bypasses setters; copy of val
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
-                
+
         vectorInteractions = [ ('size','axis'), ('axis','size'), ('axis','up'), ('up','axis')]
-                
+
     # override defaults for vector attributes with side effects
     # For consistency with GlowScript, axis is listed before up in the attrLists,
     # so that setting axis may affect up, but then setting up can affect axis afterwards.
@@ -698,7 +621,7 @@ class standardAttributes(baseObj):
         for a in attrs:
             if a in args:
                 val = args[a]
-                if isinstance(val, vector): 
+                if isinstance(val, vector):
                     setattr(self, a, vector(val))   ## use setter to take care of side effects; copy of val
                     if a not in argsToSend:
                         argsToSend.append(a)
@@ -713,25 +636,25 @@ class standardAttributes(baseObj):
 
         if defaultSize is not None:
             ## If not 3D text, always send size because Python size differs from JS size
-            if 'size' not in argsToSend and objName != 'text':  
+            if 'size' not in argsToSend and objName != 'text':
                 argsToSend.append('size')
             self._trail_radius = 0.1 * self._size.y  ## default depends on size
         elif objName == 'points':
             self._trail_radius = self._radius # points object
-                
-    # override defaults for scalar attributes without side effects       
+
+    # override defaults for scalar attributes without side effects
         attrs = standardAttributes.attrLists[objName][2]
         for a in attrs:
             if a in args:
                 argsToSend.append(a)
                 setattr(self, '_'+a, args[a])  ## by-pass setters
-                del args[a] 
+                del args[a]
 
         scalarInteractions={'red':'color', 'green':'color', 'blue':'color', 'radius':'size', 'thickness':'size',
                                 'length':'size', 'height':'size', 'width':'size', 'v0':'v0', 'v1':'v1',
                                 'v2':'v2', 'v3':'v3', 'text':'text'}
-    
-    # override defaults for scalar attributes with side effects       
+
+    # override defaults for scalar attributes with side effects
         attrs = standardAttributes.attrLists[objName][3]
         for a in attrs:
             if a in args:
@@ -739,11 +662,11 @@ class standardAttributes(baseObj):
                 if scalarInteractions[a] not in argsToSend:
                     argsToSend.append(scalarInteractions[a])  # e.g. if a is radius, send size
                 del args[a]
-                 
+
     # set values of user-defined attributes
         for key, value in args.items(): # Assign all other properties
             setattr(self, key, value)
-        
+
         cmd = {"cmd": objName, "idx": self.idx}
 
     # now put all args to send into cmd
@@ -757,9 +680,9 @@ class standardAttributes(baseObj):
             if objName in nosize and a == 'size': continue # do not send superfluous size
             #cmd["attrs"].append({"attr":a, "value": aval})
             cmd[a] = aval
-            
-            
-    # set canvas  
+
+
+    # set canvas
         if self.canvas == None:  ## not specified in constructor
             self.canvas = canvas.get_selected()
         #cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
@@ -767,12 +690,12 @@ class standardAttributes(baseObj):
         # Lights are listed in canvas.lights, not canvas.objects
         if not (objName == 'distant_light' or objName == 'local_light'):
             self.canvas.objz(self,'add')
-                   
+
         self._constructing = False  ## from now on any setter call will not be from constructor
         # _special_clone is True if text, extrusion, or compound objects
         if _special_clone is not None: cmd["_cloneid"] = _special_clone
         self.appendcmd(cmd)
-       
+
         # if ('frame' in args and args['frame'] != None):
             # frame.objects.append(self)
             # frame.update_obj_list()
@@ -793,14 +716,14 @@ class standardAttributes(baseObj):
         if objName == 'vertex':
             self._bumpaxis.on_change = self._on_bumpaxis_change
             self._normal.on_change = self._on_normal_change
-        
+
     # Ensure that if axis or up is <0,0,0> in constructor, we'll recover eventually:
         if self._axis.mag2 == 0: self._save_oldaxis = vector(1,0,0)
         if self._up.mag2 == 0: self._save_oldup = vector(0,1,0)
 
     @property
     def pos(self):
-        return self._pos    
+        return self._pos
     @pos.setter
     def pos(self,value):
         self._pos.value = value
@@ -809,10 +732,10 @@ class standardAttributes(baseObj):
                 self.addmethod('pos', value.value)
             else:
                 self.addattr('pos')
-            
+
     @property
     def up(self):
-        return self._up  
+        return self._up
     @up.setter
     def up(self,value):
         self._save_oldup = adjust_axis(self._up, value, self._axis, self._save_oldup) # this sets self._axis and self._up
@@ -836,10 +759,10 @@ class standardAttributes(baseObj):
             self._size._x = m
             if not self._constructing:
                 self.addattr('size')
-            
+
     @property
     def size(self):
-        return self._size   
+        return self._size
     @size.setter
     def size(self,value):
         self._size.value = value
@@ -853,10 +776,10 @@ class standardAttributes(baseObj):
             self._axis.value = a
             if not self._constructing:
                 self.addattr('axis')
-            
+
     @property
-    def length(self): 
-        return self._size.x    
+    def length(self):
+        return self._size.x
     @length.setter
     def length(self,value):
         self._axis = self._axis.norm() * value
@@ -866,8 +789,8 @@ class standardAttributes(baseObj):
             self.addattr('size')
 
     @property
-    def height(self): 
-        return self._size.y    
+    def height(self):
+        return self._size.y
     @height.setter
     def height(self,value):
         self._size._y = value
@@ -875,17 +798,17 @@ class standardAttributes(baseObj):
             self.addattr('size')
 
     @property
-    def width(self): 
-        return self._size.z   
+    def width(self):
+        return self._size.z
     @width.setter
     def width(self,value):
         self._size._z = value
         if not self._constructing:
             self.addattr('size')
-        
-    @property    
+
+    @property
     def color(self):
-        return self._color  
+        return self._color
     @color.setter
     def color(self,value):
         self._color.value = value
@@ -921,7 +844,7 @@ class standardAttributes(baseObj):
 
     @property
     def visible(self):
-        return self._visible    
+        return self._visible
     @visible.setter
     def visible(self,value):
         self._visible = value
@@ -930,7 +853,7 @@ class standardAttributes(baseObj):
 
     @property
     def pickable(self):
-        return self._pickable    
+        return self._pickable
     @pickable.setter
     def pickable(self,value):
         self._pickable = value
@@ -939,16 +862,16 @@ class standardAttributes(baseObj):
 
     @property
     def canvas(self):
-        return self._canvas    
+        return self._canvas
     @canvas.setter
     def canvas(self,value):
         self._canvas = value
         if not self._constructing:
             raise AttributeError('canvas cannot be modified')
-      
+
     @property
     def opacity(self):
-        return self._opacity    
+        return self._opacity
     @opacity.setter
     def opacity(self,value):
         self._opacity = value
@@ -957,7 +880,7 @@ class standardAttributes(baseObj):
 
     @property
     def emissive(self):
-        return self._emissive    
+        return self._emissive
     @emissive.setter
     def emissive(self,value):
         self._emissive = value
@@ -966,7 +889,7 @@ class standardAttributes(baseObj):
 
     @property
     def texture(self):
-        return self._texture    
+        return self._texture
     @texture.setter
     def texture(self,value):
         self._texture = value
@@ -975,16 +898,16 @@ class standardAttributes(baseObj):
 
     @property
     def shininess(self):
-        return self._shininess    
+        return self._shininess
     @shininess.setter
     def shininess(self,value):
         self._shininess = value
         if not self._constructing:
             self.addattr('shininess')
-            
+
     @property
     def make_trail(self):
-        return self._make_trail    
+        return self._make_trail
     @make_trail.setter
     def make_trail(self,value):
         self._make_trail = value
@@ -993,15 +916,15 @@ class standardAttributes(baseObj):
 
     @property
     def trail_type(self):
-        return self._trail_type    
+        return self._trail_type
     @trail_type.setter
     def trail_type(self,value):
         if (value not in ['curve', 'points']):
             raise Exception("ArgumentError: trail_type must be 'curve' or 'points'")
-        self._trail_type = value   
+        self._trail_type = value
         if not self._constructing:
             self.addattr('trail_type')
-        
+
     @property
     def trail_color(self):
         return self._trail_color
@@ -1011,12 +934,12 @@ class standardAttributes(baseObj):
             self._trail_color.value = value
         else:
             raise TypeError('trail_color must be a vector')
-        if not self._constructing: 
+        if not self._constructing:
             self.addattr('trail_color')
 
     @property
     def interval(self):
-        return self._interval    
+        return self._interval
     @interval.setter
     def interval(self,value):
         self._interval = value
@@ -1025,7 +948,7 @@ class standardAttributes(baseObj):
 
     @property
     def retain(self):
-        return self._retain    
+        return self._retain
     @retain.setter
     def retain(self,value):
         self._retain = value
@@ -1034,13 +957,13 @@ class standardAttributes(baseObj):
 
     @property
     def trail_radius(self):
-        return self._trail_radius    
+        return self._trail_radius
     @trail_radius.setter
     def trail_radius(self,value):
         self._trail_radius = value
         if not self._constructing:
             self.addattr('trail_radius')
-        
+
     @property
     def pps(self):
         return self._pps
@@ -1052,12 +975,12 @@ class standardAttributes(baseObj):
 
     @property
     def frame(self):
-        return self._frame    
+        return self._frame
     @frame.setter
     def frame(self,value):
         self._frame = value
-   
-    def rotate(self, angle=None, axis=None, origin=None):    
+
+    def rotate(self, angle=None, axis=None, origin=None):
         saveorigin = origin
         if angle == 0:
             return
@@ -1074,7 +997,7 @@ class standardAttributes(baseObj):
             if origin is None:
                 origin = self.pos
             pos = self.pos
-            
+
         # Update local values of axis and up; setting self._axis and self._up to avoid axis/up connections
         object_rotate(self._axis, self._up, angle, rotaxis)
         self.addattr('axis')
@@ -1089,7 +1012,7 @@ class standardAttributes(baseObj):
             else:
                 self._pos.value = newpos
                 self.addattr('pos')
-        
+
     def _on_size_change(self): # the vector class calls this when there's a change in x, y, or z
         self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
         self.addattr('size')
@@ -1103,24 +1026,24 @@ class standardAttributes(baseObj):
         self.addattr('axis')
 
     def _on_up_change(self): # the vector class calls this when there's a change in x, y, or z
-        self.addattr('up') 
+        self.addattr('up')
 
     def _on_color_change(self): # the vector class calls this when there's a change in x, y, or z
-        self.addattr('color')       
-        
+        self.addattr('color')
+
     def clear_trail(self):
         self.addmethod('clear_trail', 'None')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) object
         pass
-        
+
     def clone(self, **args):
         objName = self._objName
         if objName == 'triangle' or objName == 'quad':
             raise TypeError('Cannot clone a '+objName+' object.')
         elif objName == 'text': # the text object is a wrapper around an extrusion, which is a compound
             oldargs = {'pos':self._pos, 'canvas':self.canvas,
-                    'color':self._color, 'opacity':self._opacity, 
+                    'color':self._color, 'opacity':self._opacity,
                     'axis':self._axis, 'up':self._up, '_text':self._text,
                     '_length':self._length, '_height':self._height, '_depth':self._depth,
                     '_font':self._font, '_align':self._align, '_billboard':self._billboard,
@@ -1133,13 +1056,13 @@ class standardAttributes(baseObj):
             oldargs = {'origin':self._origin, 'pos':self.pos,
                     'color':self._color, r'adius':self._radius,
                     'size':self._size, 'axis':self._axis, 'up':self._up,
-                    'shininess':self._shininess, 'emissive':self._emissive, 
+                    'shininess':self._shininess, 'emissive':self._emissive,
                     'visible':True, 'pickable':self._pickable}
         elif objName == 'helix':
             oldargs = {'pos':self.pos, 'color':self._color,
                     'thickness':self._thickness, 'coils':self._coils,
                     'size':self._size, 'axis':self._axis, 'up':self._up,
-                    'shininess':self._shininess, 'emissive':self._emissive, 
+                    'shininess':self._shininess, 'emissive':self._emissive,
                     'visible':True, 'pickable':self._pickable}
         else:
             oldargs = {'pos':self._pos, 'color':self._color,
@@ -1162,7 +1085,7 @@ class standardAttributes(baseObj):
         for k, v in args.items():   # overrides and user attrs
             setattr(ret, k, v)
         return ret
-    
+
     def __del__(self):
         super(standardAttributes, self).__del__()
 
@@ -1172,13 +1095,13 @@ class box(standardAttributes):
         args['_default_size'] = vector(1,1,1)
         args['_objName'] = "box"
         super(box, self).setup(args)
-        
+
 class sphere(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(2,2,2)
         args['_objName'] = "sphere"
         super(sphere, self).setup(args)
-        
+
     @property
     def radius(self):
         return self._size.y/2
@@ -1186,7 +1109,7 @@ class sphere(standardAttributes):
     def radius(self,value):
         d = 2*value
         self.size = vector(d,d,d) # size will call addattr
-        
+
     @property
     def size(self):
         return self._size
@@ -1214,13 +1137,13 @@ class simple_sphere(sphere):
         args['_default_size'] = vector(2,2,2)
         args['_objName'] = "simple_sphere"
         super(simple_sphere, self).setup(args)
-        
+
 class cylinder(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,2,2)
         args['_objName'] = "cylinder"
         super(cylinder, self).setup(args)
-        
+
     @property
     def radius(self):
         return self._size.y/2
@@ -1228,13 +1151,13 @@ class cylinder(standardAttributes):
     def radius(self,value):
         d = 2*value
         self.size = vector(self._size.x,d,d) # size will call addattr
-        
+
 class cone(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,2,2)
         args['_objName'] = "cone"
         super(cone, self).setup(args)
-        
+
     @property
     def radius(self):
         return self._size.y/2
@@ -1242,19 +1165,19 @@ class cone(standardAttributes):
     def radius(self,value):
         d = 2*value
         self.size = vector(self._size.x,d,d) # size will call addattr
-        
+
 class pyramid(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,1,1)
         args['_objName'] = "pyramid"
         super(pyramid, self).setup(args)
-        
+
 class ellipsoid(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,1,1)
         args['_objName'] = "ellipsoid"
         super(ellipsoid, self).setup(args)
-        
+
     @property
     def radius(self):
         return self._size.y/2
@@ -1262,13 +1185,13 @@ class ellipsoid(standardAttributes):
     def radius(self,value):
         d = 2*value
         self.size = vector(d,d,d) # size will call addattraddattr
-        
+
 class ring(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(0.2,2.2,2.2)
         args['_objName'] = "ring"
         super(ring, self).setup(args)
-        
+
     @property
     def thickness(self):
         return self._size.x/2
@@ -1279,7 +1202,7 @@ class ring(standardAttributes):
         self._size.y = self._size.z = 2*(R1+value)
         if not self._constructing:
             self.addattr('size')
-        
+
     @property
     def radius(self):
         return (self._size.y-self._size.x)/2
@@ -1289,7 +1212,7 @@ class ring(standardAttributes):
         self._size.y = self._size.z = 2*(value+R2)
         if not self._constructing:
             self.addattr('size')
-    
+
     @property        ## override methods of parent class
     def axis(self):
         return self._axis
@@ -1302,7 +1225,7 @@ class ring(standardAttributes):
             # must update both axis and up when either is changed
             self.addattr('axis')
             self.addattr('up')
- 
+
     @property        ## override methods of parent class
     def size(self):
         return self._size
@@ -1311,18 +1234,18 @@ class ring(standardAttributes):
         if not isinstance(value, vector): raise TypeError('axis must be a vector')
         self._size = value
         if not self._constructing:
-            self.addattr('size') 
-        
-class arrow(standardAttributes): 
+            self.addattr('size')
+
+class arrow(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,0.2,0.2)
         args['_objName'] = "arrow"
         self._shaftwidth = 0
         self._headwidth = 0
         self._headlength = 0
-        
+
         super(arrow, self).setup(args)
-            
+
     @property
     def size(self):
         return self._size
@@ -1355,32 +1278,32 @@ class arrow(standardAttributes):
             self.addattr('up')
 
     @property
-    def shaftwidth(self): 
+    def shaftwidth(self):
         return self._shaftwidth
     @shaftwidth.setter
     def shaftwidth(self,value):
         self._shaftwidth = value
         if not self._constructing:
             self.addattr('shaftwidth')
-        
+
     @property
-    def headwidth(self): 
+    def headwidth(self):
         return self._headwidth
     @headwidth.setter
     def headwidth(self,value):
         self._headwidth =value
         if not self._constructing:
             self.addattr('headwidth')
-        
+
     @property
-    def headlength(self): 
+    def headlength(self):
         return self._headlength
     @headlength.setter
     def headlength(self,value):
         self._headlength =value
         if not self._constructing:
             self.addattr('headlength')
-            
+
 class attach_arrow(standardAttributes):
     def __init__(self, obj, attr, **args):
         attrs = ['pos', 'size', 'axis', 'up', 'color']
@@ -1395,7 +1318,7 @@ class attach_arrow(standardAttributes):
         super(attach_arrow, self).setup(args)
         # Only if the attribute is a user attribute do we need to add to attach_arrows:
         if attr not in attrs: baseObj.attach_arrows.append(self)
-        
+
     @property
     def scale(self):
         return self._scale
@@ -1404,8 +1327,8 @@ class attach_arrow(standardAttributes):
         self._scale = value
         if not self._constructing:
             self.addattr("scale")
-    
-    @property 
+
+    @property
     def shaftwidth(self):
         return self._shaftwidth
     @shaftwidth.setter
@@ -1413,13 +1336,13 @@ class attach_arrow(standardAttributes):
         self._shaftwidth = value
         if not self._constructing:
             self.addattr("shaftwidth")
-            
+
     def stop(self):
         self.addmethod('stop', 'None')
-        
+
     def start(self):
         self.addmethod('start', 'None')
-        
+
 class attach_trail(standardAttributes):
     def __init__(self, obj, **args):
         args['_default_size'] = None
@@ -1439,7 +1362,7 @@ class attach_trail(standardAttributes):
         self._retain = -1
         self._pps = 0
         super(attach_trail, self).setup(args)
-        
+
     @property
     def radius(self):
         return self._radius
@@ -1448,7 +1371,7 @@ class attach_trail(standardAttributes):
         self._radius = value
         if not self._constructing:
             self.addattr('radius')
-            
+
     @property
     def retain(self):
         return self._retain
@@ -1457,7 +1380,7 @@ class attach_trail(standardAttributes):
         self._retain = value
         if not self._constructing:
             self.addattr("retain")
-            
+
     @property
     def pps(self):
         return self._pps
@@ -1466,7 +1389,7 @@ class attach_trail(standardAttributes):
         self._pps = value
         if not self._constructing:
             self.addattr("pps")
-            
+
     @property
     def type(self):
         return self._type
@@ -1475,44 +1398,44 @@ class attach_trail(standardAttributes):
         self._type = value
         if not self._constructing:
             self.addattr("type")
-            
+
     def stop(self):
         self.addmethod('stop', 'None')
-        
+
     def start(self):
         self.addmethod('start', 'None')
 
     def clear(self):
         self.addmethod('clear', 'None')
-        
-        
+
+
 class helix(standardAttributes):
     def __init__(self,**args):
         args['_objName'] = 'helix'
         args['_default_size'] = vector(1,2,2)
         self._coils = 5
         self._thickness = 1/20  ## radius/20
-            
+
         super(helix, self).setup(args)
-        
+
     @property
-    def thickness(self): 
+    def thickness(self):
         return self._thickness
     @thickness.setter
     def thickness(self,value):
         self._thickness = value
         if not self._constructing:
             self.addattr('thickness')
-            
+
     @property
-    def coils(self): 
+    def coils(self):
         return self._coils
     @coils.setter
     def coils(self,value):
         self._coils =value
         if not self._constructing:
-            self.addattr('coils')   
-            
+            self.addattr('coils')
+
     @property
     def radius(self):
         return self._size.y/2
@@ -1520,10 +1443,10 @@ class helix(standardAttributes):
     def radius(self,value):
         d = 2*value
         self.size = vector(self._size.x,d,d) # size will call addattr if appropriate
-        
+
 class compound(standardAttributes):
     compound_idx = 0 # same numbering scheme as in GlowScript
-    
+
     def __init__(self, objList, **args):
         self._obj_idxs = None
         idxlist = []
@@ -1550,15 +1473,15 @@ class compound(standardAttributes):
         while not baseObj.sent: # wait for compounding objects to exist
             if _isnotebook: rate(1000)
             else: time.sleep(0.001)
-        
+
         self.compound_idx += 1
         args['_objName'] = 'compound'+str(self.compound_idx)
         super(compound, self).setup(args)
-        
+
         for obj in objList:
             # GlowScript will make the objects invisible, so need not set obj.visible
             obj._visible = False  ## ideally these should be deleted
-            
+
         if _special_clone is None:
             self.canvas._compound = self # used by event handler to update pos and size
             _wait(self.canvas)
@@ -1580,16 +1503,16 @@ class compound(standardAttributes):
             # must update both axis and up when either is changed
             self.addattr('axis')
             self.addattr('up')
-            
+
     @property
     def size(self):
-        return self._size   
+        return self._size
     @size.setter
     def size(self,value): # compound axis and size don't interact
         self._size.value = value
         if not self._constructing:
             self.addattr('size')
-        
+
     def _world_zaxis(self):
         axis = self._axis
         up = norm(self._up)
@@ -1601,7 +1524,7 @@ class compound(standardAttributes):
         else:
             z_axis = axis.cross(up).norm()
         return z_axis
-    
+
     def world_to_compound(self, v):
         axis = self._axis
         z_axis = self._world_zaxis()
@@ -1609,22 +1532,22 @@ class compound(standardAttributes):
         x_axis = axis.norm()
         v = v - self._pos
         return vector(v.dot(x_axis), v.dot(y_axis), v.dot(z_axis))
-    
+
     def compound_to_world(self, v):
-        axis = self._axis        
+        axis = self._axis
         z_axis = self._world_zaxis()
         y_axis = z_axis.cross(axis).norm()
         x_axis = axis.norm()
         return self._pos+(v.x*x_axis) + (v.y*y_axis) + (v.z*z_axis)
-        
-class vertex(standardAttributes):   
-    def __init__(self, **args):    
+
+class vertex(standardAttributes):
+    def __init__(self, **args):
         if 'canvas' in args:
             cv = args['canvas']
         else:
             cv = canvas.get_selected()
         if cv.vertexCount > canvas.maxVertices-1:
-            raise ValueError('too many vertex objects in use for this canvas')        
+            raise ValueError('too many vertex objects in use for this canvas')
         args['_default_size'] = None
         args['_objName'] = "vertex"
         self._triangleCount = 0
@@ -1632,14 +1555,14 @@ class vertex(standardAttributes):
         self._bumpaxis = vector(1,0,0)
         self._texpos = vector(0,0,0)
         super(vertex, self).setup(args)
-              
+
     @property
     def triangleCount(self):
-        return self._triangleCount       
+        return self._triangleCount
     @triangleCount.setter
     def triangleCount(self, val):
         raise AttributeError('use decrementTriangleCount or incrementTriangleCount')
-            
+
     def decrementTriangleCount(self):
         if self._triangleCount <= 0:
             raise ValueError('triangleCount is already 0')
@@ -1647,7 +1570,7 @@ class vertex(standardAttributes):
 
     def incrementTriangleCount(self):
         self._triangleCount += 1
-           
+
     @property
     def normal(self):
         return self._normal
@@ -1658,7 +1581,7 @@ class vertex(standardAttributes):
         self._normal = vector(value)
         if not self._constructing:
             self.addattr('normal')
-            
+
     @property
     def bumpaxis(self):
         return self._bumpaxis
@@ -1669,7 +1592,7 @@ class vertex(standardAttributes):
         self._bumpaxis = vector(value)
         if not self._constructing:
             self.addattr('bumpaxis')
-            
+
     @property
     def texpos(self):
         return self._texpos
@@ -1682,15 +1605,15 @@ class vertex(standardAttributes):
         self._texpos = value
         if not self._constructing:
             self.addattr('texpos')
-            
+
     def _on_normal_change(self):
         self.addattr('normal')
-        
+
     def _on_bumpaxis_change(self):
         self.addattr('bumpaxis')
 
-            
-class triangle(standardAttributes):   
+
+class triangle(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = None
         args['_objName'] = "triangle"
@@ -1701,26 +1624,26 @@ class triangle(standardAttributes):
             vlist = ['v0', 'v1', 'v2']
             for i,val in enumerate(args['vs']):
                 args[vlist[i]] = val
-            del args['vs']        
+            del args['vs']
         super(triangle, self).setup(args)
-        
+
     def __del__(self):
         self._v0.decrementTriangleCount()
         self._v1.decrementTriangleCount()
         self._v2.decrementTriangleCount()
         super(triangle, self).__del__()
-                
+
     @property
     def v0(self):
         return self._v0
     @v0.setter
     def v0(self, value):
-        self._v0 = value    
+        self._v0 = value
         if not self._constructing:
             self._v0.decrementTriangleCount()  ## current v0 now used less
             self.addattr('v0')
         self._v0.incrementTriangleCount()   ## new v0 now used more
-        
+
     @property
     def v1(self):
         return self._v1
@@ -1731,7 +1654,7 @@ class triangle(standardAttributes):
             self._v1.decrementTriangleCount()  ## current v1 now used less
             self.addattr('v1')
         self._v1.incrementTriangleCount()   ## new v1 now used more
-        
+
     @property
     def v2(self):
         return self._v2
@@ -1742,14 +1665,14 @@ class triangle(standardAttributes):
             self._v2.decrementTriangleCount()  ## current v2 now used less
             self.addattr('v2')
         self._v2.incrementTriangleCount()   ## new v2 now used more
-       
+
     @property
     def vs(self):
         return [self._v0, self._v1, self._v2]
     @vs.setter
     def vs(self, value):
         if not isinstance(value, list) or len(value) != 3:
-            raise AttributeError('A triangle must be a list of 3 vertex objects.') 
+            raise AttributeError('A triangle must be a list of 3 vertex objects.')
         for i in range(3):
             # if not isinstance(value[i], vertex):
                 # raise AttributeError('triangle.vs must contain vertex objects.')
@@ -1770,16 +1693,16 @@ class quad(triangle):
             vlist = ['v0', 'v1', 'v2', 'v3']
             for i,val in enumerate(args['vs']):
                 args[vlist[i]] = val
-            del args['vs'] 
+            del args['vs']
         super(quad, self).setup(args)
-        
+
     def __del__(self):
         self._v0.decrementTriangleCount()
         self._v1.decrementTriangleCount()
         self._v2.decrementTriangleCount()
         self._v3.decrementTriangleCount()
         super(triangle, self).__del__()
-        
+
     @property
     def v3(self):
         return self._v3
@@ -1790,14 +1713,14 @@ class quad(triangle):
             self._v3.decrementTriangleCount()  ## current v3 now used less
             self.addattr('v3')
         self._v3.incrementTriangleCount()   ## new v3 now used more
-        
+
     @property
     def vs(self):
         return [self._v0, self._v1, self._v2, self._v3]
     @vs.setter
     def vs(self, value):
         if not isinstance(value, list) or len(value) != 4:
-            raise AttributeError('A quad must be a list of 4 vertex objects.') 
+            raise AttributeError('A quad must be a list of 4 vertex objects.')
         for i in range(4):
             # if not isinstance(value[i], vertex):
                 # raise AttributeError('quad.vs must contain vertex objects.')
@@ -1806,7 +1729,7 @@ class quad(triangle):
             elif i == 1: self.v1 = val
             elif i == 2: self.v2 = val
             elif i == 3: self.v3 = val
-    
+
 class curveMethods(standardAttributes):
 
     def process_args(self, *args1, **args):
@@ -1819,7 +1742,7 @@ class curveMethods(standardAttributes):
             r = args['radius']
         if 'visible' in args:
             vis = args['visible']
-        if len(args1) > 0: 
+        if len(args1) > 0:
             if len(args1) == 1:
                 tpos = self.parse_pos(args1[0])
             else:  ## avoid nested tuples
@@ -1855,11 +1778,11 @@ class curveMethods(standardAttributes):
             pts.append(pt)
             cps.append(cp)
         return [pts, cps]
-        
+
     def parse_pos(self, *vars): # return a list of dictionaries of the form {pos:vec, color:vec ....}
         # In constructor can have pos=[vec, vec, .....]; no dictionaries
         ret = []
-        if isinstance(vars, tuple) and len(vars) > 1 :  
+        if isinstance(vars, tuple) and len(vars) > 1 :
             vars = vars[0]
         if isinstance(vars, tuple) and isinstance(vars[0], list):
             vars = vars[0]
@@ -1868,9 +1791,9 @@ class curveMethods(standardAttributes):
                 if not isinstance(v, vector): # legal in GlowScript: pos=[(x,y,z), (x,y,z)] and pos=[[x,y,z], [x,y,z]]
                     v = list_to_vec(v)
                 if not self._constructing:
-                    ret.append({'pos':vec(v)}) # make a copy of the vector; it could be (and often is, e.g. in a trail) object.pos
+                    ret.append({'pos':vector(v)}) # make a copy of the vector; it could be (and often is, e.g. in a trail) object.pos
                 else:
-                    ret.append(vec(v))
+                    ret.append(vector(v))
             elif isinstance(v, dict) and not self._constructing:
                 ret.append(v)
             else:
@@ -1884,7 +1807,7 @@ class curveMethods(standardAttributes):
         pts, cps = self.process_args(*args1, **args)
         self._pts.extend(pts)
         self.appendcmd({"val":cps[:],"method":"append","idx":self.idx})
-    
+
     def _on_origin_change(self):
         self.addattr('origin')
 
@@ -1894,16 +1817,16 @@ class curveMethods(standardAttributes):
     @npoints.setter
     def npoints(self,value):
         raise ValueError('npoints cannot be set')
-        
+
     @property
-    def radius(self): 
+    def radius(self):
         return self._radius
     @radius.setter
     def radius(self,value):
         self._radius = value
         if not self._constructing:
-            self.addattr('radius')   
-                             
+            self.addattr('radius')
+
     def pop(self, *args):
         if len(self._pts) == 0: return None
         if len(args) == 0:
@@ -1939,10 +1862,10 @@ class curveMethods(standardAttributes):
         pts, cps = self.process_args(*args1, **args)
         self._pts = pts+self._pts
         self.appendcmd({"val":cps[:], "method":"unshift","idx":self.idx})
-        
+
     def slice(self, start, end):
         return self._pts[start:end]
-        
+
     def splice(self, start, howmany, *args1): # args1 could be p1, p2, p3 or [p1, p2, p3]
         if howmany < 0:
             raise ValueError('You cannot delete a negative number of points'.format(howmany))
@@ -1957,7 +1880,7 @@ class curveMethods(standardAttributes):
         pts, cps = self.process_args(*args1)
         self.pts = self._pts[:start]+pts+self._pts[start+howmany:]
         self.appendcmd({"val":[start, howmany, cps[:]], "method":"splice","idx":self.idx})
-    
+
     def modify(self, N, *arg1, **args):
         attrs = ['pos', 'color', 'radius', 'visible', 'retain']
         if N >= len(self._pts) or (N < 0 and -N >= len(self._pts)):
@@ -1985,12 +1908,12 @@ class curveMethods(standardAttributes):
                     else:
                         cp[a] = args[a]
             cp['pos'] = pos.value
-            
+
         self.appendcmd({"val":[N, [cp]], "method":"modify","idx":self.idx})
-        
+
     @property
     def origin(self):
-        return self._origin    
+        return self._origin
     @origin.setter
     def origin(self,value):
         self._origin.value = value
@@ -2002,63 +1925,63 @@ class curveMethods(standardAttributes):
         raise AttributeError('object does not have a "pos" attribute')
     @pos.setter
     def pos(self,val):
-        raise AttributeError('use object methods to change its shape')        
-     
+        raise AttributeError('use object methods to change its shape')
+
     # def __del__(self):
         # pass
-        
-        
+
+
 class curve(curveMethods):
     def __init__(self,*args1, **args):
         args['_objName'] = "curve"
         args['_default_size'] = vector(1,1,1)
-        self._origin = vector(0,0,0)  
+        self._origin = vector(0,0,0)
         self._radius = 0
         self._pts = []  ## cumulative list of dicts of the form {pos:vec, color=vec, radius=r, visible=T/F} python side
-        
+
         tpos = None
         if 'pos' in args:
             tpos = args['pos']
             del args['pos']
-  
+
         super(curveMethods, self).setup(args)
-        
+
         if tpos != None:
             if len(args1) > 0: raise AttributeError('Malformed constructor')
             self.append(tpos)
         if len(args1) > 0:
             self.append(*args1, color=self.color, radius=self.radius, visible=self.visible)
 
-    def _on_origin_change(self): 
+    def _on_origin_change(self):
         self.addattr('origin')
-            
-            
+
+
 class points(curveMethods):
     def __init__(self,*args1, **args):
         args['_objName'] = "points"
         args['_default_size'] = None  ##vector(1,1,1)  ##None
         self._radius = 0
         self._pts = []  ## cumulative list of dicts of the form {pos:vec, color=vec, radius=r, visible=T/F} python side
-  
+
         tpos = None
         if 'pos' in args:
             tpos = args['pos']
             del args['pos']
-  
+
         super(curveMethods, self).setup(args)
-        
+
         if tpos != None:
             if len(args1) > 0: raise AttributeError('Malformed constructor')
             self.append(tpos)
         if len(args1) > 0:
-            self._pts.append(*args1)    
+            self._pts.append(*args1)
 
     @property
-    def origin(self):   
+    def origin(self):
         raise AttributeError('The points object does not have an origin')
     @origin.setter
     def origin(self,value):
-        raise AttributeError('The points object does not have an origin')   
+        raise AttributeError('The points object does not have an origin')
 
     @property
     def size_units(self):
@@ -2068,8 +1991,8 @@ class points(curveMethods):
         self._size_units = value
 
     def rotate(self, **args):
-        raise AttributeError('The points object has no rotate method.')        
-        
+        raise AttributeError('The points object has no rotate method.')
+
 class gobj(baseObj):
     def setup(self, args):
         super(gobj, self).__init__()
@@ -2088,22 +2011,22 @@ class gobj(baseObj):
         objName = args['_objName']
         del args['_objName']
         self._constructing = True ## calls are from constructor
-        
-        argsToSend = [] ## send to GlowScript only attributes specified in constructor
-                        ## default values will be used for others     
 
-        ## process data here   
+        argsToSend = [] ## send to GlowScript only attributes specified in constructor
+                        ## default values will be used for others
+
+        ## process data here
         if 'data' in args:
             datatemp = args['data'][:] ## make a copy
             self.plot(datatemp)  ## call plot to resolve pos arguments into self._plot
-            del args['data']  
-        elif 'pos' in args: ## process pos here, an old synonym for data  
+            del args['data']
+        elif 'pos' in args: ## process pos here, an old synonym for data
             postemp = args['pos'][:] ## make a copy
             self.plot(postemp)  ## call plot to resolve pos arguments into self._plot
             del args['pos']
 
-        ## override default vector attributes        
-        vectorAttributes = ['color', 'dot_color', 'marker_color']        
+        ## override default vector attributes
+        vectorAttributes = ['color', 'dot_color', 'marker_color']
         for a in vectorAttributes:
             if a in args:
                 argsToSend.append(a)
@@ -2111,7 +2034,7 @@ class gobj(baseObj):
                 if isinstance(val, vector): setattr(self, '_'+a, val)
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
-        
+
         ## override default scalar attributes
         for a,val in args.items():
             argsToSend.append(a)
@@ -2120,43 +2043,43 @@ class gobj(baseObj):
             # elif a == 'fast' and _isnotebook and not val:
                 # raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
             setattr(self, '_'+a, val)
-               
+
         cmd = {"cmd": objName, "idx": self.idx}
-           
+
         for a in argsToSend:
             aval = getattr(self,a)
             if isinstance(aval, vector):
                 aval = aval.value
             cmd[a] = aval
-            
+
         self._constructing = False
         self.appendcmd(cmd)
 
     @property
     def radius(self): return self._radius
     @radius.setter
-    def radius(self,val): 
+    def radius(self,val):
         self._radius = val
         self.addattr('radius')
 
     @property
     def size(self): return 2*self._radius
     @size.setter
-    def size(self,val): 
+    def size(self,val):
         self._radius = val/2
         self.addattr('radius')
 
     @property
     def width(self): return self._width
     @width.setter
-    def width(self,val): 
+    def width(self,val):
         self._width = val
         self.addattr('width')
-         
+
     @property
     def color(self): return self._color
     @color.setter
-    def color(self,val): 
+    def color(self,val):
         if not isinstance(val, vector): raise TypeError('color must be a vector')
         self._color = val
         self.addattr('color')
@@ -2164,12 +2087,12 @@ class gobj(baseObj):
     @property
     def fast(self): return self._fast
     @fast.setter
-    def fast(self,val): 
+    def fast(self,val):
         # if _isnotebook and not val:
             # raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
         self._fast = val
         self.addattr('fast')
-        
+
     @property
     def graph(self): return self._graph
     @graph.setter
@@ -2182,7 +2105,7 @@ class gobj(baseObj):
     @property
     def interval(self): return self._interval
     @interval.setter
-    def interval(self,val): 
+    def interval(self,val):
         self._interval = val
         self.addattr('interval')
 
@@ -2190,7 +2113,7 @@ class gobj(baseObj):
         cmd = {"cmd": "delete", "idx": self.idx}
         self.appendcmd(cmd)
         super(gcurve, self).__del__()
-        
+
     def resolveargs(self, *vars):
         ret = []
         if isinstance(vars[0], list) or isinstance(vars[0],tuple):
@@ -2229,66 +2152,66 @@ class gobj(baseObj):
         else:
             p = self.preresolve2(args2)
         self.addmethod('plot', p)
-        
+
     def delete(self):
         self.addmethod('delete', 'None')
 
     @property
     def label(self): return self._label
     @label.setter
-    def label(self,val): 
+    def label(self,val):
         self._label = val
         self.addattr('label')
 
     @property
     def legend(self): return self._legend
     @legend.setter
-    def legend(self,val): 
+    def legend(self,val):
         self._legend = val
         self.addattr('legend')
 
     @property
     def data(self): return self._data
     @data.setter
-    def data(self,val): 
+    def data(self,val):
         self._data = val
         self.addattr('data')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) graph object
         pass
-        
+
 class gcurve(gobj):
     def __init__(self, **args):
         args['_objName'] = "gcurve"
-        
+
         super(gcurve, self).setup(args)
 
     @property
     def markers(self): return self._markers
     @markers.setter
-    def markers(self,val): 
+    def markers(self,val):
         self._markers = val
         self.addattr('markers')
-        
+
     @property
     def marker_color(self): return self._marker_color
     @marker_color.setter
-    def marker_color(self,val): 
+    def marker_color(self,val):
         if not isinstance(val, vector): raise TypeError('marker_color must be a vector')
         self._marker_color = vector(val)
         self.addattr('marker_color')
-        
+
     @property
     def dot(self): return self._dot
     @dot.setter
-    def dot(self,val): 
+    def dot(self,val):
         self._dot = val
         self.addattr('dot')
-        
+
     @property
     def dot_color(self): return self._dot_color
     @dot_color.setter
-    def dot_color(self,val): 
+    def dot_color(self,val):
         if not isinstance(val, vector): raise TypeError('dot_color must be a vector')
         self._dot_color = vector(val)
         self.addattr('dot_color')
@@ -2296,25 +2219,25 @@ class gcurve(gobj):
     @property
     def dot_radius(self): return self._dot_radius
     @dot_radius.setter
-    def dot_radius(self,val): 
+    def dot_radius(self,val):
         self._dot_radius = val
         self.addattr('dot_radius')
-        
+
 class gdots(gobj):
     def __init__(self, **args):
         args['_objName'] = "gdots"
         super(gdots, self).setup(args)
-        
+
 class gvbars(gobj):
     def __init__(self, **args):
         args['_objName'] = "gvbars"
         self._delta = 1
         super(gvbars, self).setup(args)
-        
+
     @property
     def delta(self): return self._delta
     @delta.setter
-    def delta(self,val): 
+    def delta(self,val):
         self._delta = val
         self.addattr('delta')
 
@@ -2329,7 +2252,7 @@ class graph(baseObj):
     def __init__(self, **args):
         objName = 'graph'
         super(graph,self).__init__()
-        
+
     ## default values
         self._width = 640
         self._height = 400
@@ -2342,8 +2265,8 @@ class graph(baseObj):
         self._ytitle = ""
         argsToSend = []
 
-        ## override default vector attributes        
-        vectorAttributes = ['foreground', 'background']        
+        ## override default vector attributes
+        vectorAttributes = ['foreground', 'background']
         for a in vectorAttributes:
             if a in args:
                 argsToSend.append(a)
@@ -2351,7 +2274,7 @@ class graph(baseObj):
                 if isinstance(val, vector): setattr(self, '_'+a, val)
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
-        
+
         ## override default scalar attributes
         scalarAttributes = ['width', 'height', 'title', 'xtitle', 'ytitle','align',
                             'xmin', 'xmax', 'ymin', 'ymax', 'logx', 'logy', 'fast']
@@ -2360,42 +2283,42 @@ class graph(baseObj):
                 argsToSend.append(a)
                 setattr(self, '_'+a, args[a])
                 del args[a]
-        
+
         # user defined attributes
         for a in args:
             setattr(self, '_'+a, args[a])
 
         cmd = {"cmd": objName, "idx": self.idx}
-        
+
         ## send only args specified in constructor
         for a in argsToSend:
             aval = getattr(self,a)
             if isinstance(aval, vector):
                 aval = aval.value
             cmd[a] = aval
-            
-        self.appendcmd(cmd)               
-        
+
+        self.appendcmd(cmd)
+
     @property
     def fast(self): return self._fast
     @fast.setter
     def fast(self,val):
         # if _isnotebook and not val:
-            # raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.') 
+            # raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
         self._fast = val
         self.addattr('fast')
-        
+
     @property
     def width(self): return self._width
     @width.setter
-    def width(self,val): 
+    def width(self,val):
         self._width = val
         self.addattr('width')
 
     @property
     def height(self): return self._height
     @height.setter
-    def height(self,val): 
+    def height(self,val):
         self._height = val
         self.addattr('height')
 
@@ -2409,10 +2332,10 @@ class graph(baseObj):
         self.addattr('align')
 
     @property
-    def title(self): 
+    def title(self):
         return self._title
     @title.setter
-    def title(self,val): 
+    def title(self,val):
         self._title = val
         #self.appendcmd({attr='title', 'idx'=self.idx})
         self.addattr('title')
@@ -2420,21 +2343,21 @@ class graph(baseObj):
     @property
     def xtitle(self): return self._xtitle
     @xtitle.setter
-    def xtitle(self,val): 
+    def xtitle(self,val):
         self._xtitle = val
         self.addattr('xtitle')
 
     @property
     def ytitle(self): return self._ytitle
     @ytitle.setter
-    def ytitle(self,val): 
+    def ytitle(self,val):
         self._ytitle = val
         self.addattr('ytitle')
 
     @property
     def foreground(self): return self._foreground
     @foreground.setter
-    def foreground(self,val): 
+    def foreground(self,val):
         if not isinstance(val, vector): raise TypeError('foreground must be a vector')
         self._foreground = vector(value)
         self.addattr('foreground')
@@ -2446,46 +2369,46 @@ class graph(baseObj):
         if not isinstance(val,vector): raise TypeError('background must be a vector')
         self._background = vector(value)
         self.addattr('background')
-        
+
     @property
     def xmin(self): return self._xmin
     @xmin.setter
-    def xmin(self,val): 
+    def xmin(self,val):
         self._xmin = val
         self.addattr('xmin')
-        
+
     @property
     def xmax(self): return self._xmax
     @xmax.setter
-    def xmax(self,val): 
+    def xmax(self,val):
         self._xmax = val
         self.addattr('xmax')
-        
+
     @property
     def ymin(self): return self._ymin
     @ymin.setter
-    def ymin(self,val): 
+    def ymin(self,val):
         self._ymin = val
         self.addattr('ymin')
-        
+
     @property
     def ymax(self): return self._ymax
     @ymax.setter
-    def ymax(self,val): 
+    def ymax(self,val):
         self._ymax = val
         self.addattr('ymax')
-        
+
     @property
     def logx(self): return self._logx
     @logx.setter
-    def logx(self,val): 
+    def logx(self,val):
         self._logx = val
         self.addattr('logx')
-        
+
     @property
     def logy(self): return self._logy
     @logx.setter
-    def logy(self,val): 
+    def logy(self,val):
         self._logy = val
         self.addattr('logy')
 
@@ -2494,7 +2417,7 @@ class graph(baseObj):
 
     def _ipython_display_(self): # don't print something when making an (anonymous) graph
         pass
-    
+
 #    def __del__(self):
 #        cmd = {"cmd": "delete", "idx": self.idx}
 #        self.appendcmd(cmd)
@@ -2502,7 +2425,7 @@ class graph(baseObj):
 
 class faces(object):
     def __init__(self, **args):
-        raise NameError('faces is no longer supported; use vertex with triangle or quad')      
+        raise NameError('faces is no longer supported; use vertex with triangle or quad')
 
 class label(standardAttributes):
     def __init__(self, **args):
@@ -2522,9 +2445,9 @@ class label(standardAttributes):
         self._linewidth = 1
         self._space = 0
         self._pixel_pos = False
-        
+
         super(label, self).setup(args)
-            
+
     @property
     def xoffset(self):
         return self._xoffset
@@ -2655,12 +2578,12 @@ class label(standardAttributes):
     def pixel_pos(self,value):
         self._pixel_pos = value
         if not self._constructing:
-            self.addattr('pixel_pos')  
+            self.addattr('pixel_pos')
 
 class frame(object):
     def __init__(self, **args):
         raise NameError('frame is not yet implemented')
-    
+
 class Mouse(baseObj):
 
     def __init__(self, canvas):
@@ -2671,18 +2594,18 @@ class Mouse(baseObj):
         self._shift = False
         self._canvas = canvas
         self._pick = None
-        
+
         super(Mouse, self).__init__()
-        
+
     @property
     def pos(self):
         if self._pos is None: # can be none if mouse has never been inside canvas
             self._pos = vector(0,0,0)
-        return self._pos    
+        return self._pos
     @pos.setter
     def pos(self,value):
         raise AttributeError('Cannot set position of the mouse')
-        
+
     @property
     def ray(self):
         if self._ray is None: # can be none if mouse has never been inside canvas
@@ -2691,38 +2614,38 @@ class Mouse(baseObj):
     @ray.setter
     def ray(self,value):
         raise AttributeError('Cannot set ray')
-        
+
     @property
     def ctrl(self):
         return self._ctrl
     @ctrl.setter
     def ctrl(self, value):
         raise AttributeError('Cannot set mouse.ctrl')
-        
+
     @property
     def shift(self):
         return self._shift
     @shift.setter
     def shift(self, value):
         raise AttributeError('Cannot set mouse.shift')
-    
+
     @property
     def alt(self):
         return self._alt
     @alt.setter
     def alt(self, value):
         raise AttributeError('Cannot set mouse.alt')
-       
+
     @property
     def pick(self):
         #self.appendcmd({"val":self._canvas.idx, "method":"pick", "idx":1 })
         self.addmethod('pick', self._canvas.idx)
         _wait(self._canvas) # wait for render to finish and call setpick
-        return self._pick            
+        return self._pick
     @pick.setter
     def pick(self, value):
-        raise AttributeError('Cannot set mouse.pick')  
-                
+        raise AttributeError('Cannot set mouse.pick')
+
     def setpick(self, value):  # value is the entire event
         p = value['pick']
         if p is not None:
@@ -2748,20 +2671,20 @@ class Mouse(baseObj):
         if ndr == 0: return None
         t = -ndc/ndr
         return self._canvas.camera.pos + t*self._ray
-        
+
 class Camera(object):
     def __init__(self, canvas):
         self._canvas = canvas
         self._followthis = None
         self._pos = None
-    
+
     @property
     def canvas(self):
         return self._canvas
     @canvas.setter
     def canvas(self, value):
         raise AttributeError('Cannot assign camera to a different canvas')
-        
+
     @property
     def pos(self):
         c = self._canvas
@@ -2770,7 +2693,7 @@ class Camera(object):
     def pos(self, value):
         c = self._canvas
         c.center = value+self.axis
-        
+
     @property
     def axis(self):
         c = self._canvas
@@ -2781,14 +2704,14 @@ class Camera(object):
         c.center = self.pos+value # use current self.pos before it is changed by change in c.forward
         c.forward = norm(value)
         c.range = mag(value)*tan(c.fov/2)
-    
+
     @property
     def up(self):   ## but really this should not exist:  should be scene.up
         return self._canvas.up
     @up.setter
     def up(self, value):
         self._canvas.up = value
-        
+
     def rotate(self, angle=0, axis=None, origin=None):
         c = self._canvas
         if axis is None: axis = c.up
@@ -2811,20 +2734,22 @@ class canvas(baseObj):
     selected = None
     hasmouse = None
     maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
-    
+
     def __init__(self, **args):
+        baseObj._canvas_constructing = True
         if _isnotebook:
+            from IPython.display import display, HTML, Javascript
             display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
             display(Javascript("""if (typeof Jupyter !== "undefined") { window.__context = { glowscript_container: $("#glowscript").removeAttr("id")};}else{ element.textContent = ' ';}"""))
 
         super(canvas, self).__init__()   ## get idx, attrsupdt
-        
-        self._constructing = True        
+
+        self._constructing = True
         canvas.selected = self
-        
+
         if 'lights' in args:
             raise AttributeError("Lights for a canvas can be assigned only after the canvas has been created.")
-                   
+
         self._objz = set()
         self.vertexCount = 0
         self._visible = True
@@ -2835,7 +2760,7 @@ class canvas(baseObj):
         self._align = 'none'
         self._fov = pi/3
         self._resizable = True
-        
+
         # The following determine the view:
         self._range = 1 # user can alter with zoom
         self._forward = vector(0,0,-1) # user can alter with spin
@@ -2848,7 +2773,7 @@ class canvas(baseObj):
         self._set_center = False
         self._set_up = False
         self._set_autoscale = False
-        
+
         self._userzoom = True
         self._userspin = True
         self._userpan = True
@@ -2865,20 +2790,20 @@ class canvas(baseObj):
         self.title_anchor   = [self.idx, 1]  ## used by buttons etc.
         self.caption_anchor = [self.idx, 2]
         cmd = {"cmd": "canvas", "idx": self.idx}
-        
+
     # send only nondefault values to GlowScript
-        
+
         canvasVecAttrs = ['background', 'ambient','forward','up', 'center']
         canvasNonVecAttrs = ['visible', 'height', 'width', 'title','fov', 'range','align',
                              'autoscale', 'userzoom', 'userspin', 'userpan', 'title', 'caption']
- 
+
         for a in canvasNonVecAttrs:
             if a in args:
                 if args[a] != None:
                     setattr(self, '_'+a, args[a])
                     cmd[a]= args[a]
                 del args[a]
-                
+
         for a in canvasVecAttrs:
             if a in args:
                 aval = args[a]
@@ -2887,25 +2812,26 @@ class canvas(baseObj):
                 setattr(self, '_'+a, vector(aval))
                 cmd[a] = aval.value
                 del args[a]
-                
+
     # set values of user-defined attributes
         for key, value in args.items(): # Assign all other properties
             setattr(self, key, value)
-        
+
         self._forward.on_change = self._on_forward_change
         self._up.on_change = self._on_up_change
         self._center.on_change = self._on_center_change
-        
+
         self.appendcmd(cmd)
         self._constructing = False
-        
+
         self._camera.follow = self.follow
-        
+
         self.lights = [] # delete all lights created by glowcomm.js
         # Add the standard lighting (these lights will be added to self._lights):
         distant_light(direction=vector( 0.22,  0.44,  0.88), color=color.gray(0.8))
         distant_light(direction=vector(-0.88, -0.22, -0.44), color=color.gray(0.3))
-        
+        baseObj._canvas_constructing = False
+
     def follow(self, obj):    ## should allow a function also
         self.addmethod('follow', obj.idx)
 
@@ -2931,19 +2857,19 @@ class canvas(baseObj):
 
     @property
     def caption(self):
-        return self._caption 
+        return self._caption
     @caption.setter
     def caption(self,value):
         self._caption = value
         if not self._constructing:
             self.appendcmd({'caption':value})
-            
+
     def append_to_title(self, *args):
         t = print_to_string(*args)
         self._title += t
         if not self._constructing:
             self.appendcmd({'append_to_title':t})
-        
+
     def append_to_caption(self, *args):
         t = print_to_string(*args)
         self._caption += t
@@ -2952,30 +2878,30 @@ class canvas(baseObj):
 
     @property
     def mouse(self):
-        return self._mouse    
+        return self._mouse
     @mouse.setter
     def mouse(self,value):
         raise AttributeError('Cannot set scene.mouse')
-        
+
     @property
     def camera(self):
         return self._camera
     @camera.setter
     def camera(self,value):
         raise AttributeError('Cannot set scene.camera')
-        
+
     @property
     def visible(self):
-        return self._visible    
+        return self._visible
     @visible.setter
     def visible(self,value):
         self._visible = value
         if not self._constructing:
             self.addattr('visible')
-        
+
     @property
     def resizable(self):
-        return self._resizable    
+        return self._resizable
     @resizable.setter
     def resizable(self,value):
         self._resizable = value
@@ -2984,7 +2910,7 @@ class canvas(baseObj):
 
     @property
     def background(self):
-        return self._background    
+        return self._background
     @background.setter
     def background(self,value):
         self._background = value
@@ -2993,7 +2919,7 @@ class canvas(baseObj):
 
     @property
     def ambient(self):
-        return self._ambient    
+        return self._ambient
     @ambient.setter
     def ambient(self,value):
         self._ambient = vector(value)
@@ -3002,7 +2928,7 @@ class canvas(baseObj):
 
     @property
     def width(self):
-        return self._width    
+        return self._width
     @width.setter
     def width(self,value):
         self._width = value
@@ -3011,7 +2937,7 @@ class canvas(baseObj):
 
     @property
     def height(self):
-        return self._height   
+        return self._height
     @height.setter
     def height(self,value):
         self._height = value
@@ -3029,7 +2955,7 @@ class canvas(baseObj):
 
     @property
     def center(self):
-        return self._center   
+        return self._center
     @center.setter
     def center(self,value):
         if isinstance(value, vector):
@@ -3041,7 +2967,7 @@ class canvas(baseObj):
 
     @property
     def forward(self):
-        return self._forward    
+        return self._forward
     @forward.setter
     def forward(self,value):
         self._forward = self._set_forward = vector(value)
@@ -3050,7 +2976,7 @@ class canvas(baseObj):
 
     @property
     def range(self):
-        return self._range    
+        return self._range
     @range.setter
     def range(self,value):
         self._range = self._set_range = value
@@ -3059,16 +2985,16 @@ class canvas(baseObj):
 
     @property
     def up(self):
-        return self._up   
+        return self._up
     @up.setter
     def up(self,value):
         self._up = self._set_up = value
-        if not self._constructing: 
+        if not self._constructing:
             self.appendcmd({"up":value.value})
 
     @property
     def autoscale(self):
-        return self._autoscale    
+        return self._autoscale
     @autoscale.setter
     def autoscale(self,value):
         self._autoscale = self._set_autoscale = value
@@ -3077,7 +3003,7 @@ class canvas(baseObj):
 
     @property
     def fov(self):
-        return self._fov    
+        return self._fov
     @fov.setter
     def fov(self,value):
         self._fov = value
@@ -3086,7 +3012,7 @@ class canvas(baseObj):
 
     @property
     def userzoom(self):
-        return self._userzoom    
+        return self._userzoom
     @userzoom.setter
     def userzoom(self,value):
         self._userzoom = value
@@ -3095,7 +3021,7 @@ class canvas(baseObj):
 
     @property
     def userspin(self):
-        return self._userspin    
+        return self._userspin
     @userspin.setter
     def userspin(self,value):
         self._userspin = value
@@ -3104,13 +3030,13 @@ class canvas(baseObj):
 
     @property
     def userpan(self):
-        return self._userpan    
+        return self._userpan
     @userpan.setter
     def userpan(self,value):
         self._userpan = value
         if not self._constructing:
             self.appendcmd({"userpan":value})
-            
+
     @property
     def lights(self):
         return self._lights
@@ -3122,15 +3048,15 @@ class canvas(baseObj):
             self.appendcmd({"lights":'empty_list'}) # don't encode this unusual statement
         else:
             raise AttributeError("canvas.lights can be set only to [].")
-            
-            
+
+
     @property
     def pixel_to_world(self):
         return self._pixel_to_world
     @pixel_to_world.setter
     def pixel_to_world(self, value):
         raise AttributeError('pixel_to_world is read-only')
-            
+
     @property
     def objects(self):
         obs = []
@@ -3141,7 +3067,7 @@ class canvas(baseObj):
     @objects.setter
     def objects(self, *args1, **args ):
         raise AttributeError('objects is read-only')
-        
+
     def objz(self, obj, operation):
         try:
             ii = (obj.idx > 0)  ## invalid object will not have .idx attribute
@@ -3151,7 +3077,7 @@ class canvas(baseObj):
                 self._objz.remove(obj)
         except:
             raise TypeError(obj + ' is not an object belonging to a canvas')
-            
+
 ## key events conflict with notebook command mode; not permitted for now
     def handle_event(self, evt):  ## events and scene info updates
         ev = evt['event']
@@ -3188,7 +3114,7 @@ class canvas(baseObj):
                         else: fct()
                     else: # Python 2
                         a = getargspec(fct)
-                        if len(a.args) > 0: fct( evt ) 
+                        if len(a.args) > 0: fct( evt )
                         else: fct()
         else: # pause/waitfor, update_canvas
             if 'pos' in evt:
@@ -3199,7 +3125,7 @@ class canvas(baseObj):
                 ray = evt['ray']
                 evt['ray'] = list_to_vec(ray)
                 self.mouse._ray = evt['ray']
-            canvas.hasmouse = self  
+            canvas.hasmouse = self
             if ev != 'update_canvas':   ## mouse events bound to functions, and pause/waitfor
                 evt['canvas'] = self
                 if ev[:3] != 'key':  # not a key event
@@ -3215,7 +3141,7 @@ class canvas(baseObj):
                         else: fct()
                     else: # Python 2
                         a = getargspec(fct)
-                        if len(a.args) > 0: fct( evt1 ) 
+                        if len(a.args) > 0: fct( evt1 )
                         else: fct()
                 self._waitfor = evt1 # what pause and waitfor are looking for
             else:  ## user can change forward (spin), range/autoscale (zoom), up (touch), center (pan)
@@ -3246,14 +3172,14 @@ class canvas(baseObj):
             else:
                 raise TypeError(evt + ' is an illegal event type')
         self.addmethod('bind', eventtype)
-                
+
     def unbind(self, eventtype, whatnottodo):
         evts = eventtype.split()
         for evt in evts:
             if evt in self._binds and whatnottodo in self._binds[evt]:
                 self._binds[evt].remove(whatnottodo)
-        self.addmethod('unbind', eventtype)      
-        
+        self.addmethod('unbind', eventtype)
+
     def waitfor(self, eventtype):
         if 'textures' in eventtype: # textures are local; little need to wait
             eventtype = eventtype.replace('textures', '')
@@ -3267,7 +3193,7 @@ class canvas(baseObj):
             self.addmethod('waitfor', eventtype)
             _wait(self)
             return self._waitfor
-        
+
     def pause(self,*s):
         if len(s) > 0:
             s = s[0]
@@ -3279,16 +3205,16 @@ class canvas(baseObj):
 
     def _on_forward_change(self):
         self.addattr('forward')
-        
+
     def _on_up_change(self):
         self.addattr('up')
-        
+
     def _on_center_change(self):
         self.addattr('center')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) canvas
         pass
-        
+
 class event_return(object):
     def __init__(self, args):
         self.canvas = args['canvas']
@@ -3302,8 +3228,8 @@ class event_return(object):
         else:
             self.pos = args['pos']
             self.press = args['press']
-            self.release = args['release']  
-             
+            self.release = args['release']
+
 class local_light(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,1,1)
@@ -3312,7 +3238,7 @@ class local_light(standardAttributes):
 
         if (canvas.get_selected() != None):
             canvas.get_selected()._lights.append(self)
-                
+
 class distant_light(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,1,1)
@@ -3322,7 +3248,7 @@ class distant_light(standardAttributes):
 
         if (canvas.get_selected() != None):
             canvas.get_selected()._lights.append(self)
-        
+
     @property
     def direction(self):
         return self._direction
@@ -3331,10 +3257,10 @@ class distant_light(standardAttributes):
         self._direction = vector(value)
         if not self._constructing:
             self.addattr('direction')
-   
+
 ## title_anchor = [canvas.idx, 1] and caption_anchor = [canvas.idx, 2] are attributes of canvas
 print_anchor = 3  ## problematic -- intended to point at print area
-            
+
 class wtext(standardAttributes):
     def __init__(self, **args):
         super(wtext, self).__init__()  ## get idx, attrsupdt from baseObj
@@ -3355,7 +3281,7 @@ class wtext(standardAttributes):
         if self.location is not None: cmd['location'] = self.location
         self.appendcmd(cmd)
         self._constructing = False
-        
+
     @property
     def text(self):
         return self._text
@@ -3397,19 +3323,19 @@ class controls(baseObj):
             del args['bind']
         else:
             raise AttributeError('bind missing')
-            
-        ## override default vector attributes        
-        vectorAttributes = ['color', 'textcolor', 'background']        
+
+        ## override default vector attributes
+        vectorAttributes = ['color', 'textcolor', 'background']
         for a in vectorAttributes:
             if a in args:
                 val = args[a]
                 if a == 'textcolor':
-                    del args[a] 
+                    del args[a]
                     a = 'color' # textcolor is a legacy attribute; now use color
                 argsToSend.append(a)
                 if isinstance(val, vector): setattr(self, '_'+a, val)
                 else: raise AttributeError(a+' must be a vector')
-                
+
         ## override default scalar attributes
         for a,val in args.items():
             if a in controls.attrlists[objName]:
@@ -3419,31 +3345,31 @@ class controls(baseObj):
                 setattr(self, a, val)
         cmd = {"cmd": objName, "idx": self.idx}
         cmd["canvas"] = self.canvas.idx
-                
+
         ## send only args specified in constructor
         for a in argsToSend:  ## all shared attributes are scalars
             aval = getattr(self,a)
             if isinstance(aval, vector):
                 aval = aval.value
             cmd[a] = aval
-            
+
         self.appendcmd(cmd)
         self._constructing = False
-        
+
     @property
     def bind(self):
         return self._bind
     @bind.setter
     def bind(self, value):
         raise AttributeError('bind cannot be changed')
-        
+
     @property
     def pos(self):
         raise AttributeError(objName+' pos attribute is not available.')
     @pos.setter
     def pos(self, value):
         raise AttributeError(objName+' pos attribute cannot be changed.')
-            
+
     @property
     def disabled(self):
         return self._disabled
@@ -3452,13 +3378,13 @@ class controls(baseObj):
         self._disabled = value
         if not self._constructing:
             self.addattr('disabled')
-        
+
     def delete(self):
         self.addmethod('delete', 'None')
 
     def _ipython_display_(self): # don't print something when making an (anonymous) object
         pass
-        
+
 class button(controls):
     def __init__(self, **args):
         args['_objName'] = 'button'
@@ -3467,7 +3393,7 @@ class button(controls):
         self._background = color.white
         self._disabled = False
         super(button, self).setup(args)
-        
+
     @property
     def text(self):
         return self._text
@@ -3475,7 +3401,7 @@ class button(controls):
     def text(self, value):
         self._text = value
         if not self._constructing:
-            self.addattr('text')   
+            self.addattr('text')
 
     @property
     def textcolor(self): # legacy; now use color instead of textcolor
@@ -3484,7 +3410,7 @@ class button(controls):
     def textcolor(self, value):
         self._color = vector(value)
         if not self._constructing:
-            self.addattr('color')  
+            self.addattr('color')
 
     @property
     def color(self): # legacy; now use color instead of textcolor
@@ -3494,7 +3420,7 @@ class button(controls):
         self._color = vector(value)
         if not self._constructing:
             self.addattr('color')
-    
+
     @property
     def background(self):
         return self._background
@@ -3504,13 +3430,13 @@ class button(controls):
         if not self._constructing:
             self.addattr('background')
 
-class checkbox(controls): 
+class checkbox(controls):
     def __init__(self, **args):
         args['_objName'] = 'checkbox'
         self._checked = False
         self._text = ''
         super(checkbox, self).setup(args)
-        
+
     @property
     def text(self):
         return self._text
@@ -3519,7 +3445,7 @@ class checkbox(controls):
         self._text = value
         if not self._constructing:
             self.addattr('text')
-            
+
     @property
     def checked(self):
         return self._checked
@@ -3528,14 +3454,14 @@ class checkbox(controls):
         self._checked = value
         if not self._constructing:
             self.addattr('checked')
-            
+
 class radio(controls):
     def __init__(self, **args):
         args['_objName'] = 'radio'
         self._checked = False
         self._text = ''
         super(radio, self).setup(args)
-        
+
     @property
     def text(self):
         return self._text
@@ -3544,7 +3470,7 @@ class radio(controls):
         self._text = value
         if not self._constructing:
             self.addattr('text')
-            
+
     @property
     def checked(self):
         return self._checked
@@ -3553,7 +3479,7 @@ class radio(controls):
         self._checked = value
         if not self._constructing:
             self.addattr('checked')
-            
+
 class menu(controls):
     def __init__(self, **args):
         args['_objName'] = 'menu'
@@ -3563,14 +3489,14 @@ class menu(controls):
             args['selected'] = self._choices[ args['index'] ]
             del args['index']
         super(menu, self).setup(args)
-        
+
     @property
     def choices(self):
         return self._choices
     @choices.setter
     def choices(self, value):
         raise AttributeError('choices cannot be modified after a menu is created')
-        
+
     @property
     def index(self):
         if self._selected == "None":
@@ -3580,7 +3506,7 @@ class menu(controls):
     @index.setter
     def index(self, value):
         self.selected = self._choices[value]
-            
+
     @property
     def selected(self):
         if self._selected == "None":
@@ -3594,9 +3520,9 @@ class menu(controls):
         self._selected = value
         if not self._constructing:
             self.addattr('selected')
-            
+
 class slider(controls):
-    def __init__(self, **args): 
+    def __init__(self, **args):
         args['_objName'] = 'slider'
         self._vertical = False
         if 'min' in args:  ## set here in order to set step
@@ -3624,28 +3550,28 @@ class slider(controls):
     @vertical.setter
     def vertical(self, value):
         raise AttributeError('vertical cannot be changed after creating a slider')
-        
+
     @property
     def min(self):
         return self._min
     @min.setter
     def min(self, value):
         raise AttributeError('min cannot be changed after creating a slider')
-        
+
     @property
     def max(self):
         return self._max
     @max.setter
     def max(self, value):
         raise AttributeError('max cannot be changed after creating a slider')
-        
+
     @property
     def step(self):
         return self._step
     @step.setter
     def step(self, value):
         raise AttributeError('step cannot be changed after creating a slider')
-          
+
     @property
     def value(self):
         return self._value
@@ -3654,28 +3580,28 @@ class slider(controls):
         self._value = val
         if not self._constructing:
             self.addattr('value')
-            
+
     @property
     def length(self):
         return self._length
     @length.setter
     def length(self, value):
         raise AttributeError('length cannot be changed after creating a slider')
-            
+
     @property
     def width(self):
         return self._width
     @width.setter
     def width(self, value):
         raise AttributeError('width cannot be changed after creating a slider')
-            
+
     @property
     def left(self):
         return self._left
     @left.setter
     def left(self, value):
         raise AttributeError('left cannot be changed after creating a slider')
-       
+
     @property
     def right(self):
         return self._right
@@ -3689,21 +3615,21 @@ class slider(controls):
     @top.setter
     def top(self, value):
         raise AttributeError('top cannot be changed after creating a slider')
-            
+
     @property
     def bottom(self):
         return self._bottom
     @bottom.setter
     def bottom(self, value):
         raise AttributeError('bottom cannot be changed after creating a slider')
-            
+
     @property
     def align(self):
         return self._align
     @align.setter
     def align(self, value):
-        raise AttributeError('align cannot be changed after creating a slider') 
-        
+        raise AttributeError('align cannot be changed after creating a slider')
+
 class extrusion(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,1,1) # to keep standardAttributes happy
@@ -3730,7 +3656,7 @@ class extrusion(standardAttributes):
             self._end_face_color = args['color']
 
         super(extrusion, self).setup(args)
-        
+
         self.canvas._compound = self # used by event handler to update pos and size
         _wait(self.canvas)
         if savesize is not None:
@@ -3746,10 +3672,10 @@ class extrusion(standardAttributes):
             # must update both axis and up when either is changed
             self.addattr('axis')
             self.addattr('up')
-            
+
     @property
     def size(self):
-        return self._size   
+        return self._size
     @size.setter
     def size(self,value): # extrusion axis and size don't interact
         self._size.value = value
@@ -3789,7 +3715,7 @@ class extrusion(standardAttributes):
                     p2 = b[-1]
                     if not (p1[0] == p2[0] and p1[1] == p2[1]):
                         raise AttributeError("An extrusion shape must be closed.")
-        
+
     @property
     def path(self):
         if self._constructing:
@@ -3799,7 +3725,7 @@ class extrusion(standardAttributes):
     @path.setter
     def path(self,value):
         raise AttributeError('path cannot be changed after extrusion is created')
-        
+
     @property
     def shape(self):
         if self._constructing:
@@ -3809,7 +3735,7 @@ class extrusion(standardAttributes):
     @shape.setter
     def shape(self, value):
         raise AttributeError('shape cannot be changed after extrusion is created')
-            
+
     @property
     def show_start_face(self):
         if self._constructing:
@@ -3819,7 +3745,7 @@ class extrusion(standardAttributes):
     @show_start_face.setter
     def show_start_face(self,value):
         raise AttributeError('show_start_face cannot be changed after extrusion is created')
-        
+
     @property
     def show_end_face(self):
         if self._constructing:
@@ -3829,7 +3755,7 @@ class extrusion(standardAttributes):
     @show_end_face.setter
     def show_end_face(self,value):
         raise AttributeError('show_end_face cannot be changed after extrusion is created')
-            
+
     @property
     def start_face_color(self):
         if self._constructing:
@@ -3839,7 +3765,7 @@ class extrusion(standardAttributes):
     @start_face_color.setter
     def start_face_color(self,value):
         raise AttributeError('start_face_color cannot be changed after extrusion is created')
-        
+
     @property
     def end_face_color(self):
         if self._constructing:
@@ -3849,7 +3775,7 @@ class extrusion(standardAttributes):
     @end_face_color.setter
     def end_face_color(self,value):
         raise AttributeError('end_face_color cannot be changed after extrusion is created')
-        
+
 class text(standardAttributes):
 
     def __init__(self, **args):
@@ -3889,12 +3815,12 @@ class text(standardAttributes):
             self._end_face_color = args['color']
 
         super(text, self).setup(args)
-        
+
         if _special_clone is None:
             self.canvas._compound = self # used by event handler to update pos and size
             _wait(self.canvas) # sets _length, _descender, up
-            
-        
+
+
     @property
     def size(self):
         raise AttributeError("The text object has no size attribute.")
@@ -3907,13 +3833,13 @@ class text(standardAttributes):
         return self._axis
     @axis.setter
     def axis(self,value): # changing axis does not affect size
-        oldaxis = vec(self.axis)
+        oldaxis = vector(self.axis)
         u = self.up
         self._axis.value = value
         self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
         self.addattr('axis')
         self.addattr('up')
-        
+
     @property
     def length(self):
         return self._length
@@ -3924,7 +3850,7 @@ class text(standardAttributes):
         else:
             self._length = val
             self.addattr('length')
-        
+
     @property
     def height(self):
         return self._height
@@ -3936,7 +3862,7 @@ class text(standardAttributes):
             if val == self._height: return
             self._height = val
             self.addattr('height')
-        
+
     @property
     def depth(self):
         return self._depth
@@ -3950,7 +3876,7 @@ class text(standardAttributes):
                 else: val = 0.01*self._height
             self._depth = value
             self.addattr('depth')
-        
+
     @property
     def align(self):
         return self._align
@@ -3959,7 +3885,7 @@ class text(standardAttributes):
         self._align = val
         if not self._constructing:
             self.addattr('align')
-            
+
     @property
     def font(self):
         return self._font
@@ -3970,7 +3896,7 @@ class text(standardAttributes):
         self._font = val
         if not self._constructing:
             self.addattr('font')
-            
+
     @property
     def text(self):
         return self._text
@@ -3979,49 +3905,49 @@ class text(standardAttributes):
         self._text = val
         if not self._constructing:
             self.addattr('text')
-            
+
     @property
     def billboard(self):
         return self._billboard
     @billboard.setter
     def billboard(self, val):
         raise AttributeError("billboard cannot be modified")
-    
+
     @property
     def start_face_color(self):
         return self._start_face_color
     @start_face_color.setter
     def start_face_color(self, val):
         raise AttributeError("start_face_color cannot be modified")
-        
+
     @property
     def end_face_color(self):
         return self._end_face_color
     @end_face_color.setter
     def end_face_color(self, val):
         raise AttributeError("end_face_color cannot be modified")
-        
-    @property 
+
+    @property
     def show_start_face(self):
         return self._show_start_face
     @show_start_face.setter
     def show_start_face(self,val):
         raise AttributeError("show_start_face cannot be modified")
-        
-    @property 
+
+    @property
     def show_end_face(self):
         return self._show_end_face
     @show_end_face.setter
     def show_end_face(self,val):
         raise AttributeError("show_end_face cannot be modified")
-        
+
     @property
     def descender(self):
         return self._descender
     @descender.setter
     def descender(self, val):
         raise AttributeError("descender cannot be modified")
-        
+
     @property
     def upper_left(self):
         if self.align == "right":
@@ -4035,49 +3961,49 @@ class text(standardAttributes):
     @upper_left.setter
     def upper_left(self, val):
         raise AttributeError("upper_left cannot be modified")
-        
+
     @property
     def upper_right(self):
         return self.upper_left + norm(self.axis)*self.length
     @upper_right.setter
     def upper_right(self, val):
         raise AttributeError("upper_right cannot be modified")
-        
+
     @property
     def lower_left(self):
         return self.upper_left + norm(self.up)*(-self.height -self._descender - 1.5*self.height*(self._lines-1) )
     @lower_left.setter
     def lower_left(self, val):
         raise AttributeError("lower_left cannot be modified")
-        
+
     @property
     def lower_right(self):
         return self.lower_left + norm(self.axis)*self.length
     @lower_right.setter
     def lower_right(self, val):
         raise AttributeError("lower_right cannot be modified")
-        
+
     @property
     def start(self):
         return self.upper_left - norm(self.up)*self.height
     @start.setter
     def start(self, val):
         raise AttributeError("start cannot be modified")
-        
+
     @property
     def end(self):
         return self.upper_right - norm(self.up)*self.height
     @end.setter
     def end(self, val):
         raise AttributeError("end cannot be modified")
-        
+
     @property
     def vertical_spacing(self):
         return 1.5*self.height
     @vertical_spacing.setter
     def vertical_spacing(self, val):
         raise AttributeError("vertical_spacing cannot be modified")
-                        
+
 def combin(x, y):
     # combin(x,y) = factorial(x)/[factorial(y)*factorial(x-y)]
     z = x-y

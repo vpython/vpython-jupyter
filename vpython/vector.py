@@ -3,6 +3,12 @@ from __future__ import division, print_function, absolute_import
 from math import cos, sin, acos, sqrt, pi
 from random import random
 
+# List of names imported from this module with import *
+__all__ = ['adjust_axis', 'adjust_up', 'comp', 'cross', 'diff_angle', 'dot',
+           'hat', 'mag', 'mag2', 'norm', 'object_rotate', 'proj', 'rotate',
+           'vector']
+
+
 class vector(object):
     'vector class'
     

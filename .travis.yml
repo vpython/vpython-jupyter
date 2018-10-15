@@ -34,7 +34,7 @@ install:
 
     # Install a couple of dependencies we need for sure.
     # Not sure why cython is necessary since it is listed as a build dependency.
-    - conda install --quiet jinja2 conda-build anaconda-client cython twine
+    - conda install --quiet jinja2 conda-build anaconda-client cython twine pytest
 
     # make a wheel building environment to ensure correct python version.
     - conda create --quiet -n wheel-build python=$CONDA_PY wheel cython
@@ -50,6 +50,11 @@ script:
         fi
       fi
     - echo $UPLOAD_SDIST
+    # Run tests
+    - if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+        python setup.py install;
+        py.test vpython;
+      fi
     # Not much of a real test yet, just try to build myself...
     - conda build --quiet vpython.recipe
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`

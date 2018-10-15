@@ -1,16 +1,10 @@
 from __future__ import division
-#from vpython import vec, mag, norm
 from math import sqrt, sin, cos, tan, asin, acos, atan, floor, pi
-import platform
-try:
-   if platform.python_implementation() == 'PyPy':
-       from .vector import vector, mag, norm      # use pure python vector for PyPy
-   else:
-       from .cyvector import vector, mag, norm
-       v = vector(0.,0.,0.)
-except:
-   from .vector import vector, mag, norm
-vec = vector
+from ._vector_import_helper import vec, vector, mag, norm
+
+# List of names that are imported from this module with import *
+__all__ = ['RackOutline', 'ToothOutline', 'addpos', 'convert', 'path_object',
+           'paths', 'rotatecp', 'roundc', 'scalecp', 'shape_object', 'shapes']
 
  # The path and shape objects were designed and implemented by Kadir Haldenbilen
  # for Classic VPython 5. Modified by Bruce Sherwood for GlowScript/Jupyter VPython,

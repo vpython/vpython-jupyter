@@ -1,7 +1,15 @@
 from __future__ import division, print_function
 import time
-import sys
 import platform
+import queue
+import json
+
+from ._notebook_helpers import _isnotebook
+
+if _isnotebook:
+    import IPython
+    import ipykernel
+    ws_queue = queue.Queue()
 
 # Unresolved bug: rate(X) yields only about 0.8X iterations per second.
 
@@ -27,15 +35,15 @@ else: # 'Unix'
 
 ##Possible way to get one-millisecond accuracy in sleep on Windows:
 ##http://msdn.microsoft.com/en-us/library/windows/desktop/ms686298(v=vs.85).aspx
-##When your program starts, the Windows system's timer resolution has a 
-##seemingly random value that depends on which programs are running 
-##(and apparently, which programs were run and then exited).  
-##Common values for the resolution are 15 ms and 1 ms, but a range 
-##of values is possible (use timeGetDevCaps to determine this range).  
-##AFAICT, calling timeBeginPeriod() changes the system timer resolution 
-##for every call you make to a Win32 function with a timeout 
-##(e.g., MsgWaitForMultipleObjects() works exactly the same as Sleep() 
-##with respect to the timeout) and every call that every other application 
+##When your program starts, the Windows system's timer resolution has a
+##seemingly random value that depends on which programs are running
+##(and apparently, which programs were run and then exited).
+##Common values for the resolution are 15 ms and 1 ms, but a range
+##of values is possible (use timeGetDevCaps to determine this range).
+##AFAICT, calling timeBeginPeriod() changes the system timer resolution
+##for every call you make to a Win32 function with a timeout
+##(e.g., MsgWaitForMultipleObjects() works exactly the same as Sleep()
+##with respect to the timeout) and every call that every other application
 ##in the system makes to a Win32 function with a timeout.
 
 def _sleep(dt):
@@ -54,10 +62,10 @@ def _sleep(dt):
     tend = _clock()+dt
     while _clock() < tend:
         pass
-        
+
 class simulateDelay:
     """
-    Simulate rendering/compute times.. with an average value of delayAvg with 
+    Simulate rendering/compute times.. with an average value of delayAvg with
     a variance of something like delaySigma**2.
     """
 
@@ -65,7 +73,7 @@ class simulateDelay:
         self.delayAvg=delayAvg
         self.delaySigma=delaySigma
         self.callTimes = []
-        
+
     def __call__(self):
         self.callTimes.append(_clock())
 
@@ -90,9 +98,9 @@ class RateKeeper(object):
         self.whenToRender = []
         for i in range(MAX_RENDERS+2):
             self.whenToRender.append(0)
-        self.renderIndex = 0 
+        self.renderIndex = 0
         self.rateCount = 0 # counts calls to rate in a 1-second cycle (reset to 0 every second)
-        
+
     def callInteract(self):
         t = _clock()
         self.interactFunc()
@@ -144,7 +152,7 @@ class RateKeeper(object):
 
         # Prepare the self.renderIndex array of indices for when to do renders:
         self.distributeRenders(M, N)
-        
+
         # M = self.rateCalls = number of calls to rate/second
         # N = number of renders/second
         # callTime = time spent in rate function (very small)
@@ -156,20 +164,20 @@ class RateKeeper(object):
         self.delay = (1.0 - N*R - self.renderWaits*self.interactionPeriod)/M - self.callTime - U
 ##        print("%1.4f %i %i %i %1.6f %1.6f %1.6f %1.6f" % (_clock(), M, N, self.renderWaits,
 ##                                self.userTime, self.callTime, self.delay, self.renderTime))
-        
+
     def __call__(self, maxRate=100):
         #td.add('-------------------------')
         if not self.initialized:
             self.initialize()
             self.initialized = True
-        calledTime = _clock()            
+        calledTime = _clock()
         if maxRate < 1: raise ValueError("rate value must be greater than or equal to 1")
         self.count += 1
         if self.count == 1: # first time rate has been called
             self.callInteract()
             self.lastEndRate = _clock()
             return
-        
+
         dt = calledTime - self.lastEndRate # time spent in user code
         nr = self.whenToRender[self.renderIndex]
         if self.count == 2 or (self.count == self.lastCount + self.rateCalls):
@@ -183,7 +191,7 @@ class RateKeeper(object):
             self.lastSleep = _clock()
         elif dt < 0.2: # don't count long delays due to menu or similar operations
             self.userTime = 0.95*self.userTime + 0.05*dt
-        
+
         dt = _clock() - calledTime # approximate amount of time spent in this function
         if self.callTime == 0.0: self.callTime = dt
         elif dt < 0.2: # don't count long delays due to menu or similar operations
@@ -210,3 +218,57 @@ class RateKeeper(object):
         self.rateCount += 1
 
         self.lastEndRate = _clock()
+
+
+def message_send_wrapper():
+    """
+    The only purpose of this function is delay import of baseObj to eliminate
+    what would otherwise be a circular import. __init__ imports rate, and vpython imports rate,
+    and this cannot also import vpython at the same time.
+    """
+    from .vpython import baseObj
+    def message_sender(msg):
+        baseObj.glow.handle_msg(msg)
+    return message_sender
+
+
+class _RateKeeper2(RateKeeper):
+    def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
+        self.rval = 30
+        self.tocall = None
+        self._sender = None
+        super(_RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)
+
+    def sendtofrontend(self):
+        # This is called by the rate() function, through rate_control _RateKeeper callInteract().
+        # See the function commsend() for details of how the browser is updated.
+
+        # Check if events to process from front end
+        if _isnotebook:
+            if not self._sender:
+                self._sender = message_send_wrapper()
+            if ((IPython.__version__ >= '7.0.0') or
+                    (ipykernel.__version__ >= '5.0.0')):
+                while ws_queue.qsize() > 0:
+                    data = ws_queue.get()
+                    d = json.loads(data)  # update_canvas info
+                    for m in d:
+                        # Must send events one at a time to GW.handle_msg because bound events need the loop code:
+                        msg = {'content':{'data':[m]}} # message format used by notebook
+                        self._sender(msg)
+
+            elif IPython.__version__ >= '3.0.0':
+                kernel = IPython.get_ipython().kernel
+                parent = kernel._parent_header
+                ident = kernel._parent_ident
+                kernel.do_one_iteration()
+                kernel.set_parent(ident, parent)
+
+    def __call__(self, N): # rate(N) calls this function
+        self.rval = N
+        if self.rval < 1: raise ValueError("rate value must be greater than or equal to 1")
+        super(_RateKeeper2, self).__call__(self.rval) ## calls __call__ in rate_control.py
+
+
+# The rate function:
+rate = _RateKeeper2(interactFunc = simulateDelay(delayAvg = 0.001))

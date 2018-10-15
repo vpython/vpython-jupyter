@@ -1,3 +1,5 @@
+import time
+
 from vpython import *
 scene.visible = False # while preparing the scene
 import time
