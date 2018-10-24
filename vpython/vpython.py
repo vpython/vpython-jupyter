@@ -202,7 +202,7 @@ class baseObj(object):
             if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)):
                 continue
             aa.addmethod('_attach_arrow', vval.value)
-            aa._last_val = vval
+            aa._last_val = vector(vval) # keep copy of last vector
 
         ## update every attach_trail that depends on a function
         for aa in cls.attach_trails:
@@ -261,24 +261,24 @@ class baseObj(object):
 
     @classmethod
     def package(cls, objdata): # package up the data to send to the browser
-        if objdata['cmds'] == []: del objdata['cmds']
-        if objdata['attrs'] != {}:
-            objdata['attrs'] = _encode_attr(objdata['attrs'], False)
-        else: del objdata['attrs']
+        ret = {}
+        m = None
+        if objdata['cmds'] != []: ret['cmds'] = objdata['cmds']
         if objdata['methods'] != []:
             m = _encode_attr(objdata['methods'], True)
-            if 'attrs' in objdata:
-                objdata['attrs'] += m
-            else:
-                objdata['attrs'] = m
-        del objdata['methods']
-        return objdata
+        if objdata['attrs'] != {}:
+            ret['attrs'] = _encode_attr(objdata['attrs'], False)
+            if m is not None: ret['attrs'] += m
+        elif m is not None:
+            ret['attrs'] = m
+        return ret
 
     @classmethod
     def trigger(cls): # isnotebook; called by a canvas update event from browser, coming from GlowWidget.handle_msg
         if cls.empty():
             objdata = 'trigger' # handshake with browser
         else:
+            cls.handle_attach()
             for a in baseObj.attrs:
                 idx, attr = a
                 val = getattr(baseObj.object_registry[idx], attr)
@@ -288,7 +288,6 @@ class baseObj(object):
                 else:
                     baseObj.updates['attrs'][idx] = {attr:val}
             objdata = cls.package(baseObj.updates)
-        cls.handle_attach()
         sender(objdata)
         cls.initialize()
         baseObj.sent = True
