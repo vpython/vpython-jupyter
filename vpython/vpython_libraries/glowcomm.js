@@ -338,7 +338,7 @@ function process_binding(event) { // event associated with a previous bind comma
 
 var sliders = {}
 
-function control_handler(obj) {  // button, menu, slider, radio, checkbox
+function control_handler(obj) {  // button, menu, slider, radio, checkbox, winput
     "use strict";
     var evt = {idx: obj.idx}
     if (obj.objName === 'button') {
@@ -360,6 +360,10 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox
     } else if (obj.objName === 'menu') {
         evt.value = obj.index
         evt.widget = 'menu'
+    } else if (obj.objName === 'winput') {
+        evt.text = obj.text
+        evt.value = obj.number
+        evt.widget = 'winput'
     } else {
         console.log('unrecognized control', 'obj=', obj, obj.text)
     }
@@ -749,6 +753,13 @@ function handle_cmds(dcmds) {
 				cfg.objName = obj
 				cfg = fix_location(cfg)
 				glowObjs[idx] = wtext(cfg)
+				break
+            }
+            case 'winput': {
+				cfg.objName = obj
+				cfg.bind = control_handler
+				cfg = fix_location(cfg)
+				glowObjs[idx] = winput(cfg)
 				break
             }
 			case 'checkbox': {

@@ -15,8 +15,8 @@ from ._notebook_helpers import _isnotebook
 from ._vector_import_helper import (vector, mag, norm, dot, adjust_up,
                                     adjust_axis, object_rotate)
 
-# List of names that will be imported form this file with import *
-__all__ = ['Camera', 'GlowWidget', 'GSversion', 'Mouse', 'arrow', 'attach_arrow',
+# List of names that will be imported from this file with import *
+__all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'attach_arrow',
            'attach_trail', 'baseObj', 'box', 'bumpmaps', 'button',
            'canvas', 'checkbox', 'clock', 'color', 'combin', 'compound', 'cone', 'controls',
            'curve', 'curveMethods', 'cylinder', 'distant_light', 'ellipsoid',
@@ -25,7 +25,7 @@ __all__ = ['Camera', 'GlowWidget', 'GSversion', 'Mouse', 'arrow', 'attach_arrow'
            'local_light', 'menu', 'meta_canvas', 'points', 'pyramid',
            'quad', 'radio', 'ring', 'simple_sphere', 'sleep', 'slider', 'sphere',
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
-           'wtext']
+           'wtext', 'winput']
 
 __p = platform.python_version()
 _ispython3 = (__p[0] == '3')
@@ -360,6 +360,9 @@ class GlowWidget(object):
                     obj._checked = evt['value']
                 elif evt['widget'] == 'radio':
                     obj._checked = evt['value']
+                elif evt['widget'] == 'winput':
+                    obj._text = evt['text']
+                    obj._number = evt['value']
                 # inspect the bound function and see what it's expecting
                 if _ispython3: # Python 3
                     a = signature(obj._bind)
@@ -3296,7 +3299,8 @@ class controls(baseObj):
                   'radio':['checked', 'text', 'disabled'],
                   'menu':['selected', 'choices', 'index', 'disabled'],
                   'slider':['vertical', 'min', 'max', 'step', 'value', 'length',
-                            'width', 'left', 'right', 'top', 'bottom', 'align', 'disabled']
+                            'width', 'left', 'right', 'top', 'bottom', 'align', 'disabled'],
+                  'winput':['width', 'height', 'text', 'type', 'disabled']
                 }
     def setup(self, args):
         super(controls, self).__init__()  ## get idx, attrsupdt from baseObj
@@ -3478,6 +3482,47 @@ class radio(controls):
         self._checked = value
         if not self._constructing:
             self.addattr('checked')
+
+class winput(controls):
+    def __init__(self, **args):
+        args['_objName'] = 'winput'
+        self._checked = False
+        self._text = ''
+        self._type = 'numeric'
+        self._number = None
+        self._width = 100
+        self._height = 20
+        super(winput, self).setup(args)
+
+    @property
+    def text(self):
+        return self._text
+    @text.setter
+    def text(self, value):
+        self._text = value
+        if not self._constructing:
+            self.addattr('text')
+
+    @property
+    def number(self):
+        return self._number
+    @number.setter
+    def number(self, value):
+        raise AttributeError('Cannot change the winput number attribute.')
+
+    @property
+    def width(self):
+        return self._width
+    @width.setter
+    def width(self, value):
+        raise AttributeError('Cannot change the winput width attribute.')
+
+    @property
+    def type(self):
+        return self._type
+    @type.setter
+    def type(self, value):
+        raise AttributeError('Cannot change the winput type attribute.')
 
 class menu(controls):
     def __init__(self, **args):
