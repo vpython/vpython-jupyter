@@ -412,14 +412,14 @@ var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', //
 			   'q':'plot', 's':'add_to_trail',
                't':'follow', 'u':'_attach_arrow', 'w':'clear_trail',
                'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
-		       'M':'delete'}
+		       'M':'delete', 'N':'capture'}
          
 var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_attach_arrow',
                 'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail', 'textcolor',
                 'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
                 'marker_color']
                 
-var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', 'ytitle', 'selected',
+var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', 'ytitle', 'selected', 'capture',
                  'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 // patt gets idx and attr code; vpatt gets x,y,z of a vector            
@@ -889,6 +889,8 @@ function handle_methods(dmeth) {
 			obj.unbind(val, process_binding)
 		} else if (method === "follow") {
 			obj.camera.follow(glowObjs[val])
+		} else if (method === "capture") {
+			obj.capture(val)
 		} else if (method === 'waitfor') {
 			waitfor_canvas = idx
 			waitfor_options = val
