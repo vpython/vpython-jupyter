@@ -102,14 +102,14 @@ __methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # un
              'plot':'q', 'add_to_trail':'s',
              'follow':'t', '_attach_arrow':'u', 'clear_trail':'w',
              'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L',
-             'delete':'M'}
+             'delete':'M', 'capture':'N'}
 
 __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_attach_arrow',
             'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
             'marker_color']
 
-__textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label',
+__textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label', 'capture',
                  'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 def _encode_attr2(sendval, val, ismethods):
@@ -3051,13 +3051,16 @@ class canvas(baseObj):
         else:
             raise AttributeError("canvas.lights can be set only to [].")
 
-
     @property
     def pixel_to_world(self):
         return self._pixel_to_world
     @pixel_to_world.setter
     def pixel_to_world(self, value):
         raise AttributeError('pixel_to_world is read-only')
+    
+    def capture(self, filename):
+        if '.png' not in filename: filename += '.png'
+        self.addmethod('capture', filename)
 
     @property
     def objects(self):
