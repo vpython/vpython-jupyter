@@ -3059,6 +3059,7 @@ class canvas(baseObj):
         raise AttributeError('pixel_to_world is read-only')
     
     def capture(self, filename):
+        if not isinstance(filename, str): raise AttributeError('A capture file name must be a string.')
         if '.png' not in filename: filename += '.png'
         self.addmethod('capture', filename)
 
