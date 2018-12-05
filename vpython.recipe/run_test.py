@@ -6,7 +6,7 @@ from jupyter_client import kernelspec
 # If we get this far, vpnotebook ought to have been installed and
 # we should have a vpython kernel.
 
-assert 'vpython' in kernelspec.find_kernel_specs().keys()
+# assert 'vpython' in kernelspec.find_kernel_specs().keys()
 
 # Python 2.7 and 3.4:
 major, minor = sys.version_info[0:2]
