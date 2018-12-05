@@ -1,8 +1,6 @@
-{% set data = load_setup_py_data() %}
-
 package:
   name: vpython
-  version: {{data.get('version')}}
+  version: 7.4.7
 
 source:
   path: ../

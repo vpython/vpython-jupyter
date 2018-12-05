@@ -14,10 +14,7 @@ env:
         - CONDA_INSTALL_LOCN="${HOME}/miniconda"
         - TWINE_USERNAME="mwcraig"
     matrix:
-        - CONDA_PY=2.7
-        - CONDA_PY=3.4
-        - CONDA_PY=3.5
-        - CONDA_PY=3.6
+        - CONDA_PY=3.7
 
 install:
     # Install and set up miniconda.
@@ -64,18 +61,10 @@ script:
     - echo $CONDA_PACKAGE
     - echo $WHEEL_PACKAGE
 
-    # This will fail if the package does not actually exist
-    - ls $CONDA_PACKAGE $WHEEL_PACKAGE
-    - if [ $TRAVIS_EVENT_TYPE == "cron" ]; then
-        conda install -c astropy -c conda-forge extruder twine;
-        copy_packages vp_copy.yaml vpython;
-      fi
-
-
 after_success:
     - echo $TRAVIS_TAG
     - git branch --contains $TRAVIS_TAG
-    - if [[ "$TRAVIS_TAG" ]]; then upload_build="true"; else upload_build=; fi
+    - upload_build="true"
     - echo $upload_build
     # If this build is because of a tag, upload the build if it succeeds.
     - if [ -n "$upload_build" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython $CONDA_PACKAGE; fi

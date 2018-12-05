@@ -21,31 +21,8 @@ environment:
     # the appveyor setup only sets up the SDK once, so separate by python
     # versions.
     - TARGET_ARCH: "x64"
-      CONDA_PY: "3.6"
+      CONDA_PY: "3.7"
       CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
-    - TARGET_ARCH: "x64"
-      CONDA_PY: "3.5"
-      CONDA_INSTALL_LOCN: "C:\\Miniconda35-x64"
-    - TARGET_ARCH: "x64"
-      CONDA_PY: "3.4"
-      CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
-    - TARGET_ARCH: "x64"
-      CONDA_PY: "2.7"
-      CONDA_INSTALL_LOCN: "C:\\Miniconda-x64"
-
-    # 32-bit builds
-    - TARGET_ARCH: "x86"
-      CONDA_PY: "3.6"
-      CONDA_INSTALL_LOCN: "C:\\Miniconda36"
-    - TARGET_ARCH: "x86"
-      CONDA_PY: "3.5"
-      CONDA_INSTALL_LOCN: "C:\\Miniconda35"
-    - TARGET_ARCH: "x86"
-      CONDA_PY: "3.4"
-      CONDA_INSTALL_LOCN: "C:\\Miniconda36"
-    - TARGET_ARCH: "x86"
-      CONDA_PY: "2.7"
-      CONDA_INSTALL_LOCN: "C:\\Miniconda"
 
 # We always use a 64-bit machine, but can build x86 distributions
 # with the TARGET_ARCH variable.
@@ -99,8 +76,7 @@ test_script:
 on_success:
     # Make sure appveyor still knows about conda...
     - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
-    - set upload_builds=
-    - if "%APPVEYOR_REPO_TAG%"=="true" set upload_builds=1
+    - set upload_builds=1
     # If this build is because of a tag on master make the conda package and upload it.
     - cmd: if defined upload_builds anaconda -t %BINSTAR_TOKEN% upload -u vpython %BUILT_PACKAGE%
     - cmd: pip install twine
