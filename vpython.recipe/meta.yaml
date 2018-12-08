@@ -37,7 +37,8 @@ requirements:
     - python
     - jupyter
     - ujson
-    - autobahn # [not py2k and not py34]
+    - autobahn >=18.8.2 # [py37]
+    - autobahn #  [not py2k and not py34 and not py37]
     - numpy
     - ipykernel <5
 
