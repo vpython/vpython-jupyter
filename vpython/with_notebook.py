@@ -1,11 +1,11 @@
 import os
 import time
+from threading import Thread
 
 from jupyter_core.paths import jupyter_data_dir
 import notebook
 import IPython
 from IPython.display import display, Javascript
-import ipykernel
 
 from .vpython import GlowWidget, baseObj, canvas
 from .rate_control import ws_queue
@@ -134,36 +134,38 @@ def start_server():
     tornado.ioloop.IOLoop.instance().start()
 
 
-if (ipykernel.__version__ >= '4.0.0'):
-	from threading import Thread
-	t = Thread(target=start_server, args=())
-	t.start()
-	baseObj.glow = GlowWidget(wsport= __SOCKET_PORT, wsuri='/ws')     # Setup Comm Channel and websocket
-	while (not wsConnected):
-		time.sleep(0.1)          # wait for websocket to connect
-else:
-	baseObj.glow = GlowWidget()     # Setup Comm Channel
+# Removed check for ipykernel version because the old check
+# was for 5.0.0 but this works with 4.x too...and 4.x is the first
+# version of ipykernel
+t = Thread(target=start_server, args=())
+t.start()
+# Setup Comm Channel and websocket
+baseObj.glow = GlowWidget(wsport=__SOCKET_PORT, wsuri='/ws')
+while (not wsConnected):
+    time.sleep(0.1)          # wait for websocket to connect
 
 baseObj.trigger()  # start the trigger ping-pong process
 
-if IPython.__version__ >= '4.0.0':
-    if (ipykernel.__version__ >= '4.0.0'):
-        async def wsperiodic():
-            while True:
-                if ws_queue.qsize() > 0:
-                    data = ws_queue.get()
-                    d = json.loads(data)
-                    # Must send events one at a time to GW.handle_msg because
-                    # bound events need the loop code
-                    for m in d:
-                        # message format used by notebook
-                        msg = {'content': {'data': [m]}}
-                        baseObj.glow.handle_msg(msg)
 
-                await asyncio.sleep(0)
+# Same justification as above for removing the ipykernel check.
+# There was also an IPython version check for >=4, which was
+# released in Nov 2015. Ok to stop supporting in 2.019 I think.
+async def wsperiodic():
+    while True:
+        if ws_queue.qsize() > 0:
+            data = ws_queue.get()
+            d = json.loads(data)
+            # Must send events one at a time to GW.handle_msg because
+            # bound events need the loop code
+            for m in d:
+                # message format used by notebook
+                msg = {'content': {'data': [m]}}
+                baseObj.glow.handle_msg(msg)
 
-        loop = asyncio.get_event_loop()
-        loop.create_task(wsperiodic())
+        await asyncio.sleep(0)
+
+loop = asyncio.get_event_loop()
+loop.create_task(wsperiodic())
 
 # Dummy name to import...
 _ = None
