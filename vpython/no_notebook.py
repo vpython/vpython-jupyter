@@ -8,7 +8,9 @@ import json
 import webbrowser as _webbrowser
 import asyncio
 from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
+import txaio
 import copy
+import socket
 
 import signal
 from urllib.parse import unquote
@@ -25,8 +27,6 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # Requests from client to http server can be the following:
 #    get glowcomm.html, library .js files, images, or font files
-
-import socket
 
 
 def find_free_port():
@@ -200,24 +200,42 @@ except:
 __w = threading.Thread(target=__server.serve_forever)
 __w.start()
 
-__factory = WebSocketServerFactory(u"ws://localhost:{}/".format(__SOCKET_PORT))
-__factory.protocol = WSserver
-__interact_loop = asyncio.get_event_loop()
-__coro = __interact_loop.create_server(__factory, '0.0.0.0', __SOCKET_PORT)
-__interact_loop.run_until_complete(__coro)
-# server.handle_request() is a single-shot interaction
-# one-shot interact:
-# interact_loop.stop()
-# interact_loop.run_forever()
-# Need to put interact loop inside a thread in order to get a display
-# in the absence of a loop containing a rate statement.
-__t = threading.Thread(target=__interact_loop.run_forever)
+
+def start_server():
+    """
+    Function to get the websocket server going and run the event loop
+    that feeds it.
+    """
+    # We need a new loop in case some other process has already started the
+    # main loop. In principle we might be able to do a check for a running
+    # loop but this works whether or not a loop is running.
+    __interact_loop = asyncio.new_event_loop()
+
+    # Need to do two things before starting the server factory:
+    #
+    # 1. Set our loop to be the default event loop on this thread
+    asyncio.set_event_loop(__interact_loop)
+    # 2. Line below is courtesy of
+    # https://github.com/crossbario/autobahn-python/issues/1007#issuecomment-391541322
+    txaio.config.loop = __interact_loop
+
+    # Now create the factory, start the server then run the event loop forever.
+    __factory = WebSocketServerFactory(u"ws://localhost:{}/".format(__SOCKET_PORT))
+    __factory.protocol = WSserver
+    __coro = __interact_loop.create_server(__factory, '0.0.0.0', __SOCKET_PORT)
+    __interact_loop.run_until_complete(__coro)
+    __interact_loop.run_forever()
+
+# Put the websocket server in a separate thread running its own event loop.
+# That works even if some other program (e.g. spyder) already running an
+# async event loop.
+__t = threading.Thread(target=start_server)
 __t.start()
+
+GW = GlowWidget()
 
 while not (httpserving and websocketserving):  # try to make sure setup is complete
     rate(60)
-
-GW = GlowWidget()
 
 # Dummy variable to import
 _ = None
