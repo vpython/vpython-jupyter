@@ -114,7 +114,7 @@ class WSHandler(tornado.websocket.WebSocketHandler):
         ws_queue.put(message)
 
     def on_close(self):
-        self.stopTornado()
+        self.stop_tornado()
 
     def stop_tornado(self):
         ioloop = tornado.ioloop.IOLoop.instance()
