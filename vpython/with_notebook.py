@@ -134,7 +134,7 @@ def start_server():
     tornado.ioloop.IOLoop.instance().start()
 
 
-if (ipykernel.__version__ >= '5.0.0'):
+if (ipykernel.__version__ >= '4.0.0'):
 	from threading import Thread
 	t = Thread(target=start_server, args=())
 	t.start()
@@ -147,7 +147,7 @@ else:
 baseObj.trigger()  # start the trigger ping-pong process
 
 if IPython.__version__ >= '4.0.0':
-    if (ipykernel.__version__ >= '5.0.0'):
+    if (ipykernel.__version__ >= '4.0.0'):
         async def wsperiodic():
             while True:
                 if ws_queue.qsize() > 0:
