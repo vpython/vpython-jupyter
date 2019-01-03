@@ -137,7 +137,9 @@ API_NAMES = [
     'trunc',
     'vec',
     'vector',
+    'version',
     'vertex',
+    'winput',
     'wtext'
 ]
 
