@@ -66,14 +66,8 @@ if 'nbextensions' in os.listdir(jd):
         transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
 
 if transfer:
-    if IPython.__version__ >= '4.0.0' :
-        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-    elif IPython.__version__ >= '3.0.0' :
-        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-    else:
-        IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_data", package_dir+"/vpython_libraries"],overwrite=True,verbose=0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
 
     # Wait for files to be transferred to nbextensions:
     libready = False
