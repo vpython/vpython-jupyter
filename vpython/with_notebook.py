@@ -1,11 +1,11 @@
 import os
 import time
+from threading import Thread
 
 from jupyter_core.paths import jupyter_data_dir
 import notebook
 import IPython
 from IPython.display import display, Javascript
-import ipykernel
 
 from .vpython import GlowWidget, baseObj, canvas
 from .rate_control import ws_queue
@@ -66,14 +66,8 @@ if 'nbextensions' in os.listdir(jd):
         transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
 
 if transfer:
-    if IPython.__version__ >= '4.0.0' :
-        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-        notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-    elif IPython.__version__ >= '3.0.0' :
-        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
-        IPython.html.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
-    else:
-        IPython.html.nbextensions.install_nbextension(files = [package_dir+"/vpython_data", package_dir+"/vpython_libraries"],overwrite=True,verbose=0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
+    notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
 
     # Wait for files to be transferred to nbextensions:
     libready = False
@@ -114,7 +108,7 @@ class WSHandler(tornado.websocket.WebSocketHandler):
         ws_queue.put(message)
 
     def on_close(self):
-        self.stopTornado()
+        self.stop_tornado()
 
     def stop_tornado(self):
         ioloop = tornado.ioloop.IOLoop.instance()
@@ -134,36 +128,38 @@ def start_server():
     tornado.ioloop.IOLoop.instance().start()
 
 
-if (ipykernel.__version__ >= '5.0.0'):
-	from threading import Thread
-	t = Thread(target=start_server, args=())
-	t.start()
-	baseObj.glow = GlowWidget(wsport= __SOCKET_PORT, wsuri='/ws')     # Setup Comm Channel and websocket
-	while (not wsConnected):
-		time.sleep(0.1)          # wait for websocket to connect
-else:
-	baseObj.glow = GlowWidget()     # Setup Comm Channel
+# Removed check for ipykernel version because the old check
+# was for 5.0.0 but this works with 4.x too...and 4.x is the first
+# version of ipykernel
+t = Thread(target=start_server, args=())
+t.start()
+# Setup Comm Channel and websocket
+baseObj.glow = GlowWidget(wsport=__SOCKET_PORT, wsuri='/ws')
+while (not wsConnected):
+    time.sleep(0.1)          # wait for websocket to connect
 
 baseObj.trigger()  # start the trigger ping-pong process
 
-if IPython.__version__ >= '4.0.0':
-    if (ipykernel.__version__ >= '5.0.0'):
-        async def wsperiodic():
-            while True:
-                if ws_queue.qsize() > 0:
-                    data = ws_queue.get()
-                    d = json.loads(data)
-                    # Must send events one at a time to GW.handle_msg because
-                    # bound events need the loop code
-                    for m in d:
-                        # message format used by notebook
-                        msg = {'content': {'data': [m]}}
-                        baseObj.glow.handle_msg(msg)
 
-                await asyncio.sleep(0)
+# Same justification as above for removing the ipykernel check.
+# There was also an IPython version check for >=4, which was
+# released in Nov 2015. Ok to stop supporting in 2.019 I think.
+async def wsperiodic():
+    while True:
+        if ws_queue.qsize() > 0:
+            data = ws_queue.get()
+            d = json.loads(data)
+            # Must send events one at a time to GW.handle_msg because
+            # bound events need the loop code
+            for m in d:
+                # message format used by notebook
+                msg = {'content': {'data': [m]}}
+                baseObj.glow.handle_msg(msg)
 
-        loop = asyncio.get_event_loop()
-        loop.create_task(wsperiodic())
+        await asyncio.sleep(0)
+
+loop = asyncio.get_event_loop()
+loop.create_task(wsperiodic())
 
 # Dummy name to import...
 _ = None

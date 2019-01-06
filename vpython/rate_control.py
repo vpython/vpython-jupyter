@@ -247,22 +247,13 @@ class _RateKeeper2(RateKeeper):
         if _isnotebook:
             if not self._sender:
                 self._sender = message_send_wrapper()
-            if ((IPython.__version__ >= '7.0.0') or
-                    (ipykernel.__version__ >= '5.0.0')):
-                while ws_queue.qsize() > 0:
-                    data = ws_queue.get()
-                    d = json.loads(data)  # update_canvas info
-                    for m in d:
-                        # Must send events one at a time to GW.handle_msg because bound events need the loop code:
-                        msg = {'content':{'data':[m]}} # message format used by notebook
-                        self._sender(msg)
-
-            elif IPython.__version__ >= '3.0.0':
-                kernel = IPython.get_ipython().kernel
-                parent = kernel._parent_header
-                ident = kernel._parent_ident
-                kernel.do_one_iteration()
-                kernel.set_parent(ident, parent)
+            while ws_queue.qsize() > 0:
+                data = ws_queue.get()
+                d = json.loads(data)  # update_canvas info
+                for m in d:
+                    # Must send events one at a time to GW.handle_msg because bound events need the loop code:
+                    msg = {'content':{'data':[m]}} # message format used by notebook
+                    self._sender(msg)
 
     def __call__(self, N): # rate(N) calls this function
         self.rval = N
