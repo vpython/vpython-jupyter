@@ -50,12 +50,21 @@ transfer = True # need to transfer files from site-packages to nbextensions
 try:
 	import jupyterlab
 	import jupyterlab.commands
-	from os.path import join
-	labextensions_dir = join(jupyterlab.commands.get_app_dir(), u'static')
-	notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",nbextensions_dir = labextensions_dir,overwrite = False,verbose = 0)
 except ImportError:
 	#logging.info("Unable to import jupyterlab")
 	pass
+else:
+    # We have jupyterlab, is it the right version?
+    if jupyterlab.__version__ >= '0.35.0':
+        from os.path import join
+        labextensions_dir = join(jupyterlab.commands.get_app_dir(), u'static')
+        notebook.nbextensions.install_nbextension(path=package_dir + "/vpython_data",
+                                                  nbextensions_dir=labextensions_dir,
+                                                  overwrite=False,
+                                                  verbose=0)
+    else:
+        print("Must have at least version 0.35 of JupyterLab")
+
 
 if 'nbextensions' in os.listdir(jd):
     ldir = os.listdir(nbdir)
