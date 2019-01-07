@@ -21,6 +21,9 @@ environment:
     # the appveyor setup only sets up the SDK once, so separate by python
     # versions.
     - TARGET_ARCH: "x64"
+      CONDA_PY: "3.7"
+      CONDA_INSTALL_LOCN: "C:\\Miniconda37-x64"
+    - TARGET_ARCH: "x64"
       CONDA_PY: "3.6"
       CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
     - TARGET_ARCH: "x64"
@@ -28,6 +31,9 @@ environment:
       CONDA_INSTALL_LOCN: "C:\\Miniconda35-x64"
 
     # 32-bit builds
+    - TARGET_ARCH: "x86"
+      CONDA_PY: "3.7"
+      CONDA_INSTALL_LOCN: "C:\\Miniconda37"
     - TARGET_ARCH: "x86"
       CONDA_PY: "3.6"
       CONDA_INSTALL_LOCN: "C:\\Miniconda36"
@@ -41,21 +47,16 @@ platform:
     - x64
 
 install:
-    # Clone  to get the script for setting up Windows build environment and the script for installing conda.
-    - cmd: git clone https://github.com/pelson/Obvious-CI.git
-
-    - cmd: set PATH=%CONDA_INSTALL_LOCN%;%CONDA_INSTALL_LOCN%\Scripts;%PATH%
-
+    - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
     # Gets us vpnotebook
     - cmd: conda config --add channels vpython
 
     - cmd: conda config --set always_yes true
     - cmd: conda update --quiet conda
-    - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
 
 
-    - cmd: conda install --quiet jinja2 conda-build anaconda-client cython
-    - cmd: conda install --quiet wheel
+
+    - cmd: conda install --quiet jinja2 conda-build anaconda-client cython wheel
 
     # These installs are needed on windows but not other platforms.
     - cmd: conda install --quiet patch psutil
@@ -68,7 +69,7 @@ build: off
 
 test_script:
     # Not much of a real test yet, just try to build myself...
-    - "%CMD_IN_ENV% conda build --quiet vpython.recipe"
+    - conda build --quiet vpython.recipe
     # ...and build a wheel, in the test environment so we have the right
     # python version.
     # Write the output file location to a file...
@@ -81,7 +82,7 @@ test_script:
     - for %%F in (%BUILT_PACKAGE%) do set dirname=%%~dpF
     - echo %dirname%
     - activate wheel-build
-    - "%CMD_IN_ENV% python setup.py bdist_wheel"
+    - python setup.py bdist_wheel"
     - deactivate
 
 on_success:
