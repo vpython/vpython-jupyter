@@ -25,7 +25,7 @@ install_requires = ['jupyter', 'vpnotebook', 'numpy', 'ipykernel']
 if sys.version_info.major == 3 and sys.version_info.minor >= 5:
     install_requires.append('autobahn')
 
-setup(
+setup_args = dict(
     name='vpython',
     packages=['vpython'],
     version=versioneer.get_version(),
@@ -54,3 +54,14 @@ setup(
                               'vpython_libraries/*',
                               'vpython_libraries/images/*']},
 )
+
+try:
+    setup(**setup_args)
+except SystemExit as e:
+    print('Compiled version of vector failed with:')
+    print(e)
+    print('***** Using pure python version of vector, which is slower.')
+
+    # Do not try to build the extension
+    del setup_args['ext_modules']
+    setup(**setup_args)
