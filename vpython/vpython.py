@@ -1,5 +1,3 @@
-from __future__ import print_function, division, absolute_import
-
 # Cythonize the encode machinery?
 import colorsys
 from .rate_control import rate
@@ -3057,7 +3055,7 @@ class canvas(baseObj):
     @pixel_to_world.setter
     def pixel_to_world(self, value):
         raise AttributeError('pixel_to_world is read-only')
-    
+
     def capture(self, filename):
         if not isinstance(filename, str): raise AttributeError('A capture file name must be a string.')
         if '.png' not in filename: filename += '.png'

@@ -1,5 +1,4 @@
 ## vectors and associated methods
-from __future__ import division, print_function, absolute_import
 from math import cos, sin, acos, sqrt, pi
 from random import random
 
@@ -11,8 +10,8 @@ __all__ = ['adjust_axis', 'adjust_up', 'comp', 'cross', 'diff_angle', 'dot',
 
 class vector(object):
     'vector class'
-    
-    @staticmethod 
+
+    @staticmethod
     def random():
         return vector(-1.0 + 2.0*random(), -1.0 + 2.0*random(), -1.0 + 2.0*random())
 
@@ -29,7 +28,7 @@ class vector(object):
         else:
             raise TypeError('A vector needs 3 components.')
         self.on_change = self.ignore
-    
+
     def ignore(self):
         pass
 
@@ -44,22 +43,22 @@ class vector(object):
 
     def __neg__(self):
         return vector(-self._x, -self._y, -self._z)
-        
+
     def __pos__(self):
         return self
-        
+
     def __str__(self):
         return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
-   
+
     def __repr__(self):
         return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
-   
+
     def __add__(self,other):
         return vector(self._x + other._x, self._y + other._y, self._z + other._z)
-    
+
     def __sub__(self,other):
         return vector(self._x - other._x, self._y - other._y, self._z - other._z)
-    
+
     def __truediv__(self, other): # used by Python 3, and by Python 2 in the presence of __future__ division
         try:
             return vector(self._x / other, self._y / other, self._z / other)
@@ -71,19 +70,19 @@ class vector(object):
             return vector(self._x / other, self._y / other, self._z / other)
         except:
             raise TypeError('a vector can only be divided by a scalar')
-    
+
     def __mul__(self, other):
         try:
             return vector(self._x * other, self._y * other, self._z * other)
         except:
             raise TypeError('a vector can only be multiplied by a scalar')
-    
+
     def __rmul__(self, other):
         try:
             return vector(self._x * other, self._y * other, self._z * other)
         except:
             raise TypeError('a vector can only be multiplied by a scalar')
-    
+
     @property
     def x(self):
         return self._x
@@ -91,7 +90,7 @@ class vector(object):
     def x(self,value):
         self._x = value
         self.on_change()
-    
+
     @property
     def y(self):
         return self._y
@@ -99,7 +98,7 @@ class vector(object):
     def y(self,value):
         self._y = value
         self.on_change()
-    
+
     @property
     def z(self):
         return self._z
@@ -130,7 +129,7 @@ class vector(object):
         self._y = v * normA._y
         self._z = v * normA._z
         self.on_change()
-        
+
     @property
     def hat(self):
         smag = self.mag
@@ -146,7 +145,7 @@ class vector(object):
         self._y = smg * normA._y
         self._z = smg * normA._z
         self.on_change()
-        
+
     def norm(self):
         return self.hat
 
@@ -154,14 +153,14 @@ class vector(object):
         return ( self._x*other._x + self._y*other._y + self._z*other._z )
 
     def cross(self,other):
-        return vector( self._y*other._z-self._z*other._y, 
+        return vector( self._y*other._z-self._z*other._y,
                        self._z*other._x-self._x*other._z,
                        self._x*other._y-self._y*other._x )
 
     def proj(self,other):
         normB = other.hat
         return self.dot(normB) * normB
-        
+
     def equals(self,other):
         return self._x == other._x and self._y == other._y and self._z == other._z
 
@@ -176,7 +175,7 @@ class vector(object):
         if a < -1:
             return pi
         return acos(a)
-        
+
     def rotate(self, angle=0., axis=None):
         if axis == None:
             u = vector(0,0,1)
@@ -203,7 +202,7 @@ class vector(object):
         return vector( (m11*sx + m12*sy + m13*sz),
                     (m21*sx + m22*sy + m23*sz),
                     (m31*sx + m32*sy + m33*sz) )
-        
+
     def rotate_in_place(self, angle=0., axis=None):
         if axis == None:
             u = vector(0,0,1)
@@ -230,7 +229,7 @@ class vector(object):
         self._x = m11*sx + m12*sy + m13*sz
         self._y = m21*sx + m22*sy + m23*sz
         self._z = m31*sx + m32*sy + m33*sz
-                    
+
 def object_rotate(objaxis, objup, angle, axis):
     u = axis.hat
     c = cos(angle)
@@ -287,10 +286,10 @@ def comp(A,B):
 
 def diff_angle(A,B):
     return A.diff_angle(B)
-                            
+
 def rotate(A, angle=0., axis = None):
     return A.rotate(angle,axis)
-        
+
 def adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is changed
     if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:
         # If axis has changed to <0,0,0>, must save the old axis to restore later
