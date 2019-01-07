@@ -65,12 +65,6 @@ class vector(object):
         except:
             raise TypeError('a vector can only be divided by a scalar')
 
-    def __div__(self, other): # used by Python 2 in the absence of __future__ division
-        try:
-            return vector(self._x / other, self._y / other, self._z / other)
-        except:
-            raise TypeError('a vector can only be divided by a scalar')
-
     def __mul__(self, other):
         try:
             return vector(self._x * other, self._y * other, self._z * other)
