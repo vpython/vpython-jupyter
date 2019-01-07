@@ -3,6 +3,7 @@ from .vpython import GlowWidget, baseObj, vector
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
 import platform
+import sys
 import threading
 import json
 import webbrowser as _webbrowser
@@ -18,9 +19,9 @@ from urllib.parse import unquote
 from .rate_control import rate
 
 
-# Check for Ctrl+C
+# Check for Ctrl+C. SIGINT will also be sent by our code if WServer is closed.
 def signal_handler(signal, frame):
-    os._exit(0)
+    stop_server()
 
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -178,9 +179,20 @@ class WSserver(WebSocketServerProtocol):
                 await loop.run_in_executor(None, GW.handle_msg, msg)
 
     def onClose(self, wasClean, code, reason):
-        #print("Server WebSocket connection closed: {0}".format(reason))
+        """Called when browser tab is closed."""
         self.connection = None
-        os._exit(0)
+        # We want to exit, but the main thread is running.
+        # Only the main thread can properly call sys.exit, so have a signal
+        # handler call it on the main thread's behalf.
+        if platform.system() == 'Windows':
+            if threading.main_thread().is_alive():
+                # On windows, if we get here then this signal won't be caught
+                # by our signal handler. Just call it ourselves.
+                os.kill(os.getpid(), signal.CTRL_C_EVENT)
+            else:
+                stop_server()
+        else:
+            os.kill(os.getpid(), signal.SIGINT)
 
 
 try:
@@ -226,11 +238,32 @@ def start_server():
     __interact_loop.run_until_complete(__coro)
     __interact_loop.run_forever()
 
+
 # Put the websocket server in a separate thread running its own event loop.
 # That works even if some other program (e.g. spyder) already running an
 # async event loop.
 __t = threading.Thread(target=start_server)
 __t.start()
+
+
+def stop_server():
+    """Shuts down all threads and exits cleanly."""
+    global __server
+    __server.shutdown()
+    event_loop = txaio.config.loop
+    event_loop.stop()
+    # We've told the event loop to stop, but it won't shut down until we poke
+    # it with a simple scheduled task.
+    event_loop.call_soon_threadsafe(lambda: None)
+    if threading.main_thread().is_alive():
+        sys.exit(0)
+    else:
+        pass
+        # If the main thread has already stopped, the python interpreter
+        # is likely just running .join on the two remaining threads (in
+        # python/threading.py:_shutdown). Since we just stopped those threads,
+        # we'll now exit.
+
 
 GW = GlowWidget()
 
