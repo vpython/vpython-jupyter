@@ -234,13 +234,16 @@ class baseObj(object):
         baseObj.incrObjCnt()
 
     def delete(self):
-        baseObj.decrObjCnt()
-        cmd = {"cmd": "delete", "idx": self.idx}
-        if (baseObj.glow is not None):
-            sender([cmd])
-        else:
-            self.appendcmd(cmd)
-        baseObj.cmds.append(cmd)
+        # Currently delete decrements the object count but doesn't
+        # delete any objects in the browser....so, let's not decrement
+        # the count for now.
+
+        # baseObj.decrObjCnt()
+
+        # The body of this and __del__ are the same other than the
+        # decrement here, so let's just call __del__.
+        self.__del__()
+
 
     def appendcmd(self,cmd):
         # The following code makes sure that constructors are sent to the front end first.
@@ -302,10 +305,10 @@ class baseObj(object):
 
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
-        if (baseObj.glow is not None):
+        if (baseObj.glow is not None and sender is not None):
             sender([cmd])
         else:
-            baseObj.appendcmd(cmd)
+            self.appendcmd(cmd)
 
 # Jupyter does not immediately transmit data to the browser from a thread,
 # which made for an awkward thread in early versions of Jupyter VPython, and
@@ -342,6 +345,8 @@ class GlowWidget(object):
             self.comm.on_msg(self.handle_msg)
             sender = self.comm.send
             self.show = True
+        else:
+            sender = None
 
     ## baseObj.object_registry = {}
     ## idx -> instance
@@ -3057,7 +3062,7 @@ class canvas(baseObj):
     @pixel_to_world.setter
     def pixel_to_world(self, value):
         raise AttributeError('pixel_to_world is read-only')
-    
+
     def capture(self, filename):
         if not isinstance(filename, str): raise AttributeError('A capture file name must be a string.')
         if '.png' not in filename: filename += '.png'
