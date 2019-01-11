@@ -79,10 +79,12 @@ script:
 after_success:
     - echo $TRAVIS_TAG
     - git branch --contains $TRAVIS_TAG
+    - upload_label=$(python .ci-support/upload_label.py)
     - if [[ "$TRAVIS_TAG" ]]; then upload_build="true"; else upload_build=; fi
     - echo $upload_build
+    - echo "Uploading to $upload_label"
     # If this build is because of a tag, upload the build if it succeeds.
-    - if [ -n "$upload_build" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython $CONDA_PACKAGE; fi
+    - if [ -n "$upload_build" ]; then anaconda -t $BINSTAR_TOKEN upload -u vpython -l $upload_label $CONDA_PACKAGE; fi
     # Upload wheel builds to pypi instead of relying on travis deploy because that
     # does not seem to continue gracefully if a distribution already exists,
     # and in most of the jobs a source distribution will already have been
