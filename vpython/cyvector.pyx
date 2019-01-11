@@ -19,8 +19,8 @@ cdef class vector(object):
     cdef public double _y
     cdef public double _z
     cdef public object on_change
-    
-    @staticmethod 
+
+    @staticmethod
     def random():
         return vector(-1 + 2*random(), -1 + 2*random(), -1 + 2*random())
 
@@ -37,10 +37,10 @@ cdef class vector(object):
         else:
             raise TypeError('A vector needs 3 components.')
         self.on_change = self.ignore
-        
+
     cpdef ignore(self):
         pass
-            
+
     property value:
         def __get__(self):
             return [self.x, self.y, self.z]
@@ -48,16 +48,16 @@ cdef class vector(object):
             self._x = other.x
             self._y = other.y
             self._z = other.z
-        
+
     def __neg__(self):  ## seems like this must come before properties (???)
         return vector(-self.x, -self.y, -self.z)
-    
+
     def __pos__(self):
         return self
 
     def __repr__(self):
         return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
-    
+
     def __str__(self):
         return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
 
@@ -69,14 +69,9 @@ cdef class vector(object):
             return vector(self.x / other, self.y / other, self.z / other)
         raise TypeError('a vector can only be divided by a scalar')
 
-    def __div__(self, other): # Python 2 without future division
-        if isinstance(other, (int, float)):
-            return vector(self.x / other, self.y / other, self.z / other)
-        raise TypeError('a vector can only be divided by a scalar')
-
     def __sub__(self,other):
         return vector(self.x - other.x, self.y - other.y, self.z - other.z)
-    
+
     def __mul__(self, other):  ## in cython order of arguments is arbitrary, rmul doesn't exist
         if isinstance(other, (int, float)):
             return vector(self.x * other, self.y * other, self. z * other)
@@ -84,28 +79,28 @@ cdef class vector(object):
             return vector(self * other.x, self * other.y, self * other.z)
         else:
             raise TypeError('a vector can only be multiplied by a scalar', self, other)
-                  
+
     property x:
         def __get__(self):
             return self._x
         def __set__(self,value):
             self._x = value
             self.on_change()
-    
+
     property y:
         def __get__(self):
             return self._y
         def __set__(self,value):
             self._y = value
             self.on_change()
-    
+
     property z:
         def __get__(self):
             return self._z
         def __set__(self,value):
             self._z = value
             self.on_change()
-        
+
     property mag:
         def __get__(self):
             return sqrt(self.x**2 + self.y**2 + self.z**2)
@@ -116,7 +111,7 @@ cdef class vector(object):
             self.y = value * normA.y
             self.z = value * normA.z
             self.on_change()
-            
+
     property mag2:
         def __get__(self):
             return (self.x**2 + self.y**2 + self.z**2)
@@ -125,7 +120,7 @@ cdef class vector(object):
             v = sqrt(value)
             self.mag = v
             self.on_change()
-        
+
     property hat:
         def __get__(self):
             cdef double smag
@@ -143,7 +138,7 @@ cdef class vector(object):
             self.y = smag * normA.y
             self.z = smag * normA.z
             self.on_change()
-            
+
 
     cpdef vector norm(self):
         return self.hat
@@ -152,7 +147,7 @@ cdef class vector(object):
         return ( self.x*other.x + self.y*other.y + self.z*other.z )
 
     cpdef vector cross(self,other):
-        return vector( self.y*other.z-self.z*other.y, 
+        return vector( self.y*other.z-self.z*other.y,
                        self.z*other.x-self.x*other.z,
                        self.x*other.y-self.y*other.x )
 
@@ -160,7 +155,7 @@ cdef class vector(object):
         cdef vector normB
         normB = other.hat
         return self.dot(normB) * normB
-        
+
     cpdef bint equals(self,other):
         return ( self.x == other.x and self.y == other.y and self.z == other.z )
 
@@ -205,7 +200,7 @@ cdef class vector(object):
         return vector( (m11*sx + m12*sy + m13*sz),
                     (m21*sx + m22*sy + m23*sz),
                     (m31*sx + m32*sy + m33*sz) )
-        
+
     cpdef rotate_in_place(self, double angle=0., vector axis=None):
         cdef vector u
         if axis == None:
@@ -233,7 +228,7 @@ cdef class vector(object):
         self._x = m11*sx + m12*sy + m13*sz
         self._y = m21*sx + m22*sy + m23*sz
         self._z = m31*sx + m32*sy + m33*sz
-                    
+
 cpdef object_rotate(vector objaxis, vector objup, double angle, vector axis):
     cdef vector u = axis.hat
     cdef double c = cos(angle)
@@ -290,12 +285,12 @@ cpdef double comp(vector A, vector B):
 
 cpdef double diff_angle(vector A, vector B):
     return A.diff_angle(B)
-                            
+
 cpdef vector rotate(vector A, double angle = 0., vector axis = None):
     if axis is None:
         axis = vector(0,0,1)
     return A.rotate(angle=angle, axis=axis)
-        
+
 cpdef vector adjust_up(vector oldaxis, vector newaxis, vector up, vector save_oldaxis): # adjust up when axis is changed
     cdef double angle
     cdef vector rotaxis

@@ -1,5 +1,5 @@
-from __future__ import division
 from math import sqrt, sin, cos, tan, asin, acos, atan, floor, pi
+
 from ._vector_import_helper import vec, vector, mag, norm
 
 # List of names that are imported from this module with import *
@@ -18,13 +18,13 @@ __all__ = ['RackOutline', 'ToothOutline', 'addpos', 'convert', 'path_object',
    ##################################
    ## ----------- shapes ------------
    ##################################
-    
+
 npdefault = 64 # default number of points for a circle. ellipse, and arc
 
 def roundc(cps, roundness=0.1, invert=False, nseg=16):
     cp = []
     for i in range(len(cps)): cp.append(vec(cps[i][0], cps[i][1], 0)) # convert [x,y] => vec(x,y,0), so can use vector functions
-    
+
     # If points are ordered counterclockwise, vord will be > 0
     vord = 0
     cp.pop() # remove the final point, which is equal to the initial point
@@ -36,9 +36,9 @@ def roundc(cps, roundness=0.1, invert=False, nseg=16):
         v2 = cp[i2] - cp[i1]
         dv = v1.cross(v2).z
         vord += dv
-    
+
     if vord < 0: cp.reverse() # force points to be in counterclockwise order
-    
+
     # Determine shortest side
     L = 1e200
     for i in range(lcp):
@@ -47,9 +47,9 @@ def roundc(cps, roundness=0.1, invert=False, nseg=16):
         lm = mag(p2 - p1)
         if (lm < L):
             L = lm
-        
+
     r = L * roundness # radius of rounded curve connecting adjacent sides
-    
+
     ncp = [[0,0]] # starting point will be modified later
     for i in range(lcp):
         v1 = cp[(i+1) % lcp] - cp[i % lcp]   # first side
@@ -69,13 +69,13 @@ def roundc(cps, roundness=0.1, invert=False, nseg=16):
             center = c + (c-center)    # move center to other side of corner
             v = p1 - center
             dtheta = -dtheta
-        
+
         for j in range(nseg):
             v1 = center + v.rotate(j*dtheta)
             ncp.append([v1.x, v1.y])
-        
+
         ncp.append([p2.x, p2.y])
-    
+
     v1 = cp[1] - cp[0]
     v1 = cp[0] + d*norm(v1) # start of first side, at end of preceding bend
     ncp[0] = [v1.x, v1.y]
@@ -129,7 +129,7 @@ def ToothOutline(n=30, res=1, phi=20, radius=50, addendum=0.4, dedendum=0.5, fra
         'Fillet'      : fradius,
         'Bevel'       : bevel,
         'Resolution'  : res,
-        }   
+        }
     ####################################################################
     #Basic Math computations: Radii
     #
@@ -155,7 +155,7 @@ def ToothOutline(n=30, res=1, phi=20, radius=50, addendum=0.4, dedendum=0.5, fra
     ThetaA1 = atan((sin(U1)-U1*cos(U1))/(cos(U1)+U1*sin(U1)))
     ThetaA2 = atan((sin(U2)-U2*cos(U2))/(cos(U2)+U2*sin(U2)))
     ThetaA3 = ThetaA1 + ToothThickness/(TOOTHGEO['PitchRadius']*2.0)
-    
+
     A = {
         'Theta0' : CircularPitch/(TOOTHGEO['PitchRadius']*2.0),
         'Theta1' : ThetaA3 + TOOTHGEO['Fillet']/R['Ded'],
@@ -163,21 +163,21 @@ def ToothOutline(n=30, res=1, phi=20, radius=50, addendum=0.4, dedendum=0.5, fra
         'Theta3' : ThetaA3 - ThetaA2,
         'Theta4' : ThetaA3 - ThetaA2 - TOOTHGEO['Bevel']/R['Add']
     }
-    
+
     ####################################################################
     # Profiling
     #
     N = TOOTHGEO['Resolution']
     points  = []
-    normals = []   
+    normals = []
     # Top half bottom of tooth
     for i in range(2*N):
-        th = (A['Theta1'] - A['Theta0'])*i/(2*N-1) + A['Theta0']              
+        th = (A['Theta1'] - A['Theta0'])*i/(2*N-1) + A['Theta0']
         points.append ([R['Bottom']*cos(th),
                         R['Bottom']*sin(th)])
         normals.append([-cos(th),
                         -sin(th)])
-        
+
     # Bottom Fillet
     xc = R['Ded']*cos(A['Theta1'])
     yc = R['Ded']*sin(A['Theta1'])
@@ -191,12 +191,12 @@ def ToothOutline(n=30, res=1, phi=20, radius=50, addendum=0.4, dedendum=0.5, fra
 
     # Straight part
     for i in range(N):
-        r = (R['Base']-R['Ded'])*(i+1)/(N) + R['Ded']              
+        r = (R['Base']-R['Ded'])*(i+1)/(N) + R['Ded']
         points.append ([r*cos(A['Theta2']),
                         r*sin(A['Theta2'])])
         normals.append([cos(A['Theta2']-pi/2.0),
                         sin(A['Theta2']-pi/2.0)])
-    
+
     # Tooth Involute
     for i in range(3*N):
         r = (R['Bevel'] - R['Base'])*(i+1)/(3*N) + R['Base']
@@ -207,9 +207,9 @@ def ToothOutline(n=30, res=1, phi=20, radius=50, addendum=0.4, dedendum=0.5, fra
                         +xp*sin(A['Theta2'])+yp*cos(A['Theta2'])])
         normals.append([-sin(u),
                         -cos(u)])
-        
+
     # Tooth Bevel
-    auxth = -u 
+    auxth = -u
     auxth = auxth + ThetaA3 + pi/2.0
     m     = tan(auxth)
     P0    = points[len(points)-1]
@@ -217,7 +217,7 @@ def ToothOutline(n=30, res=1, phi=20, radius=50, addendum=0.4, dedendum=0.5, fra
     xc    = P0[0] - rA*cos(auxth)
     yc    = P0[1] - rA*sin(auxth)
     for i in range(N):
-        th = (A['Theta4'] - auxth)*(i+1)/(N) + auxth              
+        th = (A['Theta4'] - auxth)*(i+1)/(N) + auxth
         points.append ([xc + rA*cos(th),
                         yc +rA*sin(th)])
         normals.append([-cos(th),
@@ -228,7 +228,7 @@ def ToothOutline(n=30, res=1, phi=20, radius=50, addendum=0.4, dedendum=0.5, fra
     A['Theta4'] = atan (P0[1]/P0[0])
     Ra = sqrt(P0[0]*P0[0]+P0[1]*P0[1])
     for i in range(N):
-        th = (-A['Theta4'])*(i+1)/(N) + A['Theta4']              
+        th = (-A['Theta4'])*(i+1)/(N) + A['Theta4']
         points.append ([Ra*cos(th),
                         Ra*sin(th)])
         normals.append([-cos(th),
@@ -257,7 +257,7 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
         'Fillet'      : fradius,
         'Bevel'       : bevel,
         'Resolution'  : res,
-        }  
+        }
     ####################################################################
     #Basic Math computations: QUotes
     #
@@ -276,7 +276,7 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
     CircularPitch  = pi / DiametralPitch
 
     Pa = TOOTHGEO['PressureAng']*pi/180.0
-    
+
     yA1 = ToothThickness/2.0
     yA2 = (-X['Ded']+TOOTHGEO['Fillet']*sin(Pa))*tan(Pa)
     yA3 = TOOTHGEO['Fillet']*cos(Pa)
@@ -300,17 +300,17 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
     if fradius: ist = 1
     # Top half bottom of tooth
     for i in range(ist, 2*N):
-        y = (A['y1'] - A['y0'])*i/(2*N-1) + A['y0']              
+        y = (A['y1'] - A['y0'])*i/(2*N-1) + A['y0']
         points.append ([X['Bottom'],
                         y])
         normals.append([-1.0,
                         -0.0])
-        
+
     # Bottom Fillet
     xc = X['Ded']
     yc = A['y1']
     Aw = pi/2.0 - Pa
-    
+
     for i in range(N):
         th = (Aw)*(i+1)/(N) + pi
         points.append ([xc + TOOTHGEO['Fillet']*cos(th),
@@ -321,12 +321,12 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
     # Straight part
     Xded = X['Ded'] - TOOTHGEO['Fillet']*sin(Pa)
     for i in range(4*N):
-        x = (X['Bevel']-Xded)*(i+1)/(4*N) + Xded              
+        x = (X['Bevel']-Xded)*(i+1)/(4*N) + Xded
         points.append ([x,
                         yA1-tan(Pa)*x])
         normals.append([-sin(Pa),
                         -cos(Pa)])
-    
+
     # Tooth Bevel
     rA    = TOOTHGEO['Bevel']/(1-sin(Pa))
     xc    =  X['Add'] - rA
@@ -369,10 +369,10 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
         # 'Fillet'      : fradius,
         # 'Bevel'       : bevel,
         # 'Resolution'  : res,
-        # }  
+        # }
     ###################################################################
     ## Basic Math computations: Radii
-    
+
     # R = {
         # 'Bottom'  : TOOTHGEO['PitchRadius'] * cos(TOOTHGEO['PressureAng']*pi/180.0) ,
         # 'Base'    : TOOTHGEO['PitchRadius'] * cos(TOOTHGEO['PressureAng']*pi/180.0) + TOOTHGEO['Fillet'],
@@ -381,7 +381,7 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
 
     ###################################################################
     ## Basic Math computations: Angles
-    
+
     # DiametralPitch = TOOTHGEO['TeethN']/(2*TOOTHGEO['PitchRadius'])
     # ToothThickness = 1.5708/DiametralPitch
     # CircularPitch  = pi / DiametralPitch
@@ -393,7 +393,7 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
     # ThetaA1 = atan((sin(U1)-U1*cos(U1))/(cos(U1)+U1*sin(U1)))
     # ThetaA2 = atan((sin(U2)-U2*cos(U2))/(cos(U2)+U2*sin(U2)))
     # ThetaA3 = ThetaA1 + ToothThickness/(TOOTHGEO['PitchRadius']*2.0)
-    
+
     # A = {
         # 'Theta0' : CircularPitch/(TOOTHGEO['PitchRadius']*2.0),
         # 'Theta1' : (ThetaA3 + TOOTHGEO['Fillet']/R['Base']),
@@ -402,28 +402,28 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
         # 'Theta4' : ThetaA3 - ThetaA2 - TOOTHGEO['Bevel']/R['Ded']
     # }
 
-    # M = A['Theta0'] 
+    # M = A['Theta0']
     # A['Theta0'] = 0
     # A['Theta1'] = A['Theta1']-M
     # A['Theta2'] = A['Theta2']-M
     # A['Theta3'] = A['Theta3']-M
     # A['Theta4'] = A['Theta4']-M
-    
+
     ###################################################################
     ## Profiling
-    
+
     # N = TOOTHGEO['Resolution']
     # apoints  = []
-    # anormals = []   
+    # anormals = []
 
     ## Top half top of tooth
     # for i in range(2*N):
-        # th = (A['Theta1'] - A['Theta0'])*i/(2*N-1) + A['Theta0']              
+        # th = (A['Theta1'] - A['Theta0'])*i/(2*N-1) + A['Theta0']
         # apoints.append ([R['Bottom']*cos(th),
                         # R['Bottom']*sin(th)])
         # anormals.append([cos(th),
                         # sin(th)])
-        
+
     ## Bottom Bevel
     # xc = R['Base']*cos(A['Theta1'])
     # yc = R['Base']*sin(A['Theta1'])
@@ -445,9 +445,9 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
                         # +xp*sin(A['Theta2'])+yp*cos(A['Theta2'])])
         # anormals.append([sin(u),
                         # cos(u)])
-        
+
     ## Tooth Bevel
-    # auxth = -u 
+    # auxth = -u
     # auxth = auxth + ThetaA3 + pi/2.0
     # m     = tan(auxth)
     # P0    = apoints[len(apoints)-1]
@@ -455,7 +455,7 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
     # xc    = P0[0] - rA*cos(auxth)
     # yc    = P0[1] - rA*sin(auxth)
     # for i in range(N):
-        # th = (A['Theta4'] - auxth)*(i+1)/(N) + auxth              
+        # th = (A['Theta4'] - auxth)*(i+1)/(N) + auxth
         # apoints.append ([xc + rA*cos(th),
                         # yc +rA*sin(th)])
         # anormals.append([cos(th),
@@ -477,7 +477,7 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
     # for i in range(N):
         # points.append(apoints[N-1-i])
         # normals.append(anormals[N-1-i])
-        
+
     ## Mirrors this!
     # N = len(points)
     # for i in range(N-1):
@@ -490,7 +490,7 @@ def RackOutline(n=30, res=1, phi=20, radius=5, addendum=0.4, dedendum=0.5, fradi
 
 class shape_object(object):
 
-    def rframe(self, pos=[0,0], width=1, height=None, rotate=0, thickness=None, 
+    def rframe(self, pos=[0,0], width=1, height=None, rotate=0, thickness=None,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         if height is None:
             height = width
@@ -509,7 +509,7 @@ class shape_object(object):
             inner = roundc(inner, roundness=roundness, invert=invert)
         return [ outer, inner ]
 
-    def rectangle(self, pos=[0,0], width=1, height=None, rotate=0, thickness=0, 
+    def rectangle(self, pos=[0,0], width=1, height=None, rotate=0, thickness=0,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         if height is None:
             height = width
@@ -524,11 +524,11 @@ class shape_object(object):
             if xscale != 1 or yscale != 1: cp = scalecp(cp, xscale, yscale)
             if roundness > 0: cp = roundc(cp, roundness=roundness, invert=invert)
         else:
-            cp = self.rframe(pos=pos, width=width, height=height, rotate=rotate, thickness=thickness, 
+            cp = self.rframe(pos=pos, width=width, height=height, rotate=rotate, thickness=thickness,
                     roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
         return cp
 
-    def cross(self, pos=[0,0], width=1, rotate=0, thickness=0.2, 
+    def cross(self, pos=[0,0], width=1, rotate=0, thickness=0.2,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         wtp = (width + thickness) / 2
         w2 = width / 2
@@ -542,37 +542,37 @@ class shape_object(object):
         if roundness > 0: cp = roundc(cp, roundness=roundness, invert=invert)
         return cp
 
-    def trframe(self, pos=[0,0], width=2, height=1, top=None, rotate=0, thickness=None, 
+    def trframe(self, pos=[0,0], width=2, height=1, top=None, rotate=0, thickness=None,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         if top is None: top = width / 2
         if thickness is None:
             thickness = min(height, top) * .2
         else:
             thickness = min(height, top) * thickness * 2
-        
+
         outer = self.trapezoid(pos=pos, width=width, height=height, top=top)
         angle = atan((width - top) / 2 / height)
         db = thickness / cos(angle)
-        inner = self.trapezoid(pos=pos, width=width - db - thickness * tan(angle), 
+        inner = self.trapezoid(pos=pos, width=width - db - thickness * tan(angle),
                                 height=height - thickness, top=top - (db - thickness * tan(angle)))
         outer = addpos(outer, pos=pos)
         inner = addpos(inner, pos=pos)
         if rotate != 0:
             outer = rotatecp(outer, pos=pos, rotate=rotate)
             inner = rotatecp(inner, pos=pos, rotate=rotate)
-        
+
         if scale != 1: xscale = yscale = scale
         if xscale != 1 or yscale != 1:
             outer = scalecp(outer, xscale=xscale, yscale=yscale)
             inner = scalecp(inner, xscale=xscale, yscale=yscale)
-        
+
         if roundness > 0:
             outer = roundc(outer, roundness=roundness, invert=invert)
             inner = roundc(inner, roundness=roundness, invert=invert)
-        
+
         return [ outer, inner ]
 
-    def trapezoid(self, pos=[0,0], width=2, height=1, top=None, rotate=0, thickness=0, 
+    def trapezoid(self, pos=[0,0], width=2, height=1, top=None, rotate=0, thickness=0,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         w2 = width / 2
         h2 = height / 2
@@ -586,7 +586,7 @@ class shape_object(object):
             if xscale != 1 or yscale != 1: cp = scalecp(cp, xscale=xscale, yscale=yscale)
             if roundness > 0: cp = roundc(cp, roundness=roundness, invert=invert)
         else:
-            cp = self.trframe(pos=pos, width=width, height=height, top=top, rotate=rotate, thickness=thickness, 
+            cp = self.trframe(pos=pos, width=width, height=height, top=top, rotate=rotate, thickness=thickness,
                     roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
         return cp
 
@@ -626,12 +626,12 @@ class shape_object(object):
         cp = []
         if thickness > 0:
             iradius = radius - radius*thickness
-            cp = self.circframe(pos=pos, radius=radius, np=np, rotate=rotate, iradius=iradius, 
+            cp = self.circframe(pos=pos, radius=radius, np=np, rotate=rotate, iradius=iradius,
                     angle1=angle1, angle2=angle2, scale=scale, xscale=xscale, yscale=yscale)
         else:
             if angle1 != 0 or angle2 != 2 *pi:
                 cp.append([ corner[0], corner[1] ])
-            seg = 2 * pi / np       
+            seg = 2 * pi / np
             nseg = int(floor(abs((angle2 - angle1) / seg + .5)))
             seg = (angle2 - angle1) / nseg
             if angle1 != 0 or angle2 != 2 * pi: nseg += 1
@@ -649,12 +649,12 @@ class shape_object(object):
                 c = c2
                 s = s2
             cp.append(cp[0])
-            if rotate != 0: cp = rotatecp(cp, pos=pos, rotate=rotate)        
+            if rotate != 0: cp = rotatecp(cp, pos=pos, rotate=rotate)
             if scale != 1: xscale = yscale = scale
             if xscale != 1 or yscale != 1: cp = scalecp(cp, xscale=xscale, yscale=yscale)
         return cp
 
-    def arc(self, pos=[0,0], radius=0.5, np=npdefault, rotate=0, thickness=None, 
+    def arc(self, pos=[0,0], radius=0.5, np=npdefault, rotate=0, thickness=None,
                     angle1=0, angle2=2*pi, scale=1, xscale=1, yscale=1, path=False):
         if thickness is None: thickness = .01 * radius
         cp = []  # outer arc
@@ -682,7 +682,7 @@ class shape_object(object):
         if height is None: height = .5 * width
         yscale *= height/width
         radius = width
-        return self.circle(pos=pos, radius=radius, np=np, rotate=rotate, 
+        return self.circle(pos=pos, radius=radius, np=np, rotate=rotate,
                     angle1=angle1, angle2=angle2, scale=scale, xscale=xscale, yscale=yscale)
 
     # line is not called by paths.line()
@@ -704,7 +704,7 @@ class shape_object(object):
             y = start[1] + v.y
             cp.append([x + pos[0], y + pos[1]])
             cpi.append([x + pos[0] + dx, y + pos[1] + dy])
-        
+
         cpi.reverse()
         for i in range(len(cpi)): cp.append(cpi[i])
         cp.append(cp[0])
@@ -713,13 +713,13 @@ class shape_object(object):
         if xscale != 1 or yscale != 1: scalecp(cp, xscale, yscale)
         return cp
 
-    def nframe(self, pos=[0,0], length=1, rotate=0, thickness=None, np=3, 
+    def nframe(self, pos=[0,0], length=1, rotate=0, thickness=None, np=3,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         if thickness is None:
             thickness = length * .1
         else:
             thickness = length * thickness
-        
+
         outer = self.ngon(pos=pos, np=np, length=length)
         angle = pi * (.5 - 1 / np)
         length2 = length - 2 * thickness / tan(angle)
@@ -727,19 +727,19 @@ class shape_object(object):
         if rotate != 0:
             outer = rotatecp(outer, pos, rotate)
             inner = rotatecp(inner, pos, rotate)
-        
+
         if scale != 1: xscale = yscale = scale
         if xscale != 1 or yscale != 1:
             outer = scale(outer, xscale, yscale)
             inner = scale(inner, xscale, yscale)
-        
+
         if roundness > 0:
             outer = roundc(outer, roundness=roundness, invert=invert)
             inner = roundc(inner, roundness=roundness, invert=invert)
-        
+
         return [ outer, inner ]
 
-    def ngon(self, pos=[0,0], length=1, rotate=0, thickness=0, np=None, 
+    def ngon(self, pos=[0,0], length=1, rotate=0, thickness=0, np=None,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         cp = []
         if np is None:  raise AttributeError("must specify np for ngon shape")
@@ -764,25 +764,25 @@ class shape_object(object):
                     roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
         return cp
 
-    def triangle(self, pos=[0,0], length=1, rotate=0, thickness=0, 
+    def triangle(self, pos=[0,0], length=1, rotate=0, thickness=0,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         return self.ngon(pos=pos, np=3, length=length, rotate=rotate-pi/6,
                    roundness=roundness, invert=invert, scale=scale,
                    xscale=xscale, yscale=yscale, thickness=thickness)
 
-    def pentagon(self, pos=[0,0], length=1, rotate=0, thickness=0, 
+    def pentagon(self, pos=[0,0], length=1, rotate=0, thickness=0,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         return self.ngon(pos=pos, np=5, length=length, rotate=rotate-pi/10,
                    roundness=roundness, invert=invert, scale=scale,
                    xscale=xscale, yscale=yscale, thickness=thickness)
 
-    def hexagon(self, pos=[0,0], length=1, rotate=0, thickness=0, 
+    def hexagon(self, pos=[0,0], length=1, rotate=0, thickness=0,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         return self.ngon(pos=pos, np=6, length=length, rotate=rotate,
                    roundness=roundness, invert=invert, scale=scale,
                    xscale=xscale, yscale=yscale, thickness=thickness)
 
-    def octagon(self, pos=[0,0], length=1, rotate=0, thickness=0, 
+    def octagon(self, pos=[0,0], length=1, rotate=0, thickness=0,
                     roundness=0, invert=False, scale=1, xscale=1, yscale=1):
         return self.ngon(pos=pos, np=8, length=length, rotate=rotate+pi/8,
                    roundness=roundness, invert=invert, scale=scale,
@@ -796,22 +796,22 @@ class shape_object(object):
             thickness = .2 * radius
         else:
             thickness = thickness * 2 * iradius
-        
+
         outer = self.star(pos=pos, n=n, radius=radius, iradius=iradius)
         inner = self.star(pos=pos, n=n, radius=radius - thickness, iradius=(radius - thickness) * iradius / radius)
         if rotate != 0:
             outer = rotatecp(outer, pos, rotate)
             inner = rotatecp(inner, pos, rotate)
-        
+
         if scale != 1: xscale = yscale = scale
         if xscale != 1 or yscale != 1:
             outer = scale(outer, xscale, yscale)
             inner = scale(inner, xscale, yscale)
-        
+
         if roundness > 0:
             outer = roundc(outer, roundness=roundness, invert=invert)
             inner = roundc(inner, roundness=roundness, invert=invert)
-        
+
         return [ outer, inner ]
 
     def star(self, pos=[0,0], rotate=0, thickness=0, radius=1, n=5, iradius=None,
@@ -849,13 +849,13 @@ class shape_object(object):
         if xscale != 1 or yscale != 1: scalecp(cp, xscale, yscale)
         if roundness > 0: cp = roundc(cp, roundness=roundness, invert=invert)
         return cp
-        
+
     def gear(self, pos=[0,0], n=20, radius=1, phi=20, addendum=None, dedendum=None,
                 fradius=None, rotate=0, scale=1, res=1, bevel=0):
             if addendum is None: addendum = 0.08*radius
             if dedendum is None: dedendum = 0.1*radius
             if fradius is None: fradius = 0.02*radius
-            tooth = ToothOutline(n=n, res=res, phi=phi, radius=radius, 
+            tooth = ToothOutline(n=n, res=res, phi=phi, radius=radius,
                         addendum=addendum, dedendum=dedendum, fradius=fradius, bevel=0)
             g = []
             for i in range(n):
@@ -868,7 +868,7 @@ class shape_object(object):
                     rx = x * cos(rotan) - y * sin(rotan) +  pos[0]
                     ry = x * sin(rotan) + y * cos(rotan) +  pos[1]
                     rtooth.append([rx, ry])
-                g.extend(rtooth)         
+                g.extend(rtooth)
             if scale != 1: g = scalecp(g, scale, scale)
             if rotate != 0: g = rotatecp(g, pos, rotate)
             pts = []
@@ -899,7 +899,7 @@ class shape_object(object):
             if addendum is None: addendum = 0.08*radius
             if dedendum is None: dedendum = 0.1*radius
             if fradius is None: fradius = 0.02*radius
-            tooth = RackOutline(n=n, res=res, phi=phi, radius=radius, 
+            tooth = RackOutline(n=n, res=res, phi=phi, radius=radius,
                         addendum=addendum, dedendum=dedendum, fradius=fradius, bevel=bevel)
             toothl = tooth[0][1] - tooth[-1][1]
             nt = int(floor(length / toothl))
@@ -919,7 +919,7 @@ class shape_object(object):
                     lastx = x
                     lasty = y
                 g.extend(ntooth)
-            
+
             g.append([g[-1][0] - depth, g[-1][1]])
             g.append([g[0][0] - depth, g[0][1]])
             g.append(g[0])
@@ -935,14 +935,14 @@ class shape_object(object):
                 if x > right: right = x
                 if y < bottom: bottom = y
                 if y > top: top = y
-            
+
             center = [ (left + right) / 2, (bottom + top) / 2 ]
             dx = pos[0] - center[0]
             dy = pos[1] - center[1]
             g2 = []
             for i in range(len(g)):
                 temp = g[i]
-                g2.append([ temp[0] + dx, temp[1] + dy ])      
+                g2.append([ temp[0] + dx, temp[1] + dy ])
             if scale != 1: g2 = scalecp(g2, scale, scale)
             if rotate != 0: g2 = rotatecp(g2, pos, rotate)
             a1 = g2[0]
@@ -1063,7 +1063,7 @@ class path_object(object):
             c = shapes.star(n=n, radius=radius, iradius=iradius, rotate=rotate,
                       roundness=roundness, invert=invert, scale=scale, xscale=xscale, yscale=yscale)
             return convert(pos=pos, up=up, points=c)
-            
+
     def pointlist(self, pos=[], rotate=0.0, thickness=None,
                       roundness=0.0, invert=False, scale=1.0, xscale=1.0, yscale=1.0, up=vec(0,1,0)):
             if thickness is not None:
@@ -1081,6 +1081,6 @@ class path_object(object):
             c = shapes.pointlist(pos=points, rotate=rotate, roundness=roundness, invert=invert,
                              scale=scale, xscale=xscale, yscale=yscale, path=True)
             return convert(pos=(0,0,0), up=up, points=c, closed=closed)
-            
+
 shapes = shape_object()
 paths = path_object()

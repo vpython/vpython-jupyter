@@ -1,5 +1,3 @@
-from __future__ import print_function, division, absolute_import
-
 # Cythonize the encode machinery?
 import colorsys
 from .rate_control import rate
