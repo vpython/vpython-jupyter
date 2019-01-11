@@ -87,7 +87,7 @@ on_success:
     - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
     - set upload_builds=
     - if "%APPVEYOR_REPO_TAG%"=="true" set upload_builds=1
-    - python .ci-support\upload-label.py > label.txt
+    - python .ci-support\upload_label.py > label.txt
     - set /P UPLOAD_LABEL=<label.txt
     - echo %UPLOAD_LABEL%
     # If this build is because of a tag on master make the conda package and upload it.
