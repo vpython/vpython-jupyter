@@ -87,7 +87,10 @@ on_success:
     - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
     - set upload_builds=
     - if "%APPVEYOR_REPO_TAG%"=="true" set upload_builds=1
+    - python .ci-support\upload_label.py > label.txt
+    - set /P UPLOAD_LABEL=<label.txt
+    - echo %UPLOAD_LABEL%
     # If this build is because of a tag on master make the conda package and upload it.
-    - cmd: if defined upload_builds anaconda -t %BINSTAR_TOKEN% upload -u vpython %BUILT_PACKAGE%
+    - cmd: if defined upload_builds anaconda -t %BINSTAR_TOKEN% upload -u vpython -l %UPLOAD_LABEL% %BUILT_PACKAGE%
     - cmd: pip install twine
     - cmd: if defined upload_builds twine upload -u %PYPI_USER% -p %PYPI_PASSWORD% dist\*
