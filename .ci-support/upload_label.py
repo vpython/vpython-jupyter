@@ -1,7 +1,7 @@
 import os
 
 travis_tag = os.getenv('TRAVIS_TAG')
-appveyor_tag = os.getenv('APPVEYOR_REPO_TAG')
+appveyor_tag = os.getenv('APPVEYOR_REPO_TAG_NAME')
 
 
 def generate_label(version):
