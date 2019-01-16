@@ -41,7 +41,7 @@ requirements:
     - jupyter
     - vpnotebook
     - ujson
-    - autobahn # [not py2k and not py34]
+    - autobahn >=18.8.2
     - numpy
     - ipykernel <5
 
