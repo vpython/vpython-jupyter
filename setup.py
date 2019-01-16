@@ -18,7 +18,8 @@ except ImportError:
 
 import versioneer
 
-install_requires = ['jupyter', 'vpnotebook', 'numpy', 'ipykernel']
+install_requires = ['jupyter', 'vpnotebook', 'numpy', 'ipykernel',
+                    'autobahn>=18.8.2']
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 5:
     install_requires.append('autobahn')
