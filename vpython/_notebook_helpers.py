@@ -1,4 +1,5 @@
 import os
+import sys
 
 
 def __is_spyder():
@@ -15,6 +16,12 @@ def _warn_if_spyder_settings_wrong():
         print('\x1b[1;31m**** Please set spyder preference Run to '
               '"Execute in a dedicated console" for the best '
               'vpython experience. ****\x1b[0m')
+
+
+def _undo_vpython_import_in_spyder():
+    for modname, module in list(sys.modules.items()):
+        if modname.startswith('vpython'):
+            del sys.modules[modname]
 
 
 def __checkisnotebook():

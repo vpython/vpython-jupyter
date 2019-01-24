@@ -1,5 +1,5 @@
 from .vpython import GlowWidget, baseObj, vector, canvas
-from ._notebook_helpers import _in_spyder
+from ._notebook_helpers import _in_spyder, _undo_vpython_import_in_spyder
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
@@ -192,12 +192,14 @@ class WSserver(WebSocketServerProtocol):
 
         self.connection = None
 
+        # We r done serving, let everyone else know...
         websocketserving = False
 
+        # The cleanest way to get a fresh browser tab going in spyder
+        # is to force vpython to be reimported each time the code is run.
         if _in_spyder:
-            for modname, module in list(sys.modules.items()):
-                if modname.startswith('vpython'):
-                    del sys.modules[modname]
+            _undo_vpython_import_in_spyder()
+
         # We want to exit, but the main thread is running.
         # Only the main thread can properly call sys.exit, so have a signal
         # handler call it on the main thread's behalf.
