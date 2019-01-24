@@ -9,7 +9,7 @@ del glowscript_version
 #  __gs_version__ exist before importing vpython, which itself imports
 # both of those.
 
-from ._notebook_helpers import _isnotebook
+from ._notebook_helpers import _isnotebook, __is_spyder
 import platform
 __p = platform.python_version()
 
@@ -51,3 +51,10 @@ except NameError:
 from math import *
 from numpy import arange
 from random import random
+
+if __is_spyder():
+    from ._notebook_helpers import _spyder_run_setting_is_correct
+    if not _spyder_run_setting_is_correct():
+        print('** Please set spyder preference Run to '
+              '"Execute in a dedicated console" for the best '
+              'vpython experience. **')

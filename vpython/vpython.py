@@ -223,6 +223,11 @@ class baseObj(object):
             else:
                 from .no_notebook import _
             baseObj._view_constructed = True
+        elif baseObj._view_constructed and not _isnotebook and not baseObj._canvas_constructing:
+            from .no_notebook import still_serving, ensure_websocket_server
+            if not still_serving():
+                print("Dang navvit me no has server!!!")
+                ensure_websocket_server()
 
         self.idx = baseObj.objCnt   ## an integer
         self.object_registry[self.idx] = self
