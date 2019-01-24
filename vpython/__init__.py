@@ -53,8 +53,5 @@ from numpy import arange
 from random import random
 
 if __is_spyder():
-    from ._notebook_helpers import _spyder_run_setting_is_correct
-    if not _spyder_run_setting_is_correct():
-        print('** Please set spyder preference Run to '
-              '"Execute in a dedicated console" for the best '
-              'vpython experience. **')
+    from ._notebook_helpers import _warn_if_spyder_settings_wrong
+    _warn_if_spyder_settings_wrong()

@@ -10,6 +10,13 @@ def _spyder_run_setting_is_correct():
     return CONF['run']['default/interpreter/dedicated']
 
 
+def _warn_if_spyder_settings_wrong():
+    if not _spyder_run_setting_is_correct():
+        print('\x1b[1;31m**** Please set spyder preference Run to '
+              '"Execute in a dedicated console" for the best '
+              'vpython experience. ****\x1b[0m')
+
+
 def __checkisnotebook():
     """
     Check whether we are running in a notebook or not
