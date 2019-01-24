@@ -1,4 +1,5 @@
-from .vpython import GlowWidget, baseObj, vector
+from .vpython import GlowWidget, baseObj, vector, canvas
+from ._notebook_helpers import _in_spyder, _undo_vpython_import_in_spyder
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
@@ -61,11 +62,18 @@ except:
 # Make it possible for glowcomm.html to find out what the websocket port is:
 js = __file__.replace(
     'no_notebook.py', 'vpython_libraries' + os.sep + 'glowcomm.html')
-fd = open(js)
-glowcomm = fd.read()
-fd.close()
-# provide glowcomm.html with socket number
-glowcomm = glowcomm.replace('XXX', str(__SOCKET_PORT))
+
+with open(js) as fd:
+    glowcomm_raw = fd.read()
+
+
+def glowcomm_with_socket_port(port):
+    global glowcomm_raw
+    # provide glowcomm.html with socket number
+    return glowcomm_raw.replace('XXX', str(port))
+
+
+glowcomm = glowcomm_with_socket_port(__SOCKET_PORT)
 
 httpserving = False
 websocketserving = False
@@ -180,7 +188,18 @@ class WSserver(WebSocketServerProtocol):
 
     def onClose(self, wasClean, code, reason):
         """Called when browser tab is closed."""
+        global websocketserving
+
         self.connection = None
+
+        # We r done serving, let everyone else know...
+        websocketserving = False
+
+        # The cleanest way to get a fresh browser tab going in spyder
+        # is to force vpython to be reimported each time the code is run.
+        if _in_spyder:
+            _undo_vpython_import_in_spyder()
+
         # We want to exit, but the main thread is running.
         # Only the main thread can properly call sys.exit, so have a signal
         # handler call it on the main thread's behalf.
@@ -200,6 +219,8 @@ try:
         server_address = ('', 0)      # let HTTPServer choose a free port
         __server = HTTPServer(server_address, serveHTTP)
         port = __server.server_port   # get the chosen port
+        # Change the global variable to store the actual port used
+        __HTTP_PORT = port
         _webbrowser.open('http://localhost:{}'.format(port)
                          )  # or webbrowser.open_new_tab()
     else:
@@ -213,7 +234,7 @@ __w = threading.Thread(target=__server.serve_forever)
 __w.start()
 
 
-def start_server():
+def start_websocket_server():
     """
     Function to get the websocket server going and run the event loop
     that feeds it.
@@ -242,7 +263,7 @@ def start_server():
 # Put the websocket server in a separate thread running its own event loop.
 # That works even if some other program (e.g. spyder) already running an
 # async event loop.
-__t = threading.Thread(target=start_server)
+__t = threading.Thread(target=start_websocket_server)
 __t.start()
 
 

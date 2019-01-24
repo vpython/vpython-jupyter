@@ -9,7 +9,7 @@ del glowscript_version
 #  __gs_version__ exist before importing vpython, which itself imports
 # both of those.
 
-from ._notebook_helpers import _isnotebook
+from ._notebook_helpers import _isnotebook, __is_spyder
 import platform
 __p = platform.python_version()
 
@@ -51,3 +51,7 @@ except NameError:
 from math import *
 from numpy import arange
 from random import random
+
+if __is_spyder():
+    from ._notebook_helpers import _warn_if_spyder_settings_wrong
+    _warn_if_spyder_settings_wrong()
