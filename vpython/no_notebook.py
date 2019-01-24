@@ -265,31 +265,6 @@ __t = threading.Thread(target=start_websocket_server)
 __t.start()
 
 
-def ensure_websocket_server():
-    global __SOCKET_PORT, GW
-    if not websocketserving:
-        __SOCKET_PORT = find_free_port()
-        # Put the websocket server in a separate thread running its own event loop.
-        # That works even if some other program (e.g. spyder) already running an
-        # async event loop.
-        __t = threading.Thread(target=start_websocket_server)
-        __t.start()
-    # Update the html with which we respond to include the new socket port
-    glowcomm_with_socket_port(__SOCKET_PORT)
-    print(__SOCKET_PORT)
-    scene = canvas()
-    # This hits our new websocket server which should start it running
-    GW = GlowWidget()
-
-    # If we arrived in this function then the browser tab has been closed so
-    # reopen it.
-    _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT))
-
-    while not websocketserving:
-        rate(60)
-
-
-
 def stop_server():
     """Shuts down all threads and exits cleanly."""
     global __server
