@@ -92,8 +92,15 @@ function checkloading() {
     }
 }
 
-export function onmessage(msg) {
+function domessage(msg) {
     "use strict";
+    if (firstcall) {
+        firstcall = false
+        firstmsg = msg
+        checkloading()
+    } else {
+        domessage(msg)
+    }
 	try {	
 		if (timer !== null) clearTimeout(timer)
 		var t1 = msclock()
@@ -110,6 +117,19 @@ export function onmessage(msg) {
 	catch(err) {
 		console.log("glowcomm onmessage error : ",err.message);
 	}
+}
+
+//vpython.py calls onmessage, which responds through domessage, using send
+//Both vpython.py and this file are kept alive by sending messages back and forth.
+export function onmessage(msg) {
+ "use strict";
+ if (firstcall) {
+     firstcall = false
+     firstmsg = msg
+     checkloading()
+ } else {
+     domessage(msg)
+ }
 }
 
 // The following is necessary to be able to re-run programs.
