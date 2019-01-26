@@ -94,13 +94,6 @@ function checkloading() {
 
 function domessage(msg) {
     "use strict";
-    if (firstcall) {
-        firstcall = false
-        firstmsg = msg
-        checkloading()
-    } else {
-        domessage(msg)
-    }
 	try {	
 		if (timer !== null) clearTimeout(timer)
 		var t1 = msclock()
