@@ -62,9 +62,6 @@ else:
                                                   nbextensions_dir=labextensions_dir,
                                                   overwrite=False,
                                                   verbose=0)
-    else:
-        print("Must have at least version 0.35 of JupyterLab")
-
 
 if 'nbextensions' in os.listdir(jd):
     ldir = os.listdir(nbdir)
