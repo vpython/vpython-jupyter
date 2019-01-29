@@ -43,10 +43,10 @@ requirements:
     - ujson
     - autobahn >=18.8.2
     - numpy
-    - ipykernel <5
+    - ipykernel
 
 outputs:
-    - type: wheel   # [not win]
+    # Someday, maybe: - type: wheel
     - type: conda
       name: vpython
 

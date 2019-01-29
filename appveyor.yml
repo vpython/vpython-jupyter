@@ -4,6 +4,9 @@ environment:
   # Install appropriate conda here based on TARGET_ARCH
   CONDA_INSTALL_LOCN: "C:\\conda"
 
+  CONDA_VERSION_PIN: "4.5"
+  TQDM_PIN: ""
+
   # These installs are needed on windows but not other platforms.
   INSTALL_ON_WINDOWS: "patch psutil"
 
@@ -29,6 +32,10 @@ environment:
     - TARGET_ARCH: "x64"
       CONDA_PY: "3.5"
       CONDA_INSTALL_LOCN: "C:\\Miniconda35-x64"
+      # Need to pin this on python 35 for reasons unfathomable to me (well,
+      # probably related to the fact that tqdm 4.29.0 is noarch, and
+      # conda 3.5.11 doesn't handle that well, maybe)
+      TQDM_PIN: "=4.26"
 
     # 32-bit builds
     - TARGET_ARCH: "x86"
@@ -40,11 +47,28 @@ environment:
     - TARGET_ARCH: "x86"
       CONDA_PY: "3.5"
       CONDA_INSTALL_LOCN: "C:\\Miniconda35"
+      # Need to pin this on python 35 for reasons unfathomable to me (well,
+      # probably related to the fact that tqdm 4.29.0 is noarch, and
+      # conda 3.5.11 doesn't handle that well, maybe)
+      TQDM_PIN: "=4.26"
 
 # We always use a 64-bit machine, but can build x86 distributions
 # with the TARGET_ARCH variable.
 platform:
     - x64
+
+# Only run the x86 jobs when there is a release
+for:
+-
+  matrix:
+    only:
+      - TARGET_ARCH: "x86"
+
+  skip_non_tags: true
+
+# Uncomment this to allow RDP into appveyor worker
+# init:
+#   - ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
 
 install:
     - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
@@ -52,13 +76,16 @@ install:
     - cmd: conda config --add channels vpython
 
     - cmd: conda config --set always_yes true
-    - cmd: conda update --quiet conda
+    # - conda install conda=4.5
+    # - cmd: conda update --quiet conda python
 
+    - echo %CONDA_PY%
+    # Need to do this to pick up newer versions of conda
+    - if "%CONDA_PY%"=="3.5" conda update --quiet conda
 
+    - cmd: conda install --quiet conda=%CONDA_VERSION_PIN% jinja2 conda-build anaconda-client cython wheel %INSTALL_ON_WINDOWS% tqdm%TQDM_PIN%
 
-    - cmd: conda install --quiet jinja2 conda-build anaconda-client cython wheel %INSTALL_ON_WINDOWS%
-
-    - conda create --quiet -n wheel-build python=%CONDA_PY% wheel cython
+    #- conda create --quiet -n wheel-build python=%CONDA_PY% wheel cython
     - conda info -a
 
 # Skip .NET project specific build phase.
@@ -78,9 +105,15 @@ test_script:
     - if NOT EXIST %BUILT_PACKAGE% exit /b 1
     - for %%F in (%BUILT_PACKAGE%) do set dirname=%%~dpF
     - echo %dirname%
-    - activate wheel-build
-    - python setup.py bdist_wheel"
-    - deactivate
+    - set PATH=%CONDA_INSTALL_LOCN%\Scripts;%PATH%
+    - conda info -a
+    - python setup.py bdist_wheel
+    - dir dist
+
+# Don't end the job immediately so that problems can be explored via RDP
+# Uncomment this to allow RDP into appveyor worker
+# on_finish:
+#   - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
 
 on_success:
     # Make sure appveyor still knows about conda...
