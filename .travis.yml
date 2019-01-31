@@ -38,6 +38,9 @@ install:
     # make a wheel building environment to ensure correct python version.
     - conda create --quiet -n wheel-build python=$CONDA_PY wheel cython
 
+    # For debugging....
+    - conda info -a
+
 script:
     # Define a variable that will be YES for exactly one os/python
     # combination and use it to decide whether to upload an sdist.

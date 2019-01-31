@@ -197,6 +197,11 @@ class WSserver(WebSocketServerProtocol):
 
         # The cleanest way to get a fresh browser tab going in spyder
         # is to force vpython to be reimported each time the code is run.
+        #
+        # Even though this code is repeated in stop_server below we also
+        # need it here because in spyder the script may have stopped on its
+        # own ( because it has no infinite loop in it ) so the only signal
+        # that the tab has been closed comes via the websocket.
         if _in_spyder:
             _undo_vpython_import_in_spyder()
 
@@ -276,6 +281,18 @@ def stop_server():
     # We've told the event loop to stop, but it won't shut down until we poke
     # it with a simple scheduled task.
     event_loop.call_soon_threadsafe(lambda: None)
+
+    # If we are in spyder, undo our import. This gets done in the websocket
+    # server onClose above if the browser tab is closed but is not done
+    # if the user stops the kernel instead.
+    if _in_spyder:
+        _undo_vpython_import_in_spyder()
+
+    # We don't want Ctrl-C to try to sys.exit inside spyder, i.e.
+    # in an ipython console with a separate python kernel running.
+    if _in_spyder:
+        raise KeyboardInterrupt
+
     if threading.main_thread().is_alive():
         sys.exit(0)
     else:
