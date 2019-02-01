@@ -43,6 +43,23 @@ export function createWebsocket(msg) {
     }
 }
 
+var wsmsg
+
+function wscheckfontsloaded() {
+	"use strict";
+	if (window.__font_sans === undefined || window.__font_serif === undefined) {
+		setTimeout(wscheckfontsloaded,10)
+	} else {
+		createWebsocket(wsmsg)
+	}
+}
+
+export function setupWebsocket(msg) {
+	"use strict";
+	wsmsg = msg
+	wscheckfontsloaded()
+}
+
 var datadir = window.location.href + '/static/vpython_data/'
 window.Jupyter_VPython = "/lab/static/vpython_data/" // prefix used by glow.min.js for textures
 
