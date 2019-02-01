@@ -47,7 +47,7 @@ class VPythonExtension implements DocumentRegistry.IWidgetExtension<NotebookPane
 					glowcommlab.comm = vp_comm
 					vp_comm.onMsg = glowcommlab.onmessage
 					
-					glowcommlab.createWebsocket(commMsg)
+					glowcommlab.setupWebsocket(commMsg)
 					
 				});
 			
