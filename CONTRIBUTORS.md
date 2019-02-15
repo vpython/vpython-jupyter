@@ -26,3 +26,7 @@ We are certain the list is incomplete; please let one of us know by opening an [
 + @KHALAK
 + @qazwsxedcrfvtg14
 + @russkel
+
+## Full timeline of vpython development
+
+The vpython package grew out of efforts to integrate computing in college physics courses in the 1990s. A full history of [vpython development is here](https://brucesherwood.net/?p=136)
