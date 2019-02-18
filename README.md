@@ -11,7 +11,7 @@ The one-line program "sphere()" produces a 3D sphere with appropriate lighting
 and with the camera positioned so that the scene fills the view. It also
 activates mouse interactions to zoom and rotate the camera view. This
 implementation of VPython was begun by John Coady in May 2014. Ruth Chabay,
-Matt Craig, and Bruce Sherwood are assisting in its further development
+Matt Craig, and Bruce Sherwood are assisting in its further development.
 
 ## Installation
 
