@@ -1,7 +1,7 @@
 # VPython
 
 This package enables one to run VPython in a browser, using the GlowScript
-VPython API, documented in the Help at http://glowscript.org. If the code is
+VPython API, documented in the Help at https://glowscript.org. If the code is
 in a cell in a Jupyter notebook, the 3D scene appears in the Jupyter notebook.
 If the code is launched outside a notebook (e.g. from the command line), a
 browser window will open displaying the scene.
@@ -10,13 +10,12 @@ VPython makes it unusually easy to create navigable real-time 3D animations.
 The one-line program "sphere()" produces a 3D sphere with appropriate lighting
 and with the camera positioned so that the scene fills the view. It also
 activates mouse interactions to zoom and rotate the camera view. This
-implementation of VPython was begun by John Coady in May 2014. Ruth Chabay and
-Bruce Sherwood are assisting in its further development. The repository for
-the source code is at https://github.com/BruceSherwood/vpython-jupyter.
+implementation of VPython was begun by John Coady in May 2014. Ruth Chabay,
+Matt Craig, and Bruce Sherwood are assisting in its further development
 
 ## Installation
 
-For more detailed instructions on how to install vpython, see http://vpython.org, where you will also find a link to the VPython forum, which is the preferred place to report issues and to request assistance.
+For more detailed instructions on how to install vpython, see https://vpython.org, where you will also find a link to the VPython forum, which is a good place to report issues and to request assistance.
 
 Briefly:
 
@@ -41,7 +40,7 @@ controls available to zoom and rotate the camera:
     Shift-drag to pan left/right and up/down.
     Touch screen: pinch/extend to zoom, swipe or two-finger rotate.
 
-Currently, to re-run a VPython program you need to click the circular arrow icon to "restart the kernel" and then click the red-highlighted button, then click in the first cell, then click the run icon. Alternatively, if you insert "scene = canvas()" at the start of your program, you can rerun the program without restarting the kernel.
+Currently, to re-run a VPython program in a Jupyter notebook you need to click the circular arrow icon to "restart the kernel" and then click the red-highlighted button, then click in the first cell, then click the run icon. Alternatively, if you insert "scene = canvas()" at the start of your program, you can rerun the program without restarting the kernel.
 
 Run example VPython programs: [![Binder](http://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/BruceSherwood/vpython-jupyter/7.4.7?filepath=index.ipynb)
 
