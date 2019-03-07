@@ -5,8 +5,11 @@ import platform
 
 from math import sqrt, tan, pi
 
-from time import clock
 import time
+try:
+    clock = time.perf_counter # time.clock is deprecated in Python 3.3, gone in 3.8
+except:
+    clock = time.clock
 import sys
 from . import __version__, __gs_version__
 from ._notebook_helpers import _isnotebook
@@ -127,6 +130,13 @@ def _encode_attr2(sendval, val, ismethods):
         for p in val:
             s += "{:.16G},{:.16G},".format(p[0], p[1])
         s = s[:-1]
+    elif sendval in ['v0', 'v1', 'v2', 'v3']: # val is the vertex object referenced by triangle or quad
+        s += str(val.idx)
+    elif sendval == 'vs':
+        if len(val) == 3:
+            s += "{d},{d},{d}".format(val[0].idx, val[1].idx, val[2].idx)
+        else:
+            s += "{d},{d},{d},{d}".format(val[0].idx, val[1].idx, val[2].idx, val[3].idx)
     elif ismethods:
         #if sendval in ['follow', 'waitfor', 'delete']: val = str(val) # scene.camera.follow(object idx)
         s += str(val)
@@ -1643,10 +1653,10 @@ class triangle(standardAttributes):
         return self._v0
     @v0.setter
     def v0(self, value):
-        self._v0 = value
         if not self._constructing:
             self._v0.decrementTriangleCount()  ## current v0 now used less
             self.addattr('v0')
+        self._v0 = value
         self._v0.incrementTriangleCount()   ## new v0 now used more
 
     @property
@@ -1654,10 +1664,10 @@ class triangle(standardAttributes):
         return self._v1
     @v1.setter
     def v1(self, value):
-        self._v1 = value
         if not self._constructing:
             self._v1.decrementTriangleCount()  ## current v1 now used less
             self.addattr('v1')
+        self._v1 = value
         self._v1.incrementTriangleCount()   ## new v1 now used more
 
     @property
@@ -1665,10 +1675,10 @@ class triangle(standardAttributes):
         return self._v2
     @v2.setter
     def v2(self, value):
-        self._v2 = value
         if not self._constructing:
             self._v2.decrementTriangleCount()  ## current v2 now used less
             self.addattr('v2')
+        self._v2 = value
         self._v2.incrementTriangleCount()   ## new v2 now used more
 
     @property
@@ -1713,10 +1723,10 @@ class quad(triangle):
         return self._v3
     @v3.setter
     def v3(self, value):
-        self._v3 = value
         if not self._constructing:
             self._v3.decrementTriangleCount()  ## current v3 now used less
             self.addattr('v3')
+        self._v3 = value
         self._v3.incrementTriangleCount()   ## new v3 now used more
 
     @property

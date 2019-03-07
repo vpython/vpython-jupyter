@@ -448,6 +448,7 @@ var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', '
 // patt gets idx and attr code; vpatt gets x,y,z of a vector            
 var patt = /(\d+)(.)(.*)/
 var vpatt = /([^,]*),([^,]*),(.*)/
+var quadpatt = /([^,]*),([^,]*),(.*)/
 var plotpatt = /([^,]*),([^,]*)/
 
 function decode(data) { 
@@ -476,6 +477,15 @@ function decode(data) {
 			if (vecattrs.indexOf(attr) > -1) {
 				val = m[3].match(vpatt)
 				val = vec(Number(val[1]), Number(val[2]), Number(val[3]))
+            } else if (attr == 'vs') {
+                var vs
+                val = m[3].match(quadpatt)
+                if (val === null) {
+                    val = m[3].match(vpatt)
+                    vs = [Number(val[1]), Number(val[2]), Number(val[3])]
+                } else {
+                    vs = [Number(val[1]), Number(val[2]), Number(val[3]), Number(val[4])]
+                }
 			} else if (textattrs.indexOf(attr) > -1) {
                 // '\n' doesn't survive JSON transmission, so in vpython.py we replace '\n' with '<br>'
 				val = m[3].replace(/<br>/g, "\n")
@@ -977,6 +987,9 @@ function handle_attrs(dattrs) {
 		} else {
 			if (triangle_quad.indexOf(attr) !== -1) {
 				obj[attr] = glowObjs[val]
+            } else if (attr = 'vs') {
+                if (val.length == 3) obj[attr]['vs'] = [ glowObjs[val[0]], glowObjs[val[1]], glowObjs[val[2]] ]
+                else obj[attr]['vs'] = [ glowObjs[val[0]], glowObjs[val[1]], glowObjs[val[2]], glowObjs[val[3]] ]
 			} else {
 				obj[attr] = val
 			}
