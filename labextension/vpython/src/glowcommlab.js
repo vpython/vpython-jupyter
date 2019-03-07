@@ -987,9 +987,9 @@ function handle_attrs(dattrs) {
 		} else {
 			if (triangle_quad.indexOf(attr) !== -1) {
 				obj[attr] = glowObjs[val]
-            } else if (attr = 'vs') {
-                if (val.length == 3) obj[attr]['vs'] = [ glowObjs[val[0]], glowObjs[val[1]], glowObjs[val[2]] ]
-                else obj[attr]['vs'] = [ glowObjs[val[0]], glowObjs[val[1]], glowObjs[val[2]], glowObjs[val[3]] ]
+            } else if (attr == 'vs') {
+                if (val.length == 3) obj['vs'] = [ glowObjs[val[0]], glowObjs[val[1]], glowObjs[val[2]] ]
+                else obj['vs'] = [ glowObjs[val[0]], glowObjs[val[1]], glowObjs[val[2]], glowObjs[val[3]] ]
 			} else {
 				obj[attr] = val
 			}
