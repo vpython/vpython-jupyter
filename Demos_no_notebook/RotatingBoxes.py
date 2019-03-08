@@ -1,5 +1,4 @@
 from vpython import *
-from time import clock
 
 N = 10
 
