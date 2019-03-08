@@ -27,9 +27,10 @@ for i in range(N):
     next = last+0.1*vec.random()
     while mag(next) > 1: # if next is outside the sphere, try another random value
         next = last+0.1*vec.random()
-    p.append({'pos':next, 'radius':0.002+0.04*random(), 'color':(vec(1,1,1)+vec.random())/2})
+    #p.append({'pos':next, 'radius':0.002+0.04*random(), 'color':(vec(1,1,1)+vec.random())/2})
+    p.append({'pos':next, 'radius':3+10*random(), 'color':(vec(1,1,1)+vec.random())/2})
     last = next
-c = points(pos=p, size_units='world')
+c = points(pos=p) #, size_units='world')
 while True:
     rate(60)
     if run: # Currently there isn't a way to rotate a points object, so rotate scene.forward:

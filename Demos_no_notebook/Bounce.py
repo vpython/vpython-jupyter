@@ -34,3 +34,4 @@ while True:
         ball.p.y = -ball.p.y
     if not (side > ball.pos.z > -side):
         ball.p.z = -ball.p.z
+

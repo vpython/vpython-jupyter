@@ -1,7 +1,6 @@
 from vpython import *
 scene.width = scene.height = 600
 scene.range = 0.6
-from time import clock
 
 # A pulse ripples along a rug, demonstrating dynamic changea of shape
 # Bruce Sherwood, May 2012
