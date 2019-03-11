@@ -1,7 +1,7 @@
 # VPython
 
 This package enables one to run VPython in a browser, using the GlowScript
-VPython API, documented in the Help at https://glowscript.org. If the code is
+VPython API, documented in the Help at https://www.glowscript.org. If the code is
 in a cell in a Jupyter notebook, the 3D scene appears in the Jupyter notebook.
 If the code is launched outside a notebook (e.g. from the command line), a
 browser window will open displaying the scene.
