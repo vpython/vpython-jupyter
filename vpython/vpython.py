@@ -698,7 +698,7 @@ class standardAttributes(baseObj):
 
 
     # set canvas
-        if self.canvas == None:  ## not specified in constructor
+        if self.canvas is None:  ## not specified in constructor
             self.canvas = canvas.get_selected()
         #cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
         cmd['canvas'] = self.canvas.idx
@@ -711,7 +711,7 @@ class standardAttributes(baseObj):
         if _special_clone is not None: cmd["_cloneid"] = _special_clone
         self.appendcmd(cmd)
 
-        # if ('frame' in args and args['frame'] != None):
+        # if ('frame' in args and args['frame'] is not None):
             # frame.objects.append(self)
             # frame.update_obj_list()
 
@@ -999,9 +999,9 @@ class standardAttributes(baseObj):
         saveorigin = origin
         if angle == 0:
             return
-        if angle == None:
+        if angle is None:
             raise TypeError('You must specify an angle through which to rotate')
-        if axis == None:
+        if axis is None:
             rotaxis = self.axis
         else:
             rotaxis = axis
@@ -1961,7 +1961,7 @@ class curve(curveMethods):
 
         super(curveMethods, self).setup(args)
 
-        if tpos != None:
+        if tpos is not None:
             if len(args1) > 0: raise AttributeError('Malformed constructor')
             self.append(tpos)
         if len(args1) > 0:
@@ -1985,7 +1985,7 @@ class points(curveMethods):
 
         super(curveMethods, self).setup(args)
 
-        if tpos != None:
+        if tpos is not None:
             if len(args1) > 0: raise AttributeError('Malformed constructor')
             self.append(tpos)
         if len(args1) > 0:
@@ -2814,7 +2814,7 @@ class canvas(baseObj):
 
         for a in canvasNonVecAttrs:
             if a in args:
-                if args[a] != None:
+                if args[a] is not None:
                     setattr(self, '_'+a, args[a])
                     cmd[a]= args[a]
                 del args[a]
@@ -3255,7 +3255,7 @@ class local_light(standardAttributes):
         args['_objName'] = "local_light"
         super(local_light, self).setup(args)
 
-        if (canvas.get_selected() != None):
+        if (canvas.get_selected() is not None):
             canvas.get_selected()._lights.append(self)
 
 class distant_light(standardAttributes):
@@ -3265,7 +3265,7 @@ class distant_light(standardAttributes):
         self._direction = vector(0,0,1)
         super(distant_light, self).setup(args)
 
-        if (canvas.get_selected() != None):
+        if (canvas.get_selected() is not None):
             canvas.get_selected()._lights.append(self)
 
     @property

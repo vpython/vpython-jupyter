@@ -77,6 +77,16 @@ class vector(object):
         except:
             raise TypeError('a vector can only be multiplied by a scalar')
 
+    def __eq__(self,other):
+        if type(self) is vector and type(other) is vector:
+            return self.equals(other)
+        return False
+
+    def __ne__(self,other):
+        if type(self) is vector and type(other) is vector:
+            return not self.equals(other)
+        return True
+
     @property
     def x(self):
         return self._x
@@ -171,16 +181,16 @@ class vector(object):
         return acos(a)
 
     def rotate(self, angle=0., axis=None):
-        if axis == None:
+        if axis is None:
             u = vector(0,0,1)
         else:
             u = axis.hat
         c = cos(angle)
         s = sin(angle)
         t = 1.0 - c
-        x = u.x
-        y = u.y
-        z = u.z
+        x = u._x
+        y = u._y
+        z = u._z
         m11 = t*x*x+c
         m12 = t*x*y-z*s
         m13 = t*x*z+y*s
@@ -190,24 +200,24 @@ class vector(object):
         m31 = t*x*z-y*s
         m32 = t*y*z+x*s
         m33 = t*z*z+c
-        sx = self.x
-        sy = self.y
-        sz = self.z
+        sx = self._x
+        sy = self._y
+        sz = self._z
         return vector( (m11*sx + m12*sy + m13*sz),
                     (m21*sx + m22*sy + m23*sz),
                     (m31*sx + m32*sy + m33*sz) )
 
     def rotate_in_place(self, angle=0., axis=None):
-        if axis == None:
+        if axis is None:
             u = vector(0,0,1)
         else:
             u = axis.hat
         c = cos(angle)
         s = sin(angle)
         t = 1.0 - c
-        x = u.x
-        y = u.y
-        z = u.z
+        x = u._x
+        y = u._y
+        z = u._z
         m11 = t*x*x+c
         m12 = t*x*y-z*s
         m13 = t*x*z+y*s
@@ -217,9 +227,9 @@ class vector(object):
         m31 = t*x*z-y*s
         m32 = t*y*z+x*s
         m33 = t*z*z+c
-        sx = self.x
-        sy = self.y
-        sz = self.z
+        sx = self._x
+        sy = self._y
+        sz = self._z
         self._x = m11*sx + m12*sy + m13*sz
         self._y = m21*sx + m22*sy + m23*sz
         self._z = m31*sx + m32*sy + m33*sz
@@ -229,9 +239,9 @@ def object_rotate(objaxis, objup, angle, axis):
     c = cos(angle)
     s = sin(angle)
     t = 1.0 - c
-    x = u.x
-    y = u.y
-    z = u.z
+    x = u._x
+    y = u._y
+    z = u._z
     m11 = t*x*x+c
     m12 = t*x*y-z*s
     m13 = t*x*z+y*s
@@ -241,15 +251,15 @@ def object_rotate(objaxis, objup, angle, axis):
     m31 = t*x*z-y*s
     m32 = t*y*z+x*s
     m33 = t*z*z+c
-    sx = objaxis.x
-    sy = objaxis.y
-    sz = objaxis.z
+    sx = objaxis._x
+    sy = objaxis._y
+    sz = objaxis._z
     objaxis._x = m11*sx + m12*sy + m13*sz # avoid creating a new vector object
     objaxis._y = m21*sx + m22*sy + m23*sz
     objaxis._z = m31*sx + m32*sy + m33*sz
-    sx = objup.x
-    sy = objup.y
-    sz = objup.z
+    sx = objup._x
+    sy = objup._y
+    sz = objup._z
     objup._x = m11*sx + m12*sy + m13*sz
     objup._y = m21*sx + m22*sy + m23*sz
     objup._z = m31*sx + m32*sy + m33*sz
@@ -285,7 +295,7 @@ def rotate(A, angle=0., axis = None):
     return A.rotate(angle,axis)
 
 def adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is changed
-    if abs(newaxis.x) + abs(newaxis.y) + abs(newaxis.z) == 0:
+    if abs(newaxis._x) + abs(newaxis._y) + abs(newaxis._z) == 0:
         # If axis has changed to <0,0,0>, must save the old axis to restore later
         if save_oldaxis is None: save_oldaxis = oldaxis
         return save_oldaxis
@@ -310,7 +320,7 @@ def adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is chan
     return save_oldaxis
 
 def adjust_axis(oldup, newup, axis, save_oldup): # adjust axis when up is changed
-    if abs(newup.x) + abs(newup.y) + abs(newup.z) == 0:
+    if abs(newup._x) + abs(newup._y) + abs(newup._z) == 0:
         # If up will be set to <0,0,0>, must save the old up to restore later
         if save_oldup is None: save_oldup = oldup
         return save_oldup
