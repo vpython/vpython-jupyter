@@ -522,7 +522,7 @@ class standardAttributes(baseObj):
                          ['visible'],
                          []],
                  'compound':[['pos', 'color', 'trail_color'],
-                         ['axis', 'size', 'up'],
+                         ['axis', 'size', 'up', 'origin'],
                          ['visible', 'opacity','shininess', 'emissive',
                          'make_trail', 'trail_type', 'interval', 'texture',
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs', 'pickable'],
@@ -1528,32 +1528,34 @@ class compound(standardAttributes):
         if not self._constructing:
             self.addattr('size')
 
-    def _world_zaxis(self):
-        axis = self._axis
-        up = norm(self._up)
-        if abs(axis.dot(up)) / sqrt(axis.mag2) > 0.98:
-            if abs(norm(axis).dot(vector(-1,0,0))) > 0.98:
-                z_axis = axis.cross(vector(0,0,1)).norm()
-            else:
-                z_axis = axis.cross(vector(-1,0,0)).norm()
-        else:
-            z_axis = axis.cross(up).norm()
-        return z_axis
+    @property
+    def origin(self):
+        return self._origin
+    @origin.setter
+    def origin(self,value): # compound origin cannot be reset
+        if not self._constructing:
+            raise AttributeError('The compound "origin" attribute is read-only; change "pos" instead.')
+        self._origin = value
 
     def world_to_compound(self, v):
-        axis = self._axis
-        z_axis = self._world_zaxis()
-        y_axis = z_axis.cross(axis).norm()
-        x_axis = axis.norm()
-        v = v - self._pos
-        return vector(v.dot(x_axis), v.dot(y_axis), v.dot(z_axis))
+            v = v-self._pos
+            x_axis = self._axis.hat
+            y_axis = self._up.hat
+            z_axis = x_axis.cross(y_axis)
+            ox = self._size0.x/self._size.x # _size0 is the original size
+            oy = self._size0.y/self._size.y
+            oz = self._size0.z/self._size.z
+            return self._origin + vector(v.dot(x_axis)*ox, v.dot(y_axis)*oy, v.dot(z_axis)*oz)
 
     def compound_to_world(self, v):
-        axis = self._axis
-        z_axis = self._world_zaxis()
-        y_axis = z_axis.cross(axis).norm()
-        x_axis = axis.norm()
-        return self._pos+(v.x*x_axis) + (v.y*y_axis) + (v.z*z_axis)
+            v = v-self._origin
+            x_axis = self._axis.hat
+            y_axis = self._up.hat
+            z_axis = x_axis.cross(y_axis)
+            ox = self._size.x/self._size0.x # _size0 is the original size
+            oy = self._size.y/self._size0.y
+            oz = self._size.z/self._size0.z
+            return self._pos + v.x*ox*x_axis + v.y*oy*y_axis + v.z*oz*z_axis
 
 class vertex(standardAttributes):
     def __init__(self, **args):
@@ -3104,6 +3106,7 @@ class canvas(baseObj):
             self.mouse.setpick( evt )
             self._waitfor = True # what pick is looking for
         elif ev == '_compound': # compound, text, extrusion
+            print('compound event return')
             obj = self._compound
             p = evt['pos']
             if obj._objName == 'text':
@@ -3115,7 +3118,7 @@ class canvas(baseObj):
                 # on_change functions that detect changes in e.g. obj.pos.y
                 obj._pos.value = list_to_vec(p)
                 s = evt['size']
-                obj._size.value = list_to_vec(s)
+                obj._size.value = obj._size0 = list_to_vec(s)
                 obj._axis.value = obj._size._x*norm(obj._axis)
                 obj._up.value = list_to_vec(evt['up'])
             self._waitfor = True # what compound and text and extrusion are looking for in _wait()
