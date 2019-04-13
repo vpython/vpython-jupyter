@@ -53,29 +53,30 @@ class vector(object):
     def __repr__(self):
         return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
 
-    def __add__(self,other):
-        return vector(self._x + other._x, self._y + other._y, self._z + other._z)
+    def __add__(self, other):
+        if type(other) is vector:
+            return vector(self._x + other._x, self._y + other._y, self._z + other._z)
+        return NotImplemented
 
-    def __sub__(self,other):
-        return vector(self._x - other._x, self._y - other._y, self._z - other._z)
+    def __sub__(self, other):
+        if type(other) is vector:
+            return vector(self._x - other._x, self._y - other._y, self._z - other._z)
+        return NotImplemented
 
     def __truediv__(self, other): # used by Python 3, and by Python 2 in the presence of __future__ division
-        try:
+        if isinstance(other, (float, int)):
             return vector(self._x / other, self._y / other, self._z / other)
-        except:
-            raise TypeError('a vector can only be divided by a scalar')
+        return NotImplemented
 
     def __mul__(self, other):
-        try:
+        if isinstance(other, (float, int)):
             return vector(self._x * other, self._y * other, self._z * other)
-        except:
-            raise TypeError('a vector can only be multiplied by a scalar')
+        return NotImplemented
 
     def __rmul__(self, other):
-        try:
+        if isinstance(other, (float, int)):
             return vector(self._x * other, self._y * other, self._z * other)
-        except:
-            raise TypeError('a vector can only be multiplied by a scalar')
+        return NotImplemented
 
     def __eq__(self,other):
         if type(self) is vector and type(other) is vector:
