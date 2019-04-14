@@ -122,7 +122,7 @@ cdef class vector(object):
             normA = self.hat
             self.x = value * normA._x
             self.y = value * normA._y
-            self.z = value * normA.vz
+            self.z = value * normA._z
             self.on_change()
 
     property mag2:
