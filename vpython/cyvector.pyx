@@ -62,23 +62,26 @@ cdef class vector(object):
         return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
 
     def __add__(self,other):
-        return vector(self._x + other._x, self._y + other._y, self._z + other._z)
+        if type(other) is vector:
+            return vector(self._x + other._x, self._y + other._y, self._z + other._z)
+        return NotImplemented
 
     def __truediv__(self, other): # Python 3, or Python 2 + future division
         if isinstance(other, (int, float)):
             return vector(self._x / other, self._y / other, self._z / other)
-        raise TypeError('a vector can only be divided by a scalar')
+        return NotImplemented
 
     def __sub__(self,other):
-        return vector(self._x - other._x, self._y - other._y, self._z - other._z)
+        if type(other) is vector:
+            return vector(self._x - other._x, self._y - other._y, self._z - other._z)
+        return NotImplemented
 
     def __mul__(self, other):  ## in cython order of arguments is arbitrary, rmul doesn't exist
         if isinstance(other, (int, float)):
             return vector(self._x * other, self._y * other, self._z * other)
         elif isinstance(self, (int, float)):
             return vector(self * other._x, self * other._y, self * other._z)
-        else:
-            raise TypeError('a vector can only be multiplied by a scalar', self, other)
+        return NotImplemented
 
     def __eq__(self,other):
         if type(self) is vector and type(other) is vector:
