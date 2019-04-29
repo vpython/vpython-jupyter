@@ -190,6 +190,7 @@ var lastcenter = vec(0,0,0)
 var lastrange = 1
 var lastautoscale = true
 var lastsliders = {}
+var lastkeysdown = []
 var interval = 33 // milliseconds
 
 function update_canvas() { // mouse location and other stuff
@@ -206,6 +207,23 @@ function update_canvas() { // mouse location and other stuff
 		var ray = cvs.mouse.ray 
 		if (!ray.equals(lastray)) {evt.ray = [ray.x,ray.y,ray.z]; dosend=true}
 		lastray = ray
+
+		var k = keysdown()
+		var test = true // assume keysdown() is same as lastkeysdown
+		if (k.length !== lastkeysdown.length) test = false
+		else {
+			for (var i=0; i<k.length; i++) {
+				if (k[i] !== lastkeysdown[i]) {
+					test = false
+					break
+				}
+			}
+		}
+		if (!test) {
+			evt.keysdown = lastkeysdown = k
+			dosend = true
+		}
+
 		// forward and range may be changed by user (and up with touch), and autoscale (by zoom)
 		if (cvs.userspin) {
 			var forward = cvs.forward

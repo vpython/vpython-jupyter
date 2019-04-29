@@ -26,7 +26,7 @@ __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'at
            'local_light', 'menu', 'meta_canvas', 'points', 'pyramid',
            'quad', 'radio', 'ring', 'simple_sphere', 'sleep', 'slider', 'sphere',
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
-           'wtext', 'winput']
+           'wtext', 'winput', 'keysdown']
 
 __p = platform.python_version()
 _ispython3 = (__p[0] == '3')
@@ -39,6 +39,8 @@ else:
 # __version__ is the version number of the Jupyter VPython installer, generated in building the installer.
 version = [__version__, 'jupyter']
 GSversion = [__gs_version__, 'glowscript']
+
+keysdownlist = [] # list of keys currently pressed
 
 # To print immediately, do this:
 #    print(.....)
@@ -3101,6 +3103,7 @@ class canvas(baseObj):
 
 ## key events conflict with notebook command mode; not permitted for now
     def handle_event(self, evt):  ## events and scene info updates
+        global keysdownlist
         ev = evt['event']
         if ev == 'pick':
             self.mouse.setpick( evt )
@@ -3185,6 +3188,8 @@ class canvas(baseObj):
                 if 'autoscale' in evt and self.userzoom and not self._set_autoscale:
                     self._autoscale = evt['autoscale']
                 self._set_autoscale = False
+                if 'keysdown' in evt: keysdownlist = evt['keysdown']
+
 
     def bind(self, eventtype, whattodo):
         evts = eventtype.split()
@@ -4094,3 +4099,10 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
         s += str(a)+' '
     s = s[:-1]
     return(s)
+
+def keysdown():
+    global keysdownlist
+    keys = []
+    for k in keysdownlist: # return a copy of keysdownlist
+        keys.append(k)
+    return keys
