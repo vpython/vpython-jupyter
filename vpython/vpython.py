@@ -97,7 +97,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E'}
+          'size_units':'D', 'userpan':'E', 'scroll':'F'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -2282,6 +2282,7 @@ class graph(baseObj):
         self._title = ""
         self._xtitle = ""
         self._ytitle = ""
+        self._scroll = False
         argsToSend = []
 
         ## override default vector attributes
@@ -2296,7 +2297,7 @@ class graph(baseObj):
 
         ## override default scalar attributes
         scalarAttributes = ['width', 'height', 'title', 'xtitle', 'ytitle','align',
-                            'xmin', 'xmax', 'ymin', 'ymax', 'logx', 'logy', 'fast']
+                            'xmin', 'xmax', 'ymin', 'ymax', 'logx', 'logy', 'fast', 'scroll']
         for a in scalarAttributes:
             if a in args:
                 argsToSend.append(a)
@@ -2308,6 +2309,12 @@ class graph(baseObj):
             setattr(self, '_'+a, args[a])
 
         cmd = {"cmd": objName, "idx": self.idx}
+
+        if self._scroll:
+            if not ('xmin' in argsToSend and 'xmax' in argsToSend):
+                raise AttributeError("For a scrolling graph, both xmin and xmax must be specified.")
+            if self._xmax <= self._xmin:
+                raise AttributeError("For a scrolling graph, xmax must be greater than xmin.")
 
         ## send only args specified in constructor
         for a in argsToSend:
@@ -2322,10 +2329,15 @@ class graph(baseObj):
     def fast(self): return self._fast
     @fast.setter
     def fast(self,val):
-        # if _isnotebook and not val:
-            # raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
         self._fast = val
         self.addattr('fast')
+
+    @property
+    def scroll(self): return self._scroll
+    @scroll.setter
+    def scroll(self,val):
+        self._scroll = val
+        self.addattr('scroll')
 
     @property
     def width(self): return self._width
