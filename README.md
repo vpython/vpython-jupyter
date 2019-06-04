@@ -48,3 +48,24 @@ Run example VPython programs: [![Binder](http://mybinder.org/badge.svg)](https:/
 
 [![Build Status](https://travis-ci.org/BruceSherwood/vpython-jupyter.svg?branch=master)](https://travis-ci.org/BruceSherwood/vpython-jupyter) [![Build status](https://ci.appveyor.com/api/projects/status/wsdjmh8aehd1o0qg?svg=true)](https://ci.appveyor.com/project/mwcraig/vpython-jupyter)
 
+## Working with the source code
+
+Here is an overview of the software architecture:
+
+https://vpython.org/contents/VPythonArchitecture.pdf
+
+The vpython module uses the GlowScript library (vpython/vpython_libraries/glow.min.js). The GlowScript repository is here:
+
+https://github.com/vpython/glowscript
+
+In the GlowScript repository's docs folder, GlowScriptOverview.txt provides more details on the GlowScript architecture.
+
+Here is information on how to run GlowScript VPython locally, which makes possible testing changes to the GlowScript library:
+
+https://www.glowscript.org/docs/GlowScriptDocs/local.html
+
+If you execute build_original_no_overload.py, and change the statement "if True:" to "if False", you will generate into the ForInstalledPython folder an un-minified glow.min.js which can be copied to site-packages/vpython/vpython_libraries and tested by running your test in (say) idle or spyder. (Running in Jupyter notebook or Jupyterlab requires additional fiddling.)
+
+Note that in site-packages/vpython/vpython_libraries it is glowcomm.html that is used by launchers such as idle or spyder; glowcomm.js is used with Jupyter notebook (and a modified version is used in Jupyterlab).
+
+Placing console.log(....) statements in the GlowScript code or in the JavaScript section of glowcomm.html can be useful in debugging. You may also need to put debugging statements into site-packages/vpython/vpython.py.
