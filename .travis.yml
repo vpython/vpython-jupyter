@@ -110,5 +110,5 @@ deploy:
   on:
     tags: true
     distributions: "sdist"
-    repo: BruceSherwood/vpython-jupyter
+    repo: vpython/vpython-jupyter
     condition: $UPLOAD_SDIST = "YES"
