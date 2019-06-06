@@ -11,13 +11,14 @@ environment:
   INSTALL_ON_WINDOWS: "patch psutil"
 
   BINSTAR_TOKEN:
-    secure: eSsu75dpqknmh2NnrfPASDSvzojBRSyoyW9ZdF5VauukhWxmYHbW8E5UE2ZmYnxT
+    secure: ySsjFFc8PV/iMCBw8EXAjcQ4fMl+6N5WjXsJmE/T1GV0KHnqh/WWsbrDmiiGRn2O
 
   PYPI_PASSWORD:
-    secure: Xtu8c7MEUwNUJN08oehTSQ==
+    secure: TAdki0fpSo2aWvfc9ezA1g==
 
   PYPI_USER:
-    secure: hSkBSpb86gg/J+PxsYWbeg==
+    secure: 4OQlJah0RRB/64Nm75OaEg==
+
   matrix:
     # Unfortunately, compiler/SDK configuration for 64 bit builds depends on
     # python version. Right now conda build does not configure the SDK, and
