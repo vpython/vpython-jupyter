@@ -82,6 +82,7 @@ API_NAMES = [
     'isfinite',
     'isinf',
     'isnan',
+    'keysdown',
     'label',
     'ldexp',
     'lgamma',

@@ -46,7 +46,7 @@ Run example VPython programs: [![Binder](http://mybinder.org/badge.svg)](https:/
 
 ## vpython build status (for the vpython developers)
 
-[![Build Status](https://travis-ci.org/BruceSherwood/vpython-jupyter.svg?branch=master)](https://travis-ci.org/BruceSherwood/vpython-jupyter) [![Build status](https://ci.appveyor.com/api/projects/status/wsdjmh8aehd1o0qg?svg=true)](https://ci.appveyor.com/project/mwcraig/vpython-jupyter)
+[![Build Status](https://travis-ci.com/vpython/vpython-jupyter.svg?branch=master)](https://travis-ci.com/vpython/vpython-jupyter) [![Build status](https://ci.appveyor.com/api/projects/status/mb3y238y1eae7xnh?svg=true)](https://ci.appveyor.com/project/vpython/vpython-jupyter)
 
 ## Working with the source code
 
