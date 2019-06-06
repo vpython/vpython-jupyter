@@ -65,12 +65,6 @@ for:
       - TARGET_ARCH: "x86"
 
   skip_non_tags: true
--
-  matrix:
-    only:
-      - TARGET_ARCH: "x86"
-      - TARGET_ARCH: "x64"
-      - APPVEYOR_SCHEDULED_BUILD: true
 
 # Uncomment this to allow RDP into appveyor worker
 # init:
