@@ -70,8 +70,7 @@ for:
     only:
       - TARGET_ARCH: "x86"
       - TARGET_ARCH: "x64"
-
-  APPVEYOR_SCHEDULED_BUILD: true
+      - APPVEYOR_SCHEDULED_BUILD: true
 
 # Uncomment this to allow RDP into appveyor worker
 # init:
