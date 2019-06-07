@@ -56,6 +56,7 @@ script:
     - if [ "$TRAVIS_OS_NAME" == "linux" ]; then
         python setup.py install;
         py.test vpython;
+        twine check dist/*;
       fi
     # Not much of a real test yet, just try to build myself...
     - conda build --quiet vpython.recipe
