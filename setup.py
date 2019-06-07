@@ -31,6 +31,7 @@ setup_args = dict(
     cmdclass=versioneer.get_cmdclass(),
     description='VPython for Jupyter Notebook',
     long_description=open('README.md').read(),
+    long_description_content_type="text/markdown",
     author='John Coady / Ruth Chabay / Bruce Sherwood / Steve Spicklemire',
     author_email='bruce.sherwood@gmail.com',
     url='http://pypi.python.org/pypi/vpython/',
