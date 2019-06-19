@@ -24,9 +24,9 @@ __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'at
            'event_return', 'extrusion', 'faces', 'frame', 'gcurve', 'gdots',
            'ghbars', 'gobj', 'graph', 'gvbars', 'helix', 'label',
            'local_light', 'menu', 'meta_canvas', 'points', 'pyramid',
-           'quad', 'radio', 'ring', 'simple_sphere', 'sleep', 'slider', 'sphere',
+           'quad', 'radio', 'ring', 'set_browser', 'simple_sphere', 'sleep', 'slider', 'sphere',
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
-           'wtext', 'winput', 'keysdown']
+           'wtext', 'winput']
 
 __p = platform.python_version()
 _ispython3 = (__p[0] == '3')
@@ -39,8 +39,6 @@ else:
 # __version__ is the version number of the Jupyter VPython installer, generated in building the installer.
 version = [__version__, 'jupyter']
 GSversion = [__gs_version__, 'glowscript']
-
-keysdownlist = [] # list of keys currently pressed
 
 # To print immediately, do this:
 #    print(.....)
@@ -97,7 +95,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E', 'scroll':'F'}
+          'size_units':'D', 'userpan':'E'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -524,7 +522,7 @@ class standardAttributes(baseObj):
                          ['visible'],
                          []],
                  'compound':[['pos', 'color', 'trail_color'],
-                         ['axis', 'size', 'up', 'origin'],
+                         ['axis', 'size', 'up'],
                          ['visible', 'opacity','shininess', 'emissive',
                          'make_trail', 'trail_type', 'interval', 'texture',
                          'retain', 'trail_color', 'trail_radius', 'obj_idxs', 'pickable'],
@@ -700,7 +698,7 @@ class standardAttributes(baseObj):
 
 
     # set canvas
-        if self.canvas is None:  ## not specified in constructor
+        if self.canvas == None:  ## not specified in constructor
             self.canvas = canvas.get_selected()
         #cmd["attrs"].append({"attr": 'canvas', "value": self.canvas.idx})
         cmd['canvas'] = self.canvas.idx
@@ -713,7 +711,7 @@ class standardAttributes(baseObj):
         if _special_clone is not None: cmd["_cloneid"] = _special_clone
         self.appendcmd(cmd)
 
-        # if ('frame' in args and args['frame'] is not None):
+        # if ('frame' in args and args['frame'] != None):
             # frame.objects.append(self)
             # frame.update_obj_list()
 
@@ -1001,9 +999,9 @@ class standardAttributes(baseObj):
         saveorigin = origin
         if angle == 0:
             return
-        if angle is None:
+        if angle == None:
             raise TypeError('You must specify an angle through which to rotate')
-        if axis is None:
+        if axis == None:
             rotaxis = self.axis
         else:
             rotaxis = axis
@@ -1530,34 +1528,32 @@ class compound(standardAttributes):
         if not self._constructing:
             self.addattr('size')
 
-    @property
-    def origin(self):
-        return self._origin
-    @origin.setter
-    def origin(self,value): # compound origin cannot be reset
-        if not self._constructing:
-            raise AttributeError('The compound "origin" attribute is read-only; change "pos" instead.')
-        self._origin = value
+    def _world_zaxis(self):
+        axis = self._axis
+        up = norm(self._up)
+        if abs(axis.dot(up)) / sqrt(axis.mag2) > 0.98:
+            if abs(norm(axis).dot(vector(-1,0,0))) > 0.98:
+                z_axis = axis.cross(vector(0,0,1)).norm()
+            else:
+                z_axis = axis.cross(vector(-1,0,0)).norm()
+        else:
+            z_axis = axis.cross(up).norm()
+        return z_axis
 
     def world_to_compound(self, v):
-            v = v-self._pos
-            x_axis = self._axis.hat
-            y_axis = self._up.hat
-            z_axis = x_axis.cross(y_axis)
-            ox = self._size0.x/self._size.x # _size0 is the original size
-            oy = self._size0.y/self._size.y
-            oz = self._size0.z/self._size.z
-            return self._origin + vector(v.dot(x_axis)*ox, v.dot(y_axis)*oy, v.dot(z_axis)*oz)
+        axis = self._axis
+        z_axis = self._world_zaxis()
+        y_axis = z_axis.cross(axis).norm()
+        x_axis = axis.norm()
+        v = v - self._pos
+        return vector(v.dot(x_axis), v.dot(y_axis), v.dot(z_axis))
 
     def compound_to_world(self, v):
-            v = v-self._origin
-            x_axis = self._axis.hat
-            y_axis = self._up.hat
-            z_axis = x_axis.cross(y_axis)
-            ox = self._size.x/self._size0.x # _size0 is the original size
-            oy = self._size.y/self._size0.y
-            oz = self._size.z/self._size0.z
-            return self._pos + v.x*ox*x_axis + v.y*oy*y_axis + v.z*oz*z_axis
+        axis = self._axis
+        z_axis = self._world_zaxis()
+        y_axis = z_axis.cross(axis).norm()
+        x_axis = axis.norm()
+        return self._pos+(v.x*x_axis) + (v.y*y_axis) + (v.z*z_axis)
 
 class vertex(standardAttributes):
     def __init__(self, **args):
@@ -1965,7 +1961,7 @@ class curve(curveMethods):
 
         super(curveMethods, self).setup(args)
 
-        if tpos is not None:
+        if tpos != None:
             if len(args1) > 0: raise AttributeError('Malformed constructor')
             self.append(tpos)
         if len(args1) > 0:
@@ -1989,7 +1985,7 @@ class points(curveMethods):
 
         super(curveMethods, self).setup(args)
 
-        if tpos is not None:
+        if tpos != None:
             if len(args1) > 0: raise AttributeError('Malformed constructor')
             self.append(tpos)
         if len(args1) > 0:
@@ -2282,7 +2278,6 @@ class graph(baseObj):
         self._title = ""
         self._xtitle = ""
         self._ytitle = ""
-        self._scroll = False
         argsToSend = []
 
         ## override default vector attributes
@@ -2297,7 +2292,7 @@ class graph(baseObj):
 
         ## override default scalar attributes
         scalarAttributes = ['width', 'height', 'title', 'xtitle', 'ytitle','align',
-                            'xmin', 'xmax', 'ymin', 'ymax', 'logx', 'logy', 'fast', 'scroll']
+                            'xmin', 'xmax', 'ymin', 'ymax', 'logx', 'logy', 'fast']
         for a in scalarAttributes:
             if a in args:
                 argsToSend.append(a)
@@ -2309,12 +2304,6 @@ class graph(baseObj):
             setattr(self, '_'+a, args[a])
 
         cmd = {"cmd": objName, "idx": self.idx}
-
-        if self._scroll:
-            if not ('xmin' in argsToSend and 'xmax' in argsToSend):
-                raise AttributeError("For a scrolling graph, both xmin and xmax must be specified.")
-            if self._xmax <= self._xmin:
-                raise AttributeError("For a scrolling graph, xmax must be greater than xmin.")
 
         ## send only args specified in constructor
         for a in argsToSend:
@@ -2329,15 +2318,10 @@ class graph(baseObj):
     def fast(self): return self._fast
     @fast.setter
     def fast(self,val):
+        # if _isnotebook and not val:
+            # raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
         self._fast = val
         self.addattr('fast')
-
-    @property
-    def scroll(self): return self._scroll
-    @scroll.setter
-    def scroll(self,val):
-        self._scroll = val
-        self.addattr('scroll')
 
     @property
     def width(self): return self._width
@@ -2830,7 +2814,7 @@ class canvas(baseObj):
 
         for a in canvasNonVecAttrs:
             if a in args:
-                if args[a] is not None:
+                if args[a] != None:
                     setattr(self, '_'+a, args[a])
                     cmd[a]= args[a]
                 del args[a]
@@ -3115,13 +3099,11 @@ class canvas(baseObj):
 
 ## key events conflict with notebook command mode; not permitted for now
     def handle_event(self, evt):  ## events and scene info updates
-        global keysdownlist
         ev = evt['event']
         if ev == 'pick':
             self.mouse.setpick( evt )
             self._waitfor = True # what pick is looking for
         elif ev == '_compound': # compound, text, extrusion
-            print('compound event return')
             obj = self._compound
             p = evt['pos']
             if obj._objName == 'text':
@@ -3133,7 +3115,7 @@ class canvas(baseObj):
                 # on_change functions that detect changes in e.g. obj.pos.y
                 obj._pos.value = list_to_vec(p)
                 s = evt['size']
-                obj._size.value = obj._size0 = list_to_vec(s)
+                obj._size.value = list_to_vec(s)
                 obj._axis.value = obj._size._x*norm(obj._axis)
                 obj._up.value = list_to_vec(evt['up'])
             self._waitfor = True # what compound and text and extrusion are looking for in _wait()
@@ -3200,8 +3182,6 @@ class canvas(baseObj):
                 if 'autoscale' in evt and self.userzoom and not self._set_autoscale:
                     self._autoscale = evt['autoscale']
                 self._set_autoscale = False
-                if 'keysdown' in evt: keysdownlist = evt['keysdown']
-
 
     def bind(self, eventtype, whattodo):
         evts = eventtype.split()
@@ -3275,7 +3255,7 @@ class local_light(standardAttributes):
         args['_objName'] = "local_light"
         super(local_light, self).setup(args)
 
-        if (canvas.get_selected() is not None):
+        if (canvas.get_selected() != None):
             canvas.get_selected()._lights.append(self)
 
 class distant_light(standardAttributes):
@@ -3285,7 +3265,7 @@ class distant_light(standardAttributes):
         self._direction = vector(0,0,1)
         super(distant_light, self).setup(args)
 
-        if (canvas.get_selected() is not None):
+        if (canvas.get_selected() != None):
             canvas.get_selected()._lights.append(self)
 
     @property
@@ -4112,9 +4092,11 @@ def print_to_string(*args): # treatment of <br> vs. \n not quite right here
     s = s[:-1]
     return(s)
 
-def keysdown():
-    global keysdownlist
-    keys = []
-    for k in keysdownlist: # return a copy of keysdownlist
-        keys.append(k)
-    return keys
+# global variable for type of web browser to display vpython
+_browsertype = 'default'
+def set_browser(type='default'):
+    global _browsertype
+    if type=='pyqt':
+        _browsertype='pyqt'
+    else:
+        _browsertype='default'
