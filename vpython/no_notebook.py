@@ -1,4 +1,4 @@
-from .vpython import GlowWidget, baseObj, vector, canvas
+from .vpython import GlowWidget, baseObj, vector, canvas, _browsertype
 from ._notebook_helpers import _in_spyder, _undo_vpython_import_in_spyder
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -13,6 +13,11 @@ from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerF
 import txaio
 import copy
 import socket
+import PyQt5.QtCore
+import PyQt5.QtWebEngineWidgets
+from PyQt5.QtWidgets import QApplication
+import multiprocessing
+
 
 import signal
 from urllib.parse import unquote
@@ -231,9 +236,25 @@ try:
     else:
         __server = HTTPServer(('', __HTTP_PORT), serveHTTP)
         # or webbrowser.open_new_tab()
-        _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT))
+        if(_browsertype=='default'): #uses default browser
+            _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT)) #uses default browser
+
 except:
     pass
+
+
+def start_Qapp(port):
+    # creates a python browser with PyQt5
+    # runs qtbrowser.py in a separate process
+    filepath=os.path.dirname(__file__)
+    filename=filepath+'/qtbrowser.py'
+    os.system('python '+filename+' http://localhost:{}'.format(port))
+
+
+#create a browser in its own process
+if(_browsertype=='pyqt'): #uses default browser
+    __m = multiprocessing.Process(target=start_Qapp, args=(__HTTP_PORT,))
+    __m.start()
 
 __w = threading.Thread(target=__server.serve_forever)
 __w.start()

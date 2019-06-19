@@ -24,7 +24,7 @@ __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'at
            'event_return', 'extrusion', 'faces', 'frame', 'gcurve', 'gdots',
            'ghbars', 'gobj', 'graph', 'gvbars', 'helix', 'label',
            'local_light', 'menu', 'meta_canvas', 'points', 'pyramid',
-           'quad', 'radio', 'ring', 'simple_sphere', 'sleep', 'slider', 'sphere',
+           'quad', 'radio', 'ring', 'set_browser', 'simple_sphere', 'sleep', 'slider', 'sphere',
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
            'wtext', 'winput', 'keysdown']
 
@@ -4118,3 +4118,12 @@ def keysdown():
     for k in keysdownlist: # return a copy of keysdownlist
         keys.append(k)
     return keys
+
+# global variable for type of web browser to display vpython
+_browsertype = 'default'
+def set_browser(type='default'):
+    global _browsertype
+    if type=='pyqt':
+        _browsertype='pyqt'
+    else:
+        _browsertype='default'
