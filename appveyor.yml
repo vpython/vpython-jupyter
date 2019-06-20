@@ -4,7 +4,7 @@ environment:
   # Install appropriate conda here based on TARGET_ARCH
   CONDA_INSTALL_LOCN: "C:\\conda"
 
-  CONDA_VERSION_PIN: "4.5"
+  CONDA_VERSION_PIN: ""
   TQDM_PIN: ""
 
   # These installs are needed on windows but not other platforms.
@@ -30,13 +30,6 @@ environment:
     - TARGET_ARCH: "x64"
       CONDA_PY: "3.6"
       CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
-    - TARGET_ARCH: "x64"
-      CONDA_PY: "3.5"
-      CONDA_INSTALL_LOCN: "C:\\Miniconda35-x64"
-      # Need to pin this on python 35 for reasons unfathomable to me (well,
-      # probably related to the fact that tqdm 4.29.0 is noarch, and
-      # conda 3.5.11 doesn't handle that well, maybe)
-      TQDM_PIN: "=4.26"
 
     # 32-bit builds
     - TARGET_ARCH: "x86"
@@ -45,13 +38,6 @@ environment:
     - TARGET_ARCH: "x86"
       CONDA_PY: "3.6"
       CONDA_INSTALL_LOCN: "C:\\Miniconda36"
-    - TARGET_ARCH: "x86"
-      CONDA_PY: "3.5"
-      CONDA_INSTALL_LOCN: "C:\\Miniconda35"
-      # Need to pin this on python 35 for reasons unfathomable to me (well,
-      # probably related to the fact that tqdm 4.29.0 is noarch, and
-      # conda 3.5.11 doesn't handle that well, maybe)
-      TQDM_PIN: "=4.26"
 
 # We always use a 64-bit machine, but can build x86 distributions
 # with the TARGET_ARCH variable.
@@ -81,10 +67,11 @@ install:
     # - cmd: conda update --quiet conda python
 
     - echo %CONDA_PY%
+    - conda update --quiet conda
     # Need to do this to pick up newer versions of conda
     - if "%CONDA_PY%"=="3.5" conda update --quiet conda
 
-    - cmd: conda install --quiet conda=%CONDA_VERSION_PIN% jinja2 conda-build anaconda-client cython wheel %INSTALL_ON_WINDOWS% tqdm%TQDM_PIN%
+    - cmd: conda install --quiet conda%CONDA_VERSION_PIN% jinja2 conda-build anaconda-client cython wheel %INSTALL_ON_WINDOWS% tqdm%TQDM_PIN%
 
     #- conda create --quiet -n wheel-build python=%CONDA_PY% wheel cython
     - conda info -a

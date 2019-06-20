@@ -14,7 +14,6 @@ env:
         - CONDA_INSTALL_LOCN="${HOME}/miniconda"
         - TWINE_USERNAME="mwcraig"
     matrix:
-        - CONDA_PY=3.5
         - CONDA_PY=3.6
         - CONDA_PY=3.7
 
@@ -47,7 +46,7 @@ script:
     # This should prevent spurious failures at the deploy stage.
     - export UPLOAD_SDIST="NO"
     - if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-        if [ "$CONDA_PY" == "3.6" ]; then
+        if [ "$CONDA_PY" == "3.7" ]; then
             export UPLOAD_SDIST="YES";
         fi
       fi
