@@ -18,6 +18,7 @@ issues, offering improvements to the documentation or contributing code.
 We are certain the list is incomplete; please let one of us know by opening an [issue on GitHub](https://github.com/BruceSherwood/vpython-jupyter/issues) and we will be happy to add your name!
 
 + Wayne Decatur (@fomightez)
++ Tomokazu Higuchi (@higucheese)
 + Antti Kaihola (@akaihola)
 + Patrick Melanson (@pmelanson)
 + Gopal Sharma (@Hippogriff)

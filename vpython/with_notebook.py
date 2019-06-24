@@ -162,7 +162,7 @@ async def wsperiodic():
                 msg = {'content': {'data': [m]}}
                 baseObj.glow.handle_msg(msg)
 
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.1)
 
 loop = asyncio.get_event_loop()
 loop.create_task(wsperiodic())
