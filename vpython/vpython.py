@@ -3121,7 +3121,6 @@ class canvas(baseObj):
             self.mouse.setpick( evt )
             self._waitfor = True # what pick is looking for
         elif ev == '_compound': # compound, text, extrusion
-            print('compound event return')
             obj = self._compound
             p = evt['pos']
             if obj._objName == 'text':
@@ -3132,6 +3131,7 @@ class canvas(baseObj):
                 # Set attribute_vector.value, which avoids nullifying the
                 # on_change functions that detect changes in e.g. obj.pos.y
                 obj._pos.value = list_to_vec(p)
+                obj._origin = obj._pos
                 s = evt['size']
                 obj._size.value = obj._size0 = list_to_vec(s)
                 obj._axis.value = obj._size._x*norm(obj._axis)
