@@ -8,7 +8,7 @@ environment:
   TQDM_PIN: ""
 
   # These installs are needed on windows but not other platforms.
-  INSTALL_ON_WINDOWS: "patch psutil"
+  INSTALL_ON_WINDOWS: "psutil"
 
   BINSTAR_TOKEN:
     secure: ySsjFFc8PV/iMCBw8EXAjcQ4fMl+6N5WjXsJmE/T1GV0KHnqh/WWsbrDmiiGRn2O
