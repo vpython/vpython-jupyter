@@ -8,7 +8,9 @@ def __is_spyder():
 
 def _spyder_run_setting_is_correct():
     from spyder.config.main import CONF
-    return CONF['run']['default/interpreter/dedicated']
+    # Use this instead of accessing like a dictionary so that a
+    # default value can be supplied if the setting is missing.
+    return CONF.get('run', 'default/interpreter/dedicated', False)
 
 
 def _warn_if_spyder_settings_wrong():
