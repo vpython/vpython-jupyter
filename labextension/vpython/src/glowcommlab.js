@@ -1,13 +1,13 @@
-//define(["nbextensions/vpython_libraries/plotly.min",
-//        "nbextensions/vpython_libraries/glow.min",
-//        "nbextensions/vpython_libraries/jquery-ui.custom.min"], function(Plotly) {
-
 import 'script-loader!./vpython_libraries/jquery.min.js';
 import 'script-loader!./vpython_libraries/jquery-ui.custom.min.js';
 import 'script-loader!./vpython_libraries/glow.min.js';
 import 'script-loader!./vpython_libraries/plotly.min.js';
 import '../style/jquery-ui.custom.css'
 import '../style/ide.css'
+
+// Ensure downstream JupyterLab webpack places the fonts in predictable locations
+import '!!file-loader?name=/vpython_data/[name].[ext]!./vpython_data/Roboto-Medium.ttf'
+import '!!file-loader?name=/vpython_data/[name].[ext]!./vpython_data/NimbusRomNo9L-Med.otf'
 
 export var comm
 var ws = null
@@ -60,8 +60,8 @@ export function setupWebsocket(msg) {
 	wscheckfontsloaded()
 }
 
-var datadir = window.location.href + '/static/vpython_data/'
-window.Jupyter_VPython = "/lab/static/vpython_data/" // prefix used by glow.min.js for textures
+var datadir = '/static/lab/vpython_data/'
+window.Jupyter_VPython = "/static/lab/vpython_data/" // prefix used by glow.min.js for textures
 
 function fontloading() {
     "use strict";
