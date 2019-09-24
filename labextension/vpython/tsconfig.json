@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
     "allowJs": true,
-    "lib": ["ES5", "ES2015.Promise", "DOM"],
+    "lib": ["es6", "ES5", "ES2015.Promise", "DOM"],
     "module": "commonjs",
     "moduleResolution": "node",
 	"noImplicitAny": true,
     "noEmitOnError": true,
     "noUnusedLocals": true,
     "outDir": "./lib",
-    "target": "ES5",
+    "target": "es6",
     "strict": true,
     "strictNullChecks": false,
     "types": []

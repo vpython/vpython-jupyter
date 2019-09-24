@@ -20,8 +20,7 @@ For a development install (requires npm version 4 or later), do the following in
 
 ```bash
 npm install
-npm install --save @jupyterlab/notebook @jupyterlab/application @jupyterlab/apputils @jupyterlab/docregistry @phosphor/disposable script-loader
-npm run build
+cp -r ../../vpython/vpython_{libraries,data} lib/
 jupyter labextension install .
 ```
 

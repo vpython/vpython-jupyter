@@ -3,7 +3,7 @@ import {
 } from '@phosphor/disposable';
 
 import {
-  JupyterLab, JupyterLabPlugin
+  JupyterFrontEnd, JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 
 import {
@@ -19,7 +19,7 @@ import {
 /**
  * The plugin registration information.
  */
-const plugin: JupyterLabPlugin<void> = {
+const plugin: JupyterFrontEndPlugin<void> = {
   activate,
   id: 'vpython',
   autoStart: true
@@ -69,7 +69,7 @@ class VPythonExtension implements DocumentRegistry.IWidgetExtension<NotebookPane
 /**
  * Activate the extension.
  */
-function activate(app: JupyterLab) {
+function activate(app: JupyterFrontEnd) {
   app.docRegistry.addWidgetExtension('Notebook', new VPythonExtension());
 };
 
