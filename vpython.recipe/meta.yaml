@@ -43,6 +43,10 @@ requirements:
     - numpy
     - ipykernel
 
+test:
+  imports:
+    - vpython
+
 outputs:
     # Someday, maybe: - type: wheel
     - type: conda
