@@ -31,7 +31,6 @@ requirements:
     - python
     - setuptools
     - jupyter
-    - vpnotebook
     - ujson
     - cython
     - wheel
@@ -39,7 +38,6 @@ requirements:
   run:
     - python
     - jupyter
-    - vpnotebook
     - ujson
     - autobahn >=18.8.2
     - numpy
