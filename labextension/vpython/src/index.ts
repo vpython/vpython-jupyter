@@ -14,7 +14,7 @@ import {
   NotebookPanel, INotebookModel
 } from '@jupyterlab/notebook';
 
-
+import { PageConfig } from '@jupyterlab/coreutils';
 
 /**
  * The plugin registration information.
@@ -47,8 +47,13 @@ class VPythonExtension implements DocumentRegistry.IWidgetExtension<NotebookPane
 					glowcommlab.comm = vp_comm
 					vp_comm.onMsg = glowcommlab.onmessage
 					
-					glowcommlab.setupWebsocket(commMsg)
+					// Get base URL of current notebook server
+					let baseUrl = PageConfig.getBaseUrl()
+
+					// Construct URL of our proxied service
+					let serviceUrl = base_url + 'proxy/' + port;
 					
+					glowcommlab.setupWebsocket(commMsg, serviceUrl)					
 				});
 			
 				vp_comm.onClose = (msg) => {console.log("comm onClose");};
