@@ -1,5 +1,5 @@
 define(["base/js/utils",
-	"nbextensions/vpython_libraries/plotly.min",
+        "nbextensions/vpython_libraries/plotly.min",
         "nbextensions/vpython_libraries/glow.min",
         "nbextensions/vpython_libraries/jquery-ui.custom.min"], function(utils, Plotly) {
 
@@ -38,7 +38,7 @@ IPython.notebook.kernel.comm_manager.register_target('glow',
            }
            if (document.location.hostname.includes("localhost")){
               url = "ws://localhost:" + port + uri;
-	   }
+           }
            else {
               new_uri += '//' + document.location.host + service_url;
               url = new_uri
