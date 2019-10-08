@@ -15,17 +15,31 @@ var isopen = false
 
 console.log('START OF GLOWCOMM')
 
-export function createWebsocket(msg) {
+export function createWebsocket(msg, serviceUrl) {
     if (msg.content.data.wsport !== undefined) {
         // create websocket instance
-		var port = msg.content.data.wsport
-		var uri = msg.content.data.wsuri
-        ws = new WebSocket("ws://localhost:" + port + uri);
-	    ws.binaryType = "arraybuffer";
+        var port = msg.content.data.wsport
+        var uri = msg.content.data.wsuri
+        var loc = document.location, new_uri, url;
+			
+        if (loc.protocol === "https:") {
+           new_uri = "wss:";
+        } else {
+           new_uri = "ws:";
+        }
+        if (document.location.hostname.includes("localhost")){
+           url = "ws://localhost:" + port + uri;
+        }
+        else {
+           new_uri += '//' + document.location.host + service_url + uri;
+           url = new_uri
+        }
+        ws = new WebSocket(url);
+        ws.binaryType = "arraybuffer";
 		
         // Handle incoming websocket message callback
         ws.onmessage = function(evt) {
-            console.log("WebSocket Message Received: " + evt.data)
+		console.log("WebSocket Message Received: " + evt.data)
         };
  
         // Close Websocket callback

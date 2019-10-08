@@ -1,6 +1,7 @@
-define(["nbextensions/vpython_libraries/plotly.min",
+define(["base/js/utils",
+        "nbextensions/vpython_libraries/plotly.min",
         "nbextensions/vpython_libraries/glow.min",
-        "nbextensions/vpython_libraries/jquery-ui.custom.min"], function(Plotly) {
+        "nbextensions/vpython_libraries/jquery-ui.custom.min"], function(utils, Plotly) {
 
 var comm
 var ws = null
@@ -20,11 +21,30 @@ IPython.notebook.kernel.comm_manager.register_target('glow',
         comm.on_close(function(msg) {console.log("glow comm channel closed")});
 		
         if (msg.content.data.wsport !== undefined) {
-            // create websocket instance
-		    var port = msg.content.data.wsport
-		    var uri = msg.content.data.wsuri
-            ws = new WebSocket("ws://localhost:" + port + uri);
-	        ws.binaryType = "arraybuffer";
+           // create websocket instance
+           var port = msg.content.data.wsport
+           var uri = msg.content.data.wsuri
+           var loc = document.location, new_uri, url;
+		
+           // Get base URL of current notebook server
+           var base_url = utils.get_body_data('baseUrl');
+           // Construct URL of our proxied service
+           var service_url = base_url + 'proxy/' + port + uri;
+
+           if (loc.protocol === "https:") {
+              new_uri = "wss:";
+           } else {
+              new_uri = "ws:";
+           }
+           if (document.location.hostname.includes("localhost")){
+              url = "ws://localhost:" + port + uri;
+           }
+           else {
+              new_uri += '//' + document.location.host + service_url;
+              url = new_uri
+           }
+           ws = new WebSocket(url);
+           ws.binaryType = "arraybuffer";
            
             // Handle incoming websocket message callback
             ws.onmessage = function(evt) {
