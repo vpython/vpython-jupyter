@@ -58,10 +58,15 @@ else:
     if jupyterlab.__version__ >= '0.35.0':
         from os.path import join
         labextensions_dir = join(jupyterlab.commands.get_app_dir(), u'static')
-        notebook.nbextensions.install_nbextension(path=package_dir + "/vpython_data",
-                                                  nbextensions_dir=labextensions_dir,
-                                                  overwrite=False,
-                                                  verbose=0)
+	try:
+        	notebook.nbextensions.install_nbextension(path=package_dir + "/vpython_data",
+                	                                  nbextensions_dir=labextensions_dir,
+                        	                          overwrite=False,
+                                                          verbose=0)
+	except PermissionError:
+		#logging.info("PermissionError: Unable to install /vpython_data directory and files for VPython on JupyterLab")
+		pass
+
 
 if 'nbextensions' in os.listdir(jd):
     ldir = os.listdir(nbdir)
@@ -101,7 +106,10 @@ display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextension
 display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");});}else{element.textContent = ' ';}"""))
 display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");});}else{element.textContent = ' ';}"""))
 
-time.sleep(1)      # allow some time for javascript code above to run before attempting to setup Comm Channel
+if transfer:
+	time.sleep(4)      # allow some time for javascript code above to run after nbextensions update before attempting to setup Comm Channel
+else:
+	time.sleep(2)      # allow some time for javascript code above to run before attempting to setup Comm Channel
 
 wsConnected = False
 
