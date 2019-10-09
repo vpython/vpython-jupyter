@@ -58,14 +58,14 @@ else:
     if jupyterlab.__version__ >= '0.35.0':
         from os.path import join
         labextensions_dir = join(jupyterlab.commands.get_app_dir(), u'static')
-	try:
-        	notebook.nbextensions.install_nbextension(path=package_dir + "/vpython_data",
-                	                                  nbextensions_dir=labextensions_dir,
-                        	                          overwrite=False,
-                                                          verbose=0)
-	except PermissionError:
-		#logging.info("PermissionError: Unable to install /vpython_data directory and files for VPython on JupyterLab")
-		pass
+        try:
+            notebook.nbextensions.install_nbextension(path=package_dir + "/vpython_data",
+                	                              nbextensions_dir=labextensions_dir,
+                        	                      overwrite=False,
+                                                      verbose=0)
+        except PermissionError:
+            #logging.info("PermissionError: Unable to install /vpython_data directory and files for VPython on JupyterLab")
+            pass
 
 
 if 'nbextensions' in os.listdir(jd):
@@ -107,9 +107,9 @@ display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextension
 display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");});}else{element.textContent = ' ';}"""))
 
 if transfer:
-	time.sleep(4)      # allow some time for javascript code above to run after nbextensions update before attempting to setup Comm Channel
+    time.sleep(4)      # allow some time for javascript code above to run after nbextensions update before attempting to setup Comm Channel
 else:
-	time.sleep(2)      # allow some time for javascript code above to run before attempting to setup Comm Channel
+    time.sleep(2)      # allow some time for javascript code above to run before attempting to setup Comm Channel
 
 wsConnected = False
 
