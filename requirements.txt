@@ -1,3 +1,2 @@
 Cython
 vpython
-jupyter-server-proxy
