@@ -42,6 +42,7 @@ requirements:
     - autobahn >=18.8.2
     - numpy
     - ipykernel
+    - jupyter-server-proxy
 
 test:
   imports:
