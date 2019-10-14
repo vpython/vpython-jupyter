@@ -27,6 +27,7 @@ install:
 
     # Gets us vpnotebook
     - conda config --add channels vpython
+    - conda config --append channels conda-forge
 
     - conda update --quiet conda
 
