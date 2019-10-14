@@ -61,6 +61,7 @@ install:
     - cmd: call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
     # Gets us vpnotebook
     - cmd: conda config --add channels vpython
+    - cmd: conda config --append channels conda-forge
 
     - cmd: conda config --set always_yes true
     # - conda install conda=4.5
