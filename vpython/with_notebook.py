@@ -55,7 +55,7 @@ except ImportError:
 	pass
 else:
     # We have jupyterlab, is it the right version?
-    if jupyterlab.__version__ >= '0.35.0':
+    if (jupyterlab.__version__ >= '0.35.0') and (jupyterlab.__version__ < '1.0.0'):
         from os.path import join
         labextensions_dir = join(jupyterlab.commands.get_app_dir(), u'static')
         try:
