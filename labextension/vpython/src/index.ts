@@ -47,11 +47,11 @@ class VPythonExtension implements DocumentRegistry.IWidgetExtension<NotebookPane
 					glowcommlab.comm = vp_comm
 					vp_comm.onMsg = glowcommlab.onmessage
 					
-					// Get base URL of current notebook server
-					let baseUrl = PageConfig.getBaseUrl()
+					// Get Websocket URL of current notebook server
+					let ws_url = PageConfig.getWsUrl()
 
 					// Construct URL of our proxied service
-					let serviceUrl = base_url + 'proxy/' + port;
+					let serviceUrl = ws_url + 'proxy/';
 					
 					glowcommlab.setupWebsocket(commMsg, serviceUrl)					
 				});
