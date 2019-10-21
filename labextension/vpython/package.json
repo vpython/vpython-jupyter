@@ -1,6 +1,6 @@
 {
   "name": "vpython",
-  "version": "0.4.3",
+  "version": "0.4.6",
   "description": "VPython extension for Jupyterlab",
   "keywords": [
     "jupyter",
@@ -14,17 +14,23 @@
   "license": "BSD-3-Clause",
   "author": "John Coady",
   "files": [
-    "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf,otf}",
-    "style/**/*.{css,eot,gif,html,jpg,json,png,svg,woff2,ttf}"
+    "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf,otf,ico}",
+    "style/**/*.{css,eot,gif,html,jpg,json,png,svg,woff2,ttf,otf,ico}",
+    "vpython_data/*.{css,eot,gif,html,jpg,json,png,svg,woff2,ttf,otf,ico}",
+    "vpython_libraries/*"
   ],
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
+  "style": "style/index.css",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
   "scripts": {
-    "build": "npm run build:src",
-    "build:src": "tsc",
-    "clean": "rimraf tsconfig.tsbuildinfo",
-    "prepublish": "npm run clean && npm run build",
-    "jpinstall": "jupyter labextension install ."
+    "build": "tsc",
+    "clean": "rimraf lib && rimraf tsconfig.tsbuildinfo",
+    "prepare": "npm run clean && npm run build",
+    "watch": "tsc -w"
   },
   "dependencies": {
     "@jupyterlab/application": "^1.1.3",
@@ -42,6 +48,9 @@
     "rimraf": "^2.6.1",
     "typescript": "^3.6.3"
   },
+  "sideEffects": [
+    "style/*.css"
+  ],
   "jupyterlab": {
     "extension": true
   }
