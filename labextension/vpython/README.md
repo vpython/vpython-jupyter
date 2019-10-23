@@ -16,17 +16,30 @@ jupyter labextension install vpython
 
 ## Development
 
-For a development install (requires npm version 4 or later), do the following in the repository directory:
+For a development install use the instructions for creating a custom jupyter labextension as a guide:
+
+https://jupyterlab.readthedocs.io/en/stable/developer/extension_tutorial.html#extension-tutorial
+
+but taylor the instructions for creating a vpython labextension.
 
 ```bash
-npm install
-cp -r ../../vpython/vpython_{libraries,data} lib/
+jlpm install
+jlpm add @jupyterlab/application
+jlpm add @jupyterlab/apputils
+jlpm add @jupyterlab/coreutils
+jlpm add @jupyterlab/docregistry
+jlpm add @jupyterlab/notebook
+jlpm add @phosphor/disposable
+jlpm add script-loader
+
+cp -r ../../vpython/vpython_{libraries,data} .
+jlpm run build
 jupyter labextension install .
 ```
 
 To rebuild the package and the JupyterLab app:
 
 ```bash
-npm run build
+jlpm run build
 jupyter lab build
 ```
