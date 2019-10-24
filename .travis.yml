@@ -1,7 +1,6 @@
 # The language in this case has no bearing - we are going to be making use of "conda" for a
 # python distribution for the scientific python stack.
 os:
-  - linux
   - osx
 
 env:
@@ -14,7 +13,6 @@ env:
         - CONDA_INSTALL_LOCN="${HOME}/miniconda"
         - TWINE_USERNAME="mwcraig"
     matrix:
-        - CONDA_PY=3.6
         - CONDA_PY=3.7
 
 install:
