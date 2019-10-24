@@ -59,7 +59,7 @@ script:
         twine check dist/*;
       fi
     # Not much of a real test yet, just try to build myself...
-    - conda build --quiet vpython.recipe
+    - conda build --debug vpython.recipe
     - export CONDA_PACKAGE=`conda build --output vpython.recipe | grep bz2`
     - export OUTPUT_DIR=`dirname $CONDA_PACKAGE`
 
