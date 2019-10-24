@@ -2131,7 +2131,7 @@ class gobj(baseObj):
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
         self.appendcmd(cmd)
-        super(gcurve, self).__del__()
+        super(gobj, self).__del__()
 
     def resolveargs(self, *vars):
         ret = []

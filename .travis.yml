@@ -15,25 +15,27 @@ env:
         - TWINE_USERNAME="mwcraig"
     matrix:
         - CONDA_PY=3.6
-        - CONDA_PY=3.7
+        - CONDA_PY=3.7.3  # 3.7.4 on conda is broken
 
 install:
     # Install and set up miniconda.
     - if [ $TRAVIS_OS_NAME == "linux" ]; then wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh; fi
     - if [ $TRAVIS_OS_NAME == "osx" ]; then wget http://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh; fi
     - bash miniconda.sh -b -p $CONDA_INSTALL_LOCN
-    - export PATH=${CONDA_INSTALL_LOCN}/bin:$PATH
+    - $CONDA_INSTALL_LOCN/bin/conda init bash
+    - source ~/.bash_profile
+    - conda activate base
     - conda config --set always_yes true
 
     # Gets us vpnotebook
     - conda config --add channels vpython
     - conda config --append channels conda-forge
 
-    - conda update --quiet conda
+    - conda install conda python=$CONDA_PY
 
     # Install a couple of dependencies we need for sure.
     # Not sure why cython is necessary since it is listed as a build dependency.
-    - conda install --quiet jinja2 conda-build anaconda-client cython twine pytest
+    - conda install --quiet jinja2 conda-build=3.18.9 anaconda-client cython twine pytest
 
     # make a wheel building environment to ensure correct python version.
     - conda create --quiet -n wheel-build python=$CONDA_PY wheel cython
@@ -67,7 +69,7 @@ script:
     # paying attention to CONDA_PY. See:
     # https://github.com/conda/conda-build/issues/1832
     # - export WHEEL_PACKAGE="$OUTPUT_DIR/*.whl"
-    - source activate wheel-build; python setup.py bdist_wheel; source deactivate
+    - conda activate wheel-build; python setup.py bdist_wheel; conda deactivate
     - export WHEEL_PACKAGE=dist/*.whl
     - echo $CONDA_PACKAGE
     - echo $WHEEL_PACKAGE
