@@ -43,3 +43,5 @@ To rebuild the package and the JupyterLab app:
 jlpm run build
 jupyter lab build
 ```
+
+
