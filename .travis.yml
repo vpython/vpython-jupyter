@@ -29,7 +29,7 @@ install:
     - conda config --add channels vpython
     - conda config --append channels conda-forge
 
-    - conda update --quiet conda=4.7.10 python=$CONDA_PY
+    - conda install conda=4.7.10 python=$CONDA_PY
 
     # Install a couple of dependencies we need for sure.
     # Not sure why cython is necessary since it is listed as a build dependency.
