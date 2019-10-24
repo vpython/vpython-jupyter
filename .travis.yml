@@ -20,7 +20,9 @@ install:
     - if [ $TRAVIS_OS_NAME == "linux" ]; then wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh; fi
     - if [ $TRAVIS_OS_NAME == "osx" ]; then wget http://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh; fi
     - bash miniconda.sh -b -p $CONDA_INSTALL_LOCN
-    - export PATH=${CONDA_INSTALL_LOCN}/bin:$PATH
+    - $CONDA_INSTALL_LOCN/bin/conda init bash
+    - source ~/.bash_profile
+    - conda activate base
     - conda config --set always_yes true
 
     # Gets us vpnotebook
