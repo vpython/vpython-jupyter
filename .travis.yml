@@ -13,7 +13,7 @@ env:
         - CONDA_INSTALL_LOCN="${HOME}/miniconda"
         - TWINE_USERNAME="mwcraig"
     matrix:
-        - CONDA_PY=3.7
+        - CONDA_PY=3.7.3
 
 install:
     # Install and set up miniconda.
