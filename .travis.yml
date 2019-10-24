@@ -27,7 +27,7 @@ install:
     - conda config --add channels vpython
     - conda config --append channels conda-forge
 
-    - conda update --quiet conda
+    - conda update --quiet conda python
 
     # Install a couple of dependencies we need for sure.
     # Not sure why cython is necessary since it is listed as a build dependency.
