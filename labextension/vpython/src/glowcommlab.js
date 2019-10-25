@@ -5,9 +5,27 @@ import 'script-loader!./vpython_libraries/plotly.min.js';
 import '../style/jquery-ui.custom.css'
 import '../style/ide.css'
 
-// Ensure downstream JupyterLab webpack places the fonts in predictable locations
-import '!!file-loader?name=/vpython_data/[name].[ext]!./vpython_data/Roboto-Medium.ttf'
-import '!!file-loader?name=/vpython_data/[name].[ext]!./vpython_data/NimbusRomNo9L-Med.otf'
+// Ensure downstream JupyterLab webpack places the fonts and images in predictable locations
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/earth_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/favicon.ico'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/flower_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/granite_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/gravel_bumpmap.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/gravel_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/metal_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/NimbusRomNo9L-Med.otf'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/Roboto-Medium.ttf'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/rock_bumpmap.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/rock_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/rough_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/rug_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/stones_bumpmap.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/stones_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/stucco_bumpmap.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/stucco_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/wood_old_bumpmap.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/wood_old_texture.jpg'
+import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/wood_texture.jpg'
 
 export var comm
 var ws = null
@@ -20,19 +38,13 @@ export function createWebsocket(msg, serviceUrl) {
         // create websocket instance
         var port = msg.content.data.wsport
         var uri = msg.content.data.wsuri
-        var loc = document.location, new_uri, url;
-			
-        if (loc.protocol === "https:") {
-           new_uri = "wss:";
-        } else {
-           new_uri = "ws:";
-        }
+        var url;
+    
         if (document.location.hostname.includes("localhost")){
            url = "ws://localhost:" + port + uri;
         }
         else {
-           new_uri += '//' + document.location.host + service_url + uri;
-           url = new_uri
+           url = serviceUrl + port + uri;
         }
         ws = new WebSocket(url);
         ws.binaryType = "arraybuffer";
@@ -57,25 +69,22 @@ export function createWebsocket(msg, serviceUrl) {
     }
 }
 
-var wsmsg
-
-function wscheckfontsloaded() {
+function wscheckfontsloaded(msg,serviceUrl) {
 	"use strict";
 	if (window.__font_sans === undefined || window.__font_serif === undefined) {
-		setTimeout(wscheckfontsloaded,10)
+		setTimeout(wscheckfontsloaded,10,msg,serviceUrl)
 	} else {
-		createWebsocket(wsmsg)
+		createWebsocket(msg,serviceUrl)
 	}
 }
 
-export function setupWebsocket(msg) {
+export function setupWebsocket(msg,serviceUrl) {
 	"use strict";
-	wsmsg = msg
-	wscheckfontsloaded()
+	wscheckfontsloaded(msg,serviceUrl)
 }
 
-var datadir = '/static/lab/vpython_data/'
-window.Jupyter_VPython = "/static/lab/vpython_data/" // prefix used by glow.min.js for textures
+var datadir = './static/lab/vpython_data/'
+window.Jupyter_VPython = "./static/lab/vpython_data/" // prefix used by glow.min.js for textures
 
 function fontloading() {
     "use strict";
