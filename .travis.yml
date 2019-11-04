@@ -76,12 +76,11 @@ script:
 
     # This will fail if the package does not actually exist
     - ls $CONDA_PACKAGE $WHEEL_PACKAGE
+    # This step copies the few things we need from conda-forge to the vpython
+    # channel.
     - if [ $TRAVIS_EVENT_TYPE == "cron" ]; then
-        # Repo below has the script that does the actually copying
         git clone git://github.com/glue-viz/conda-sync.git;
-        # Move the key file to this directory
         mv conda-sync/sync.py .;
-        # Do the copying
         python drive_copy.py;
       fi
 
