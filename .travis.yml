@@ -77,8 +77,12 @@ script:
     # This will fail if the package does not actually exist
     - ls $CONDA_PACKAGE $WHEEL_PACKAGE
     - if [ $TRAVIS_EVENT_TYPE == "cron" ]; then
-        conda install -c astropy -c conda-forge extruder twine;
-        copy_packages vp_copy.yaml vpython;
+        # Repo below has the script that does the actually copying
+        git clone git://github.com/glue-viz/conda-sync.git;
+        # Move the key file to this directory
+        mv conda-sync/sync.py .;
+        # Do the copying
+        python drive_copy.py;
       fi
 
 
