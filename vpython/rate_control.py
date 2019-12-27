@@ -1,5 +1,11 @@
 import time
-import platform
+try:
+    _clock = time.perf_counter # time.clock is deprecated in Python 3.3, gone in 3.8
+except:
+    _clock = time.clock
+_tick = 1/60
+
+#import platform
 import queue
 import json
 
@@ -17,20 +23,20 @@ MAX_RENDERS = 30
 INTERACT_PERIOD = 1.0/MAX_RENDERS
 USER_FRACTION = 0.5
 
-_plat = platform.system()
+##_plat = platform.system()
 
-if _plat == 'Windows':
-    # On Windows, the best timer is supposedly time.clock()
-    _clock = time.clock
-    _tick = 1/60
-elif _plat == 'Macintosh':
-    # On platforms other than Windows, the best timer is supposedly time.time()
-    _clock = time.time
-    _tick = 0.01
-else: # 'Unix'
-    # On platforms other than Windows, the best timer is supposedly time.time()
-    _clock = time.time
-    _tick = 0.01 # though sleep seems to be accurate at the 1 millisecond level
+##if _plat == 'Windows':
+##    # On Windows, the best timer is supposedly time.clock()
+##    _clock = time.clock
+##    _tick = 1/60
+##elif _plat == 'Macintosh':
+##    # On platforms other than Windows, the best timer is supposedly time.time()
+##    _clock = time.time
+##    _tick = 0.01
+##else: # 'Unix'
+##    # On platforms other than Windows, the best timer is supposedly time.time()
+##    _clock = time.time
+##    _tick = 0.01 # though sleep seems to be accurate at the 1 millisecond level
 
 ##Possible way to get one-millisecond accuracy in sleep on Windows:
 ##http://msdn.microsoft.com/en-us/library/windows/desktop/ms686298(v=vs.85).aspx
