@@ -3,9 +3,8 @@ import PyQt5.QtCore
 import PyQt5.QtWebEngineWidgets
 from PyQt5.QtWidgets import QApplication
 
-print(sys.argv)
 
-if(len(sys.argv)>1):
+if len(sys.argv) > 1:
 
     if sys.argv[1]:
 
@@ -18,7 +17,9 @@ if(len(sys.argv)>1):
         sys.exit(app.exec_())
 
     else:
-        print("Please give a URL as the first command-line argument when running the program.")
+        print("Please give a URL as the first command-line argument "
+              "when running the program.")
 
 else:
-    print("Please give a URL as the first command-line argument when running the program.")
+    print("Please give a URL as the first command-line argument "
+          "when running the program.")
