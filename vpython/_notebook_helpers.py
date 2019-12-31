@@ -7,14 +7,26 @@ def __is_spyder():
 
 
 def _spyder_run_setting_is_correct():
-    from spyder.config.main import CONF
+    try:
+        # This is the spyder 3 location
+        from spyder.config.main import CONF
+    except ImportError:
+        # CONF moved in spyder 4
+        from spyder.config.manager import CONF
+
     # Use this instead of accessing like a dictionary so that a
     # default value can be supplied if the setting is missing.
     return CONF.get('run', 'default/interpreter/dedicated', False)
 
 
 def _warn_if_spyder_settings_wrong():
-    if not _spyder_run_setting_is_correct():
+    from spyder import __version__
+    from packaging import version
+    pre_4 = version.parse(__version__) < version.parse('4.0.0')
+    # It looks like spyder 4 works fine without this setting, perhaps
+    # related to the change that they run files in an empty namespace
+    # instead of the namespace of the current console.
+    if not _spyder_run_setting_is_correct() and pre_4:
         print('\x1b[1;31m**** Please set spyder preference Run to '
               '"Execute in a dedicated console" for the best '
               'vpython experience. ****\x1b[0m')
