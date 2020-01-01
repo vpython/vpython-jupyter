@@ -1,4 +1,4 @@
-from .vpython import GlowWidget, baseObj, vector, canvas
+from .vpython import GlowWidget, baseObj, vector, canvas, _browsertype
 from ._notebook_helpers import _in_spyder, _undo_vpython_import_in_spyder
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -13,6 +13,8 @@ from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerF
 import txaio
 import copy
 import socket
+import multiprocessing
+
 
 import signal
 from urllib.parse import unquote
@@ -148,7 +150,7 @@ class WSserver(WebSocketServerProtocol):
     # in favor of "async def onMessage...", and "yield from" with "await".
     # Attempting to use the older Python 3.4 syntax was not successful, so this
     # no-notebook version of VPython requires Python 3.5.3 or later.
-    #@asyncio.coroutine
+    # @asyncio.coroutine
     # def onMessage(self, data, isBinary): # data includes canvas update, events, pick, compound
     # data includes canvas update, events, pick, compound
     async def onMessage(self, data, isBinary):
@@ -231,9 +233,31 @@ try:
     else:
         __server = HTTPServer(('', __HTTP_PORT), serveHTTP)
         # or webbrowser.open_new_tab()
-        _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT))
+        if _browsertype == 'default':  # uses default browser
+            _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT))
+
 except:
     pass
+
+
+if platform.python_implementation() == 'PyPy' and _browsertype == 'pyqt':
+    raise RuntimeError('The pyqt browser cannot be used PyPy. Please use '
+                       'the default browser instead by removing '
+                       'set_browser("pyqt") from your code.')
+
+
+def start_Qapp(port):
+    # creates a python browser with PyQt5
+    # runs qtbrowser.py in a separate process
+    filepath = os.path.dirname(__file__)
+    filename = filepath + '/qtbrowser.py'
+    os.system('python ' + filename + ' http://localhost:{}'.format(port))
+
+
+# create a browser in its own process
+if _browsertype == 'pyqt':
+    __m = multiprocessing.Process(target=start_Qapp, args=(__HTTP_PORT,))
+    __m.start()
 
 __w = threading.Thread(target=__server.serve_forever)
 __w.start()

@@ -24,7 +24,7 @@ __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'at
            'event_return', 'extrusion', 'faces', 'frame', 'gcurve', 'gdots',
            'ghbars', 'gobj', 'graph', 'gvbars', 'helix', 'label',
            'local_light', 'menu', 'meta_canvas', 'points', 'pyramid',
-           'quad', 'radio', 'ring', 'simple_sphere', 'sleep', 'slider', 'sphere',
+           'quad', 'radio', 'ring', 'set_browser', 'simple_sphere', 'sleep', 'slider', 'sphere',
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
            'wtext', 'winput', 'keysdown']
 
@@ -97,7 +97,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E', 'scroll':'F'}
+          'size_units':'D', 'userpan':'E', 'scroll':'F', 'integrate_selected':'G'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -2027,6 +2027,7 @@ class gobj(baseObj):
         self._legend = False
         self._interval = -1
         self._graph = None
+        self._integrate_selected = False
         objName = args['_objName']
         del args['_objName']
         self._constructing = True ## calls are from constructor
@@ -2246,6 +2247,13 @@ class gdots(gobj):
     def __init__(self, **args):
         args['_objName'] = "gdots"
         super(gdots, self).setup(args)
+
+    @property
+    def integrate_selected(self): return self._integrate_selected
+    @integrate_selected.setter
+    def integrate_selected(self,val):
+        self._integrate_selected = val
+        self.addattr('integrate_selected')
 
 class gvbars(gobj):
     def __init__(self, **args):
@@ -4131,3 +4139,12 @@ def keysdown():
     for k in keysdownlist: # return a copy of keysdownlist
         keys.append(k)
     return keys
+
+# global variable for type of web browser to display vpython
+_browsertype = 'default'
+def set_browser(type='default'):
+    global _browsertype
+    if type=='pyqt':
+        _browsertype='pyqt'
+    else:
+        _browsertype='default'
