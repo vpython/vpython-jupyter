@@ -3205,7 +3205,7 @@ class canvas(baseObj):
             else:  ## user can change forward (spin), range/autoscale (zoom), up (touch), center (pan)
                 if 'forward' in evt and self.userspin and not self._set_forward:
                     fwd = evt['forward']
-                    self._forward = list_to_vec(fwd)
+                    self._axis = list_to_vec(fwd) # the fundamental meaning of scene.forward is scene.axis
                 self._set_forward = False
                 if 'up' in evt and self.userspin and not self._set_up:
                     cup = evt['up']
