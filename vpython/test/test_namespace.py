@@ -158,6 +158,11 @@ def test_names_in_base_namspace():
     if python_version.major == 3 and python_version.minor >= 7:
         api_name_set.add('remainder')
 
+    # Python 3.8 added even more math functions.
+    if python_version.major == 3 and python_version.minor >= 8:
+        for name in ['dist', 'comb', 'prod', 'perm', 'isqrt']:
+            api_name_set.add(name)
+
     print(sorted(api_name_set - current_names))
 
     # We may have added new names, so start with this weaker test
