@@ -25,6 +25,9 @@ environment:
     # the appveyor setup only sets up the SDK once, so separate by python
     # versions.
     - TARGET_ARCH: "x64"
+      CONDA_PY: "3.8"
+      CONDA_INSTALL_LOCN: "C:\\Miniconda37-x64"
+    - TARGET_ARCH: "x64"
       CONDA_PY: "3.7"
       CONDA_INSTALL_LOCN: "C:\\Miniconda37-x64"
     - TARGET_ARCH: "x64"
@@ -32,6 +35,9 @@ environment:
       CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
 
     # 32-bit builds
+    - TARGET_ARCH: "x86"
+      CONDA_PY: "3.8"
+      CONDA_INSTALL_LOCN: "C:\\Miniconda37"
     - TARGET_ARCH: "x86"
       CONDA_PY: "3.7"
       CONDA_INSTALL_LOCN: "C:\\Miniconda37"
@@ -64,14 +70,11 @@ install:
     - cmd: conda config --append channels conda-forge
 
     - cmd: conda config --set always_yes true
-    # - conda install conda=4.5
-    # - cmd: conda update --quiet conda python
+
 
     - echo %CONDA_PY%
     - conda update --quiet conda
-    # Need to do this to pick up newer versions of conda
-    - if "%CONDA_PY%"=="3.5" conda update --quiet conda
-
+    - if "%CONDA_PY%"=="3.8" conda install python=3.8
     - cmd: conda install --quiet conda%CONDA_VERSION_PIN% jinja2 conda-build anaconda-client cython wheel %INSTALL_ON_WINDOWS% tqdm%TQDM_PIN%
 
     #- conda create --quiet -n wheel-build python=%CONDA_PY% wheel cython
