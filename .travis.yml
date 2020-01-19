@@ -55,7 +55,9 @@ script:
         fi
       fi
     - echo $UPLOAD_SDIST
-    # Run tests
+    # Run tests ALWAYS for now
+    - pip install .
+    - pytest vpython
     - if [ "$TRAVIS_OS_NAME" == "linux" ]; then
         python setup.py install;
         py.test vpython;
