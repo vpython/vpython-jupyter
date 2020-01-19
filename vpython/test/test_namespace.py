@@ -118,6 +118,7 @@ API_NAMES = [
     'roundc',
     'scalecp',
     'scene',
+    'set_browser',
     'shape_object',
     'shapes',
     'shapespaths',
