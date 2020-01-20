@@ -1,8 +1,8 @@
 on:
   schedule:
     # Run once a day at 20:10 UTC
-    # But for now every hour on 35.
-    - cron: '35 * * * *'
+    # But for now every hour on 57.
+    - cron: '57 * * * *'
 
 jobs:
   copy_packages:
@@ -22,6 +22,8 @@ jobs:
         conda install anaconda-client
 
     - name: Perform copy
+      env:
+        BINSTAR_TOKEN: ${{ secrets.BINSTAR_TOKEN }}
       shell: bash -l {0}
       run: |
         git clone git://github.com/glue-viz/conda-sync.git
