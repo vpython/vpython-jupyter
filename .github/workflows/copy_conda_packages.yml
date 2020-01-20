@@ -1,0 +1,22 @@
+on:
+  schedule:
+    # Run once a day at 20:10 UTC
+    - cron: '10 20 * * *'
+
+jobs:
+  copy_packages:
+    runs-on: ubuntu-latest
+    steps:
+
+    - uses: actions/checkout@v1
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+
+    - name: Perform copy
+      run: |
+        git clone git://github.com/glue-viz/conda-sync.git
+        mv conda-sync/sync.py .
+        python drive_copy.py

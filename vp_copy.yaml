@@ -4,3 +4,4 @@
 # not in the defaults channel.
 - name: autobahn
 - name: txaio
+- name: vpython
