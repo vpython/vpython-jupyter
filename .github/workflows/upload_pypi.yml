@@ -37,6 +37,31 @@ jobs:
         python setup.py bdist_wheel
         twine upload dist/*
 
+  linux_wheels:
+    runs-on: ubuntu-latest
+        steps:
+        - uses: actions/checkout@v1
+        - name: Set up Python
+          uses: actions/setup-python@v1
+          with:
+            python-version: 3.8
+        - name: Install dependencies
+          run: |
+            python -m pip install --upgrade pip
+            pip install twine
+      - name: Python wheels manylinux build
+        uses: RalfG/python-wheels-manylinux-build@v0.1
+        with:
+          python-versions: 'cp36-cp36m cp37-cp37m cp38-cp38'
+          build-requirements: 'setuptools cython'
+      - name: Build and publish wheel
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_UPLOAD_TOKEN }}
+        run: |
+          python setup.py bdist_wheel
+          twine upload wheelhouse/*-manylinux1_x86_64.whl
+
   sdist:
     runs-on: ubuntu-latest
     steps:
