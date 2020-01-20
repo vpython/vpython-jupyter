@@ -1,8 +1,7 @@
 on:
   schedule:
-    # Run once a day at 20:10 UTC
-    # But for now every hour on 57.
-    - cron: '57 * * * *'
+    # Run once a day at 21:20 UTC
+    - cron: '20 21 * * *'
 
 jobs:
   copy_packages:
