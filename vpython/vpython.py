@@ -97,7 +97,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E', 'scroll':'F', 'integrate_selected':'G'}
+          'size_units':'D', 'userpan':'E', 'scroll':'F'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -2027,7 +2027,6 @@ class gobj(baseObj):
         self._legend = False
         self._interval = -1
         self._graph = None
-        self._integrate_selected = False
         objName = args['_objName']
         del args['_objName']
         self._constructing = True ## calls are from constructor
@@ -2247,13 +2246,6 @@ class gdots(gobj):
     def __init__(self, **args):
         args['_objName'] = "gdots"
         super(gdots, self).setup(args)
-
-    @property
-    def integrate_selected(self): return self._integrate_selected
-    @integrate_selected.setter
-    def integrate_selected(self,val):
-        self._integrate_selected = val
-        self.addattr('integrate_selected')
 
 class gvbars(gobj):
     def __init__(self, **args):
