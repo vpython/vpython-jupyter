@@ -240,10 +240,15 @@ except:
     pass
 
 
-if platform.python_implementation() == 'PyPy' and _browsertype == 'pyqt':
-    raise RuntimeError('The pyqt browser cannot be used PyPy. Please use '
-                       'the default browser instead by removing '
-                       'set_browser("pyqt") from your code.')
+if _browsertype == 'pyqt':
+    if platform.python_implementation() == 'PyPy':
+        raise RuntimeError('The pyqt browser cannot be used PyPy. Please use '
+                           'the default browser instead by removing '
+                           'set_browser("pyqt") from your code.')
+    elif sys.platform.startswith('win'):
+        raise RuntimeError('The pyqt browser cannot be used on Windows. '
+                           'Please use the default browser instead by '
+                           'removing set_browser("pyqt") from your code.')
 
 
 def start_Qapp(port):
