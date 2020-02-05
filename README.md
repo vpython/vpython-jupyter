@@ -40,9 +40,32 @@ controls available to zoom and rotate the camera:
     Shift-drag to pan left/right and up/down.
     Touch screen: pinch/extend to zoom, swipe or two-finger rotate.
 
-Currently, to re-run a VPython program in a Jupyter notebook you need to click the circular arrow icon to "restart the kernel" and then click the red-highlighted button, then click in the first cell, then click the run icon. Alternatively, if you insert "scene = canvas()" at the start of your program, you can rerun the program without restarting the kernel.
+Currently, to re-run a VPython program in a Jupyter notebook you need to click the circular arrow icon to "restart the kernel" and then click the red-highlighted button, then click in the first cell, then click the run icon. Alternatively, if you insert `scene = canvas()`` at the start of your program, you can rerun the program without restarting the kernel.
 
 Run example VPython programs: [![Binder](http://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/BruceSherwood/vpython-jupyter/7.4.7?filepath=index.ipynb)
+
+## Installation for developers from package source
+
+You should install Cython (`conda install cython` or `pip install cython`) so
+that the fast version of the vector class can be generated and compiled. You
+may also need to install a compiler (command line tools on Mac, community
+edition on Visual Studio on Windows).
+
+If you don't have a compilier vpython should still work, but code that
+generates a lot of vectors may run a little slower.
+
+To install vpython from source run this command from the source directory
+after you have downloaded it:
+
+```
+pip install -e .
+```
+
+The `-e` option installs the code with symbolic links so that change you make
+show up without needing to reinstall.
+
+If you also need the JupyterLab extension, please see the instructions
+in the `labextension` folder.
 
 ## vpython build status (for the vpython developers)
 
