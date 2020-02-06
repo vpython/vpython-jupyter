@@ -623,7 +623,7 @@ function handle_cmds(dcmds) {
 				}
 				cfg[attr] = ptlist
 			} else if (attr === "axis" && obj == 'arrow') {
-				cfg['axis_and_length'] = o2vec3(val) 
+				cfg['axis_and_length'] = o2vec3(val)
 			} else if (vlst.indexOf(attr) !== -1) {
 				cfg[attr] = o2vec3(val)
 			} else if (triangle_quad.indexOf(attr) !== -1) {
@@ -679,6 +679,8 @@ function handle_cmds(dcmds) {
 		}
 		// creating the objects
 		cfg.idx = idx // reinsert idx, having looped thru all other attributes
+		// triangle and quad objects should not have a canvas attribute; canvas is provided in the vertex objectsE
+		if ((obj == 'triangle' || obj == 'quad') && cfg.canvas !== undefined) delete cfg.canvas
 		switch (obj) {
 			case 'box':           {glowObjs[idx] = box(cfg); break}
 			case 'sphere':        {glowObjs[idx] = sphere(cfg); break}
@@ -896,7 +898,7 @@ function handle_cmds(dcmds) {
 	} // end of cmds (constructors and special data)
 }
 
-function handle_methods(dmeth) {
+async function handle_methods(dmeth) {
     "use strict";
 	//console.log('METHODS')
 	for (var idmeth=0; idmeth<dmeth.length; idmeth++) { // methods; cmd is ['idx':idx, 'attr':method, 'val':val]
@@ -938,7 +940,7 @@ function handle_methods(dmeth) {
 		} else if (method === "follow") {
 			obj.camera.follow(glowObjs[val])
 		} else if (method === "capture") {
-			obj.capture(val)
+			await obj.capture(val)
 		} else if (method === 'waitfor') {
 			waitfor_canvas = idx
 			waitfor_options = val
@@ -947,10 +949,11 @@ function handle_methods(dmeth) {
 			waitfor_canvas = idx
 			waitfor_options = 'click'
 			if (val.length > 0) {
-			   obj.pause(val, process_pause) 
+			   await obj.pause(val)
 			} else {
-			   obj.pause(process_pause) 
+			   await obj.pause()
 			}
+			process_pause()
 		} else if (method === 'pick') {
 			var p = glowObjs[val].mouse.pick()   // wait for pick render; val is canvas
 			var seg = null
