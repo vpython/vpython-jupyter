@@ -629,25 +629,24 @@ class standardAttributes(baseObj):
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
 
-        vectorInteractions = [ ('size','axis'), ('axis','size'), ('axis','up'), ('up','axis')]
-
-    # override defaults for vector attributes with side effects
+    # Track side effects of modifying size, axis, or up
     # For consistency with GlowScript, axis is listed before up in the attrLists,
     # so that setting axis may affect up, but then setting up can affect axis afterwards.
-        attrs = standardAttributes.attrLists[objName][1]
+        attrs = standardAttributes.attrLists[objName][1] # vector attributes with interactions
         for a in attrs:
             if a in args:
                 val = args[a]
                 if isinstance(val, vector):
-                    setattr(self, a, vector(val))   ## use setter to take care of side effects; copy of val
+                    setattr(self, a, vector(val))
                     if a not in argsToSend:
                         argsToSend.append(a)
-                    for vi in vectorInteractions:
-                        if vi[0] == a:
-                            if vi[1] not in argsToSend:
-                                argsToSend.append(vi[1])
-                elif objName == 'points' and a == 'size':  ## in this case size is a scalar
-                    argsToSend.append(a)
+                    if a == 'size':
+                        self._axis = self._axis.norm()*val.x
+                    elif a == 'axis':
+                        self._size.x = mag(val)
+                        self.axis = val # this will have the side effect of modifying up
+                    elif a == 'up':
+                        self.up = val # this will have the side effect of modifying axis
                 else: raise AttributeError(a+' must be a vector')
                 del args[a]
 
@@ -695,9 +694,7 @@ class standardAttributes(baseObj):
             elif isinstance(aval, vertex):
                 aval = aval.idx
             if objName in nosize and a == 'size': continue # do not send superfluous size
-            #cmd["attrs"].append({"attr":a, "value": aval})
             cmd[a] = aval
-
 
     # set canvas
         if self.canvas is None:  ## not specified in constructor
@@ -757,8 +754,6 @@ class standardAttributes(baseObj):
     def up(self,value):
         self._save_oldup = adjust_axis(self._up, value, self._axis, self._save_oldup) # this sets self._axis and self._up
         if not self._constructing:
-            # must update both axis and up when either is changed
-            self.addattr('axis')
             self.addattr('up')
 
     @property
@@ -768,14 +763,8 @@ class standardAttributes(baseObj):
     def axis(self,value):
         self._save_oldaxis = adjust_up(self._axis, value, self._up, self._save_oldaxis) # this sets self._axis and self._up
         if not self._constructing:
-            # must update both axis and up when either is changed
             self.addattr('axis')
-            self.addattr('up')
-        m = value.mag
-        if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
-            self._size._x = m
-            if not self._constructing:
-                self.addattr('size')
+        self._size._x = value.mag # changing axis length changes size.x
 
     @property
     def size(self):
@@ -788,11 +777,7 @@ class standardAttributes(baseObj):
         a = self._axis.norm() * value.x
         if mag(self._axis) == 0:
             a = vector(value.x,0,0)
-        v = self._axis
-        if not v.equals(a):
-            self._axis.value = a
-            if not self._constructing:
-                self.addattr('axis')
+        self._axis.value = a # changing size changes length of axis
 
     @property
     def length(self):
@@ -1262,37 +1247,6 @@ class arrow(standardAttributes):
         self._headlength = 0
 
         super(arrow, self).setup(args)
-
-    @property
-    def size(self):
-        return self._size
-    @size.setter
-    def size(self,value): # no need to send to browser both arrow.size and arrow.axis
-        self._size.value = value
-        if not self._constructing:
-            self.addattr('size')
-        a = self._axis.norm() * value.x
-        if mag(self._axis) == 0:
-            a = vector(value.x,0,0)
-        v = self._axis
-        if not v.equals(a):
-            self._axis.value = a
-
-    @property
-    def axis(self):
-        return self._axis
-    @axis.setter
-    def axis(self,value): # no need to send to browser both arrow.size and arrow.axis
-        oldaxis = norm(self._axis)
-        self._axis.value = value
-        m = value.mag
-        if abs(self._size._x - m) > 0.0001*self._size._x: # need not update size if very small change
-            self._size._x = m
-        self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
-        if not self._constructing:
-            # must update both axis and up when either is changed
-            self.addattr('axis')
-            self.addattr('up')
 
     @property
     def shaftwidth(self):
