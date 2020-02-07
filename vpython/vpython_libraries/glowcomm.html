@@ -112,9 +112,22 @@ function send() { // periodically send events and update_canvas to websocket and
 }
 
 // *************************************************************************************************** //
-// THE REST OF THIS FILE IS IDENTICAL IN glowcomm.html AND glowcomm.js (except for the last few lines) //
+// THE REST OF THIS FILE IS NEARLY IDENTICAL IN glowcomm.html AND glowcomm.js AND glowcommlab.js //
 
-// Should eventually have glowcomm.html and glowcom.js both import this common component.
+// Should eventually have glowcomm.html, glowcom.js, and glowcommlab.js all import this common component.
+
+window.__GSlang = "vpython"
+box = vp_box
+sphere = vp_sphere
+simple_sphere = vp_simple_sphere
+cylinder = vp_cylinder
+pyramid = vp_pyramid
+cone = vp_cone
+helix = vp_helix
+ellipsoid = vp_ellipsoid
+ring = vp_ring
+arrow = vp_arrow
+compound = vp_compound
 
 function msclock() {
     "use strict";
@@ -319,7 +332,7 @@ function process_waitfor(event) {
 }
 
 function process_binding(event) { // event associated with a previous bind command
-    "use strict";
+	"use strict";
     event.bind = true
 	process(event)
 }
@@ -572,8 +585,6 @@ function handle_cmds(dcmds) {
 					ptlist.push( o2vec3(val[kk]) )
 				}
 				cfg[attr] = ptlist
-			} else if (attr === "axis" && obj == 'arrow') {
-				cfg['axis_and_length'] = o2vec3(val)
 			} else if (vlst.indexOf(attr) !== -1) {
 				cfg[attr] = o2vec3(val)
 			} else if (triangle_quad.indexOf(attr) !== -1) {
@@ -921,17 +932,6 @@ function handle_attrs(dattrs) {
 					ptlist.push( val[kk] )
 				}
 				obj[attr] = ptlist
-			} else if (attr === 'axis') {
-				// For axis and up, Python maintains them to be perpendicular, so avoid
-				//   having GlowScript do it again, which can have bad results.
-				window.__adjustupaxis = false
-				if (obj instanceof arrow) attr = 'axis_and_length'
-				obj[attr] = val
-				window.__adjustupaxis = true
-			} else if (attr === 'up') {
-				window.__adjustupaxis = false
-				obj[attr] = val
-				window.__adjustupaxis = true
 			} else {
 				obj[attr] = val
 			}
