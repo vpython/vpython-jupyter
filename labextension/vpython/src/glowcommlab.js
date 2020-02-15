@@ -1,7 +1,7 @@
-import 'script-loader!./vpython_libraries/jquery.min.js';
-import 'script-loader!./vpython_libraries/jquery-ui.custom.min.js';
-import 'script-loader!./vpython_libraries/glow.min.js';
-import 'script-loader!./vpython_libraries/plotly.min.js';
+import 'script-loader!../vpython_libraries/jquery.min.js';
+import 'script-loader!../vpython_libraries/jquery-ui.custom.min.js';
+import 'script-loader!../vpython_libraries/glow.min.js';
+import 'script-loader!../vpython_libraries/plotly.min.js';
 import '../style/jquery-ui.custom.css'
 import '../style/ide.css'
 
@@ -202,7 +202,7 @@ cylinder = vp_cylinder
 pyramid = vp_pyramid
 cone = vp_cone
 helix = vp_helix
-ellipsoid = vp_ellipsoid
+//ellipsoid = vp_ellipsoid   // This line causes a big problem in jupyterlab vpython extension
 ring = vp_ring
 arrow = vp_arrow
 compound = vp_compound
