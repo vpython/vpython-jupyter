@@ -1,8 +1,8 @@
 import time
-try:
-    _clock = time.perf_counter # time.clock is deprecated in Python 3.3, gone in 3.8
-except:
-    _clock = time.clock
+
+_clock = time.perf_counter
+
+
 _tick = 1/60
 
 #import platform
