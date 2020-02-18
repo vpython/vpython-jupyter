@@ -249,6 +249,10 @@ if _browsertype == 'pyqt':
         raise RuntimeError('The pyqt browser cannot be used on Windows. '
                            'Please use the default browser instead by '
                            'removing set_browser("pyqt") from your code.')
+    elif sys.version_info.major == 3 and sys.version_info.minor >= 8:
+        raise RuntimeError('The pyqt browser cannot be used on Python 3.8. '
+                           'Please use the default browser instead by '
+                           'removing set_browser("pyqt") from your code.')
 
 
 def start_Qapp(port):

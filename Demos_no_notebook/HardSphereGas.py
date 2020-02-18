@@ -1,5 +1,4 @@
 from vpython import *
-from time import clock
 
 # Hard-sphere gas.
 
@@ -48,7 +47,7 @@ Atoms = []
 p = []
 apos = []
 pavg = sqrt(2*mass*1.5*k*T) # average kinetic energy p**2/(2mass) = (3/2)kT
-    
+
 for i in range(Natoms):
     x = L*random()-L/2
     y = L*random()-L/2
@@ -152,24 +151,24 @@ while True:
 
     # Update all positions
     for i in range(Natoms): Atoms[i].pos = apos[i] = apos[i] + (p[i]/mass)*dt
-    
+
     # Check for collisions
     hitlist = checkCollisions()
 
-    
+
     for i in range(Natoms):
         loc = apos[i]
         if abs(loc.x) > L/2:
             if loc.x < 0: p[i].x =  abs(p[i].x)
             else: p[i].x =  -abs(p[i].x)
-        
+
         if abs(loc.y) > L/2:
             if loc.y < 0: p[i].y = abs(p[i].y)
             else: p[i].y =  -abs(p[i].y)
-        
+
         if abs(loc.z) > L/2:
             if loc.z < 0: p[i].z =  abs(p[i].z)
             else: p[i].z =  -abs(p[i].z)
-    
+
 timer = clock()-timer
 print(timer)

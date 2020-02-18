@@ -6,10 +6,10 @@ import platform
 from math import sqrt, tan, pi
 
 import time
-try:
-    clock = time.perf_counter # time.clock is deprecated in Python 3.3, gone in 3.8
-except:
-    clock = time.clock
+
+# vpython provides clock in its namespace
+clock = time.perf_counter
+
 import sys
 from . import __version__, __gs_version__
 from ._notebook_helpers import _isnotebook
