@@ -483,7 +483,7 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid',
               'u':'logx', 'v':'logy', 'w':'dot', 'x':'dot_radius', 
               'y':'markers', 'z':'legend', 'A':'label','B':'delta', 'C':'marker_color',
-              'D':'size_units', 'E':'userpan', 'F':'scroll'}
+              'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices'}
 
 // methods are X in {'m': '23X....'}
 var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopvxyzCDFAB
@@ -498,7 +498,7 @@ var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '
                 'marker_color']
                 
 var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', 'ytitle', 'selected', 'capture',
-                 'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
+                 'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
 
 // patt gets idx and attr code; vpatt gets x,y,z of a vector            
 var patt = /(\d+)(.)(.*)/
@@ -542,8 +542,12 @@ function decode(data) {
                     vs = [Number(val[1]), Number(val[2]), Number(val[3]), Number(val[4])]
                 }
 			} else if (textattrs.indexOf(attr) > -1) {
-                // '\n' doesn't survive JSON transmission, so in vpython.py we replace '\n' with '<br>'
-				val = m[3].replace(/<br>/g, "\n")
+                if (attr == 'choices') { // menu choices to be wrapped in a list
+                    val = m[3].split(' ')
+                } else {
+                    // '\n' doesn't survive JSON transmission, so in vpython.py we replace '\n' with '<br>'
+                    val = m[3].replace(/<br>/g, "\n")
+                }
 			} else if (attr == 'rotate') { // angle,x,y,z,x,y,z
 				var temp = m[3]
 				val = []

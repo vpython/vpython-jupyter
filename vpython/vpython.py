@@ -97,7 +97,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E', 'scroll':'F'}
+          'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -113,16 +113,22 @@ __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_a
             'marker_color']
 
 __textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label', 'capture',
-                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
+                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
 
 def _encode_attr2(sendval, val, ismethods):
     s = ''
     if sendval in __vecattrs: # it would be good to do some kind of compression of doubles
         s += "{:.16G},{:.16G},{:.16G}".format(val[0], val[1], val[2])
     elif sendval in __textattrs:
-        # '\n' doesn't survive JSON transmission, so we replace '\n' with '<br>' (and convert back in glowcomm)
-        if not isinstance(val, str): val = print_to_string(val)
-        val = val.replace('\n', '<br>')
+        if sendval == 'choices':
+            s2 = ''
+            for v in val:
+                s2 += v+' '
+            val = s2[0:-1]
+        else:
+            # '\n' doesn't survive JSON transmission, so we replace '\n' with '<br>' (and convert back in glowcomm)
+            if not isinstance(val, str): val = print_to_string(val)
+            val = val.replace('\n', '<br>')
         s += val
     elif sendval == 'rotate':
         for p in val:
@@ -556,7 +562,7 @@ class standardAttributes(baseObj):
                  'extrusion':[ ['pos', 'color', 'start_face_color', 'end_face_color'],
                         [ 'axis', 'size', 'up' ],
                         ['path', 'shape', 'visible', 'opacity','shininess', 'emissive',
-                         'show_start_face', 'show_end_face',
+                         'show_start_face', 'show_end_face', 'smooth',
                          'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable' ],
                         ['red', 'green', 'blue','length', 'width', 'height'] ],
@@ -2702,7 +2708,7 @@ class Camera(object):
         c = self._canvas
         if axis is None: axis = c.up
         if origin is not None and origin != self.pos:
-            origin = self.pos + (self.pos-origin).rotate(angle=angle, axis=axis)
+            origin = origin + (self.pos-origin).rotate(angle=angle, axis=axis)
         else:
             origin = self.pos
         if c._axis.diff_angle(axis) > 1e-6:
@@ -3098,7 +3104,6 @@ class canvas(baseObj):
                 # Set attribute_vector.value, which avoids nullifying the
                 # on_change functions that detect changes in e.g. obj.pos.y
                 obj._pos.value = list_to_vec(p)
-                obj._origin = obj._pos
                 s = evt['size']
                 obj._size.value = obj._size0 = list_to_vec(s)
                 obj._axis.value = obj._size._x*norm(obj._axis)
@@ -3543,7 +3548,10 @@ class menu(controls):
         return self._choices
     @choices.setter
     def choices(self, value):
-        raise AttributeError('choices cannot be modified after a menu is created')
+        self._choices = value
+        if not self._constructing:
+            self.addattr('choices')
+        #raise AttributeError('choices cannot be modified after a menu is created')
 
     @property
     def index(self):
@@ -3783,6 +3791,16 @@ class extrusion(standardAttributes):
     @shape.setter
     def shape(self, value):
         raise AttributeError('shape cannot be changed after extrusion is created')
+
+    @property
+    def smooth(self):
+        if self._constructing:
+            return self._smooth
+        else:
+            return None
+    @smooth.setter
+    def smooth(self, value):
+        raise AttributeError('smooth cannot be changed after extrusion is created')
 
     @property
     def show_start_face(self):
