@@ -70,7 +70,7 @@ def roundc(cps, roundness=0.1, invert=False, nseg=16):
             v = p1 - center
             dtheta = -dtheta
 
-        for j in range(nseg):
+        for j in range(1,nseg): # don't repeat the starting point of this arc
             v1 = center + v.rotate(j*dtheta)
             ncp.append([v1.x, v1.y])
 
