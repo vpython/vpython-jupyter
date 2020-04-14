@@ -28,13 +28,7 @@ __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'at
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
            'wtext', 'winput', 'keysdown']
 
-__p = platform.python_version()
-_ispython3 = (__p[0] == '3')
-
-if _ispython3:
-    from inspect import signature # Python 3; needed to allow zero arguments in a bound function
-else:
-    from inspect import getargspec # Python 2; needed to allow zero arguments in a bound function
+from inspect import signature # needed to allow zero arguments in a bound function
 
 # __version__ is the version number of the Jupyter VPython installer, generated in building the installer.
 version = [__version__, 'jupyter']
@@ -174,10 +168,6 @@ def _encode_attr(D, ismethods): # ismethods is True if a list of method operatio
                 s += _encode_attr2(sendval, val, False)
                 out.append(s)
     return out
-
-if sys.version > '3':
-    long = int
-
 
 def list_to_vec(L):
     return vector(L[0], L[1], L[2])
@@ -385,14 +375,9 @@ class GlowWidget(object):
                     obj._text = evt['text']
                     obj._number = evt['value']
                 # inspect the bound function and see what it's expecting
-                if _ispython3: # Python 3
-                    a = signature(obj._bind)
-                    if str(a) != '()': obj._bind( obj )
-                    else: obj._bind()
-                else: # Python 2
-                    a = getargspec(obj._bind)
-                    if len(a.args) > 0: obj._bind( obj )
-                    else: obj._bind()
+                a = signature(obj._bind)
+                if str(a) != '()': obj._bind( obj )
+                else: obj._bind()
             else:   ## a canvas event
                 if 'trigger' not in evt:
                     cvs = baseObj.object_registry[evt['canvas']]
@@ -1445,11 +1430,6 @@ class compound(standardAttributes):
         if 'size' in args:
             savesize = args['size']
             del args['size']
-
-        baseObj.sent = False
-        while not baseObj.sent: # wait for compounding objects to exist
-            if _isnotebook: rate(1000)
-            else: time.sleep(0.001)
 
         self.compound_idx += 1
         args['_objName'] = 'compound'+str(self.compound_idx)
@@ -3117,14 +3097,9 @@ class canvas(baseObj):
                 del evt['height']
                 for fct in self._binds['resize']:
                     # inspect the bound function and see what it's expecting
-                    if _ispython3: # Python 3
-                        a = signature(fct)
-                        if str(a) != '()': fct( evt )
-                        else: fct()
-                    else: # Python 2
-                        a = getargspec(fct)
-                        if len(a.args) > 0: fct( evt )
-                        else: fct()
+                    a = signature(fct)
+                    if str(a) != '()': fct( evt )
+                    else: fct()
         else: # pause/waitfor, update_canvas
             if 'pos' in evt:
                 pos = evt['pos']
@@ -3144,14 +3119,9 @@ class canvas(baseObj):
                 evt1 = event_return(evt)  ## turn it into an object
                 for fct in self._binds[ev]:
                     # inspect the bound function and see what it's expecting
-                    if _ispython3: # Python 3
-                        a = signature(fct)
-                        if str(a) != '()': fct( evt1 )
-                        else: fct()
-                    else: # Python 2
-                        a = getargspec(fct)
-                        if len(a.args) > 0: fct( evt1 )
-                        else: fct()
+                    a = signature(fct)
+                    if str(a) != '()': fct( evt1 )
+                    else: fct()
                 self._waitfor = evt1 # what pause and waitfor are looking for
             else:  ## user can change forward (spin), range/autoscale (zoom), up (touch), center (pan)
                 if 'forward' in evt and self.userspin and not self._set_forward:

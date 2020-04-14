@@ -306,11 +306,13 @@ function send_pick(cvs, p, seg) {
 	events.push(evt)
 }
 
-function send_compound(cvs, pos, size, up) {
-    "use strict";
+function send_compound(cvs, pos, size, up) { // compound, extrusion, 3D text
+	"use strict";
     var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 
         'size': [size.x, size.y, size.z], 'up': [up.x, up.y, up.z]}
 	events.push(evt)
+	clearTimeout(timer) // Don't wait for next transmission to Python
+	send()
 }
 
 var waitfor_canvas = null
