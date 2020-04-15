@@ -392,7 +392,7 @@ def _wait(cvs): # wait for an event
     cvs._waitfor = None
     if _isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
     while cvs._waitfor is None:
-        rate(30)
+        rate(100)
     return cvs._waitfor
 
 class color(object):
