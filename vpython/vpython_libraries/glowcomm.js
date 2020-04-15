@@ -118,16 +118,18 @@ function checkloading() {
 function domessage(msg) {
     "use strict";
     if (timer !== null) clearTimeout(timer)
-    var t1 = msclock()
+	var t1 = msclock()
     var data = msg.content.data
     if (data != 'trigger') {
         var msg = decode(data)
         handler(msg)
-    }
-    var t2 = msclock()
-    var dt = Math.floor(t1+interval-t2) // attempt to keep the time between renders constant
-    if (dt < 15) dt = 0     // becaause setTimeout is inaccurate for small dt's
-    timer = setTimeout(send, dt)
+	}
+	if (timer !== null) { // if not a wait situation as with compound/extrusion/text
+		var t2 = msclock()
+		var dt = Math.floor(t1+interval-t2) // attempt to keep the time between renders constant
+		if (dt < 15) dt = 0     // becaause setTimeout is inaccurate for small dt's
+		timer = setTimeout(send, dt)
+	}
 }
 
 // vpython.py calls onmessage, which responds through domessage, using send
@@ -148,7 +150,7 @@ function onmessage(msg) {
 if (timer !== undefined && timer !== null) clearTimeout(timer)
 
 function send() { // periodically send events and update_canvas and request object update
-    "use strict";
+	"use strict";
 	var update = update_canvas()
 	if (update !== null) events = events.concat(update)
 	if (events.length === 0) events = [{event:'update_canvas', 'trigger':1}]
