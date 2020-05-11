@@ -32,7 +32,7 @@ a:hover {
     padding: 0;
     width: 100%;
     overflow: hidden;
-    background: #5c9ccc url('redmond/IDE/images/ui-bg_gloss-wave_55_5c9ccc_500x100.png') 50% 50% repeat-x; 
+    background: #5c9ccc; 
     color: #ffffff; 
     z-index: 10;
 	

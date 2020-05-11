@@ -195,17 +195,7 @@ function send() { // periodically send events and update_canvas and request obje
 // Should eventually have glowcomm.html, glowcom.js, and glowcommlab.js all import this common component.
 
 window.__GSlang = "vpython"
-box = vp_box
-sphere = vp_sphere
-simple_sphere = vp_simple_sphere
-cylinder = vp_cylinder
-pyramid = vp_pyramid
-cone = vp_cone
-helix = vp_helix
-//ellipsoid = vp_ellipsoid   // This line causes a big problem in jupyterlab vpython extension
-ring = vp_ring
-arrow = vp_arrow
-compound = vp_compound
+
 function msclock() {
     "use strict";
     if (performance.now) return performance.now()
