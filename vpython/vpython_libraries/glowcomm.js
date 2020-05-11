@@ -118,18 +118,16 @@ function checkloading() {
 function domessage(msg) {
     "use strict";
     if (timer !== null) clearTimeout(timer)
-	var t1 = msclock()
+    var t1 = msclock()
     var data = msg.content.data
     if (data != 'trigger') {
         var msg = decode(data)
         handler(msg)
-	}
-	if (timer !== null) { // if not a wait situation as with compound/extrusion/text
-		var t2 = msclock()
-		var dt = Math.floor(t1+interval-t2) // attempt to keep the time between renders constant
-		if (dt < 15) dt = 0     // becaause setTimeout is inaccurate for small dt's
-		timer = setTimeout(send, dt)
-	}
+    }
+    var t2 = msclock()
+    var dt = Math.floor(t1+interval-t2) // attempt to keep the time between renders constant
+    if (dt < 15) dt = 0     // becaause setTimeout is inaccurate for small dt's
+    timer = setTimeout(send, dt)
 }
 
 // vpython.py calls onmessage, which responds through domessage, using send
@@ -150,7 +148,7 @@ function onmessage(msg) {
 if (timer !== undefined && timer !== null) clearTimeout(timer)
 
 function send() { // periodically send events and update_canvas and request object update
-	"use strict";
+    "use strict";
 	var update = update_canvas()
 	if (update !== null) events = events.concat(update)
 	if (events.length === 0) events = [{event:'update_canvas', 'trigger':1}]
@@ -169,17 +167,6 @@ function send() { // periodically send events and update_canvas and request obje
 // Should eventually have glowcomm.html, glowcom.js, and glowcommlab.js all import this common component.
 
 window.__GSlang = "vpython"
-box = vp_box
-sphere = vp_sphere
-simple_sphere = vp_simple_sphere
-cylinder = vp_cylinder
-pyramid = vp_pyramid
-cone = vp_cone
-helix = vp_helix
-ellipsoid = vp_ellipsoid
-ring = vp_ring
-arrow = vp_arrow
-compound = vp_compound
 
 function msclock() {
     "use strict";
@@ -308,13 +295,11 @@ function send_pick(cvs, p, seg) {
 	events.push(evt)
 }
 
-function send_compound(cvs, pos, size, up) { // compound, extrusion, 3D text
-	"use strict";
+function send_compound(cvs, pos, size, up) {
+    "use strict";
     var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 
         'size': [size.x, size.y, size.z], 'up': [up.x, up.y, up.z]}
 	events.push(evt)
-	clearTimeout(timer) // Don't wait for next transmission to Python
-	send()
 }
 
 var waitfor_canvas = null
@@ -460,7 +445,7 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid',
               'u':'logx', 'v':'logy', 'w':'dot', 'x':'dot_radius', 
               'y':'markers', 'z':'legend', 'A':'label','B':'delta', 'C':'marker_color',
-              'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices'}
+              'D':'size_units', 'E':'userpan', 'F':'scroll'}
 
 // methods are X in {'m': '23X....'}
 var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopvxyzCDFAB
@@ -475,7 +460,7 @@ var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '
                 'marker_color']
                 
 var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', 'ytitle', 'selected', 'capture',
-                 'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
+                 'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 // patt gets idx and attr code; vpatt gets x,y,z of a vector            
 var patt = /(\d+)(.)(.*)/
@@ -519,12 +504,8 @@ function decode(data) {
                     vs = [Number(val[1]), Number(val[2]), Number(val[3]), Number(val[4])]
                 }
 			} else if (textattrs.indexOf(attr) > -1) {
-                if (attr == 'choices') { // menu choices to be wrapped in a list
-                    val = m[3].split(' ')
-                } else {
-                    // '\n' doesn't survive JSON transmission, so in vpython.py we replace '\n' with '<br>'
-                    val = m[3].replace(/<br>/g, "\n")
-                }
+                // '\n' doesn't survive JSON transmission, so in vpython.py we replace '\n' with '<br>'
+				val = m[3].replace(/<br>/g, "\n")
 			} else if (attr == 'rotate') { // angle,x,y,z,x,y,z
 				var temp = m[3]
 				val = []
