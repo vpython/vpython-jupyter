@@ -13,7 +13,7 @@ clock = time.perf_counter
 import sys
 from . import __version__, __gs_version__
 from ._notebook_helpers import _isnotebook
-from ._vector_import_helper import (vector, mag, norm, dot, adjust_up,
+from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
                                     adjust_axis, object_rotate)
 
 # List of names that will be imported from this file with import *
@@ -28,7 +28,13 @@ __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'at
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
            'wtext', 'winput', 'keysdown']
 
-from inspect import signature # needed to allow zero arguments in a bound function
+__p = platform.python_version()
+_ispython3 = (__p[0] == '3')
+
+if _ispython3:
+    from inspect import signature # Python 3; needed to allow zero arguments in a bound function
+else:
+    from inspect import getargspec # Python 2; needed to allow zero arguments in a bound function
 
 # __version__ is the version number of the Jupyter VPython installer, generated in building the installer.
 version = [__version__, 'jupyter']
@@ -91,7 +97,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G'}
+          'size_units':'D', 'userpan':'E', 'scroll':'F'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -107,22 +113,16 @@ __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_a
             'marker_color']
 
 __textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label', 'capture',
-                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
+                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 def _encode_attr2(sendval, val, ismethods):
     s = ''
     if sendval in __vecattrs: # it would be good to do some kind of compression of doubles
         s += "{:.16G},{:.16G},{:.16G}".format(val[0], val[1], val[2])
     elif sendval in __textattrs:
-        if sendval == 'choices':
-            s2 = ''
-            for v in val:
-                s2 += v+' '
-            val = s2[0:-1]
-        else:
-            # '\n' doesn't survive JSON transmission, so we replace '\n' with '<br>' (and convert back in glowcomm)
-            if not isinstance(val, str): val = print_to_string(val)
-            val = val.replace('\n', '<br>')
+        # '\n' doesn't survive JSON transmission, so we replace '\n' with '<br>' (and convert back in glowcomm)
+        if not isinstance(val, str): val = print_to_string(val)
+        val = val.replace('\n', '<br>')
         s += val
     elif sendval == 'rotate':
         for p in val:
@@ -168,6 +168,10 @@ def _encode_attr(D, ismethods): # ismethods is True if a list of method operatio
                 s += _encode_attr2(sendval, val, False)
                 out.append(s)
     return out
+
+if sys.version > '3':
+    long = int
+
 
 def list_to_vec(L):
     return vector(L[0], L[1], L[2])
@@ -375,9 +379,14 @@ class GlowWidget(object):
                     obj._text = evt['text']
                     obj._number = evt['value']
                 # inspect the bound function and see what it's expecting
-                a = signature(obj._bind)
-                if str(a) != '()': obj._bind( obj )
-                else: obj._bind()
+                if _ispython3: # Python 3
+                    a = signature(obj._bind)
+                    if str(a) != '()': obj._bind( obj )
+                    else: obj._bind()
+                else: # Python 2
+                    a = getargspec(obj._bind)
+                    if len(a.args) > 0: obj._bind( obj )
+                    else: obj._bind()
             else:   ## a canvas event
                 if 'trigger' not in evt:
                     cvs = baseObj.object_registry[evt['canvas']]
@@ -392,7 +401,7 @@ def _wait(cvs): # wait for an event
     cvs._waitfor = None
     if _isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
     while cvs._waitfor is None:
-        rate(100)
+        rate(30)
     return cvs._waitfor
 
 class color(object):
@@ -547,7 +556,7 @@ class standardAttributes(baseObj):
                  'extrusion':[ ['pos', 'color', 'start_face_color', 'end_face_color'],
                         [ 'axis', 'size', 'up' ],
                         ['path', 'shape', 'visible', 'opacity','shininess', 'emissive',
-                         'show_start_face', 'show_end_face', 'smooth',
+                         'show_start_face', 'show_end_face',
                          'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable' ],
                         ['red', 'green', 'blue','length', 'width', 'height'] ],
@@ -1006,6 +1015,24 @@ class standardAttributes(baseObj):
                 self._pos.value = newpos
                 self.addattr('pos')
 
+    def bounding_box(self):
+        centered = ['box', 'compound', 'ellipsoid', 'sphere', 'simple_sphere', 'ring']
+        x = norm(self._axis)
+        y = norm(self._up)
+        z = norm(cross(x,y))
+        L = self._size.x
+        H = self._size.y
+        W = self._size.z
+        p = vector(self._pos) # make a copy of pos, so changes to p won't affect the object
+        if self._objName not in centered:
+            p = p + 0.5*L*x # move to center
+        pts = []
+        for dx in [-L/2, L/2]:
+            for dy in [-H/2, H/2]:
+                for dz in [-W/2, W/2]:
+                    pts.append(p + dx*x + dy*y + dz*z)
+        return pts
+
     def _on_size_change(self): # the vector class calls this when there's a change in x, y, or z
         self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
         self.addattr('size')
@@ -1430,6 +1457,11 @@ class compound(standardAttributes):
         if 'size' in args:
             savesize = args['size']
             del args['size']
+
+        baseObj.sent = False
+        while not baseObj.sent: # wait for compounding objects to exist
+            if _isnotebook: rate(1000)
+            else: time.sleep(0.001)
 
         self.compound_idx += 1
         args['_objName'] = 'compound'+str(self.compound_idx)
@@ -2688,7 +2720,7 @@ class Camera(object):
         c = self._canvas
         if axis is None: axis = c.up
         if origin is not None and origin != self.pos:
-            origin = origin + (self.pos-origin).rotate(angle=angle, axis=axis)
+            origin = self.pos + (self.pos-origin).rotate(angle=angle, axis=axis)
         else:
             origin = self.pos
         if c._axis.diff_angle(axis) > 1e-6:
@@ -3084,6 +3116,7 @@ class canvas(baseObj):
                 # Set attribute_vector.value, which avoids nullifying the
                 # on_change functions that detect changes in e.g. obj.pos.y
                 obj._pos.value = list_to_vec(p)
+                obj._origin = obj._pos
                 s = evt['size']
                 obj._size.value = obj._size0 = list_to_vec(s)
                 obj._axis.value = obj._size._x*norm(obj._axis)
@@ -3097,9 +3130,14 @@ class canvas(baseObj):
                 del evt['height']
                 for fct in self._binds['resize']:
                     # inspect the bound function and see what it's expecting
-                    a = signature(fct)
-                    if str(a) != '()': fct( evt )
-                    else: fct()
+                    if _ispython3: # Python 3
+                        a = signature(fct)
+                        if str(a) != '()': fct( evt )
+                        else: fct()
+                    else: # Python 2
+                        a = getargspec(fct)
+                        if len(a.args) > 0: fct( evt )
+                        else: fct()
         else: # pause/waitfor, update_canvas
             if 'pos' in evt:
                 pos = evt['pos']
@@ -3119,9 +3157,14 @@ class canvas(baseObj):
                 evt1 = event_return(evt)  ## turn it into an object
                 for fct in self._binds[ev]:
                     # inspect the bound function and see what it's expecting
-                    a = signature(fct)
-                    if str(a) != '()': fct( evt1 )
-                    else: fct()
+                    if _ispython3: # Python 3
+                        a = signature(fct)
+                        if str(a) != '()': fct( evt1 )
+                        else: fct()
+                    else: # Python 2
+                        a = getargspec(fct)
+                        if len(a.args) > 0: fct( evt1 )
+                        else: fct()
                 self._waitfor = evt1 # what pause and waitfor are looking for
             else:  ## user can change forward (spin), range/autoscale (zoom), up (touch), center (pan)
                 if 'forward' in evt and self.userspin and not self._set_forward:
@@ -3518,10 +3561,7 @@ class menu(controls):
         return self._choices
     @choices.setter
     def choices(self, value):
-        self._choices = value
-        if not self._constructing:
-            self.addattr('choices')
-        #raise AttributeError('choices cannot be modified after a menu is created')
+        raise AttributeError('choices cannot be modified after a menu is created')
 
     @property
     def index(self):
@@ -3761,16 +3801,6 @@ class extrusion(standardAttributes):
     @shape.setter
     def shape(self, value):
         raise AttributeError('shape cannot be changed after extrusion is created')
-
-    @property
-    def smooth(self):
-        if self._constructing:
-            return self._smooth
-        else:
-            return None
-    @smooth.setter
-    def smooth(self, value):
-        raise AttributeError('smooth cannot be changed after extrusion is created')
 
     @property
     def show_start_face(self):
