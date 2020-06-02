@@ -211,7 +211,7 @@ class WSserver(WebSocketServerProtocol):
         # Only the main thread can properly call sys.exit, so have a signal
         # handler call it on the main thread's behalf.
         if platform.system() == 'Windows':
-            if threading.main_thread().is_alive():
+            if threading.main_thread().is_alive() and not _in_spyder:
                 # On windows, if we get here then this signal won't be caught
                 # by our signal handler. Just call it ourselves.
                 os.kill(os.getpid(), signal.CTRL_C_EVENT)
