@@ -22,6 +22,31 @@ from urllib.parse import unquote
 from .rate_control import rate
 
 
+# Redefine `Thread.run` to not show a traceback for Spyder when stopping
+# the server by raising a KeyboardInterrupt or SystemExit.
+if _in_spyder:
+    def install_thread_stopped_message():
+        """
+        Workaround to prevent showing a traceback when VPython server stops.
+
+        See:
+        https://bugs.python.org/issue1230540
+        """
+        run_old = threading.Thread.run
+
+        def run(*args, **kwargs):
+            try:
+                run_old(*args, **kwargs)
+            except (KeyboardInterrupt, SystemExit):
+                print("VPython server stopped.")
+            except:
+                raise
+        threading.Thread.run = run
+
+    install_thread_stopped_message()
+
+
+
 # Check for Ctrl+C. SIGINT will also be sent by our code if WServer is closed.
 def signal_handler(signal, frame):
     stop_server()
@@ -211,7 +236,7 @@ class WSserver(WebSocketServerProtocol):
         # Only the main thread can properly call sys.exit, so have a signal
         # handler call it on the main thread's behalf.
         if platform.system() == 'Windows':
-            if threading.main_thread().is_alive():
+            if threading.main_thread().is_alive() and not _in_spyder:
                 # On windows, if we get here then this signal won't be caught
                 # by our signal handler. Just call it ourselves.
                 os.kill(os.getpid(), signal.CTRL_C_EVENT)
