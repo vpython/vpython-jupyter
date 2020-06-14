@@ -19,7 +19,7 @@ if _isnotebook:
 # Unresolved bug: rate(X) yields only about 0.8X iterations per second.
 
 MIN_RENDERS = 10
-MAX_RENDERS = 30
+MAX_RENDERS = 60
 INTERACT_PERIOD = 1.0/MAX_RENDERS
 USER_FRACTION = 0.5
 
@@ -28,7 +28,7 @@ USER_FRACTION = 0.5
 ##if _plat == 'Windows':
 ##    # On Windows, the best timer is supposedly time.clock()
 ##    _clock = time.clock
-##    _tick = 1/60
+##    _tick = 1/INTERACT_PERIOD
 ##elif _plat == 'Macintosh':
 ##    # On platforms other than Windows, the best timer is supposedly time.time()
 ##    _clock = time.time
@@ -239,7 +239,7 @@ def message_send_wrapper():
 
 class _RateKeeper2(RateKeeper):
     def __init__(self, interactPeriod=INTERACT_PERIOD, interactFunc=simulateDelay):
-        self.rval = 30
+        self.rval = MAX_RENDERS
         self.tocall = None
         self._sender = None
         super(_RateKeeper2, self).__init__(interactPeriod=interactPeriod, interactFunc=self.sendtofrontend)

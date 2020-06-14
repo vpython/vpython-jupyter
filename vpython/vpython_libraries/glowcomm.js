@@ -188,7 +188,7 @@ var lastrange = 1
 var lastautoscale = true
 var lastsliders = {}
 var lastkeysdown = []
-var interval = 33 // milliseconds
+var interval = 17 // milliseconds
 
 function update_canvas() { // mouse location and other stuff
     "use strict";
@@ -293,6 +293,8 @@ function send_pick(cvs, p, seg) {
     "use strict";
     var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg}
 	events.push(evt)
+    if (timer !== null) clearTimeout(timer)
+    send() // send the info NOW
 }
 
 function send_compound(cvs, pos, size, up) {
@@ -300,6 +302,8 @@ function send_compound(cvs, pos, size, up) {
     var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 
         'size': [size.x, size.y, size.z], 'up': [up.x, up.y, up.z]}
 	events.push(evt)
+    if (timer !== null) clearTimeout(timer)
+    send() // send the info NOW
 }
 
 var waitfor_canvas = null
@@ -445,7 +449,7 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid',
               'u':'logx', 'v':'logy', 'w':'dot', 'x':'dot_radius', 
               'y':'markers', 'z':'legend', 'A':'label','B':'delta', 'C':'marker_color',
-              'D':'size_units', 'E':'userpan', 'F':'scroll'}
+              'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices'}
 
 // methods are X in {'m': '23X....'}
 var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopvxyzCDFAB
@@ -460,7 +464,7 @@ var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '
                 'marker_color']
                 
 var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', 'ytitle', 'selected', 'capture',
-                 'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
+                 'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
 
 // patt gets idx and attr code; vpatt gets x,y,z of a vector            
 var patt = /(\d+)(.)(.*)/
@@ -504,8 +508,12 @@ function decode(data) {
                     vs = [Number(val[1]), Number(val[2]), Number(val[3]), Number(val[4])]
                 }
 			} else if (textattrs.indexOf(attr) > -1) {
-                // '\n' doesn't survive JSON transmission, so in vpython.py we replace '\n' with '<br>'
-				val = m[3].replace(/<br>/g, "\n")
+                if (attr == 'choices') { // menu choices to be wrapped in a list
+                    val = m[3].split(' ')
+                } else {
+                    // '\n' doesn't survive JSON transmission, so in vpython.py we replace '\n' with '<br>'
+                    val = m[3].replace(/<br>/g, "\n")
+                }
 			} else if (attr == 'rotate') { // angle,x,y,z,x,y,z
 				var temp = m[3]
 				val = []
@@ -528,6 +536,9 @@ function decode(data) {
 				}
 			} else if (attr == 'waitfor' || attr == 'pause' || attr == 'delete') {
 				val = m[3]
+            } else if (attr == 'follow') {
+                if (m[3] == 'None') val = null
+                else val = Number(m[3])
 			} else val = Number(m[3])
 			out = {'idx':idx, 'attr':attr, 'val':val}
 			if (datatype == 'attr') as.push(out)
@@ -938,7 +949,8 @@ async function handle_methods(dmeth) {
 			}
 			obj.unbind(val, process_binding)
 		} else if (method === "follow") {
-			obj.camera.follow(glowObjs[val])
+            if (val === null) obj.camera.follow(null)
+			else obj.camera.follow(glowObjs[val])
 		} else if (method === "capture") {
 			await obj.capture(val)
 		} else if (method === 'waitfor') {
@@ -955,7 +967,7 @@ async function handle_methods(dmeth) {
 			}
 			process_pause()
 		} else if (method === 'pick') {
-			var p = glowObjs[val].mouse.pick()   // wait for pick render; val is canvas
+			var p = glowObjs[val].mouse.pick()  // wait for pick render; val is canvas
 			var seg = null
 			if (p !== null) {
 				if (p instanceof curve) seg = p.segment

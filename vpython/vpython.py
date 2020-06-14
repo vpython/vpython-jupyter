@@ -328,10 +328,10 @@ class baseObj(object):
 # Now there is no threading in Jupyter VPython. Data is sent to the
 # browser from the trigger() function, which is called by a
 # canvas_update event sent to Python from the browser (glowcomm.js), currently
-# every 33 milliseconds. When trigger() is called, it immediately signals
-# the browser to set a timeout of 33 ms to send another signal to Python.
+# every 17 milliseconds. When trigger() is called, it immediately signals
+# the browser to set a timeout of 17 ms to send another signal to Python.
 # Note that a typical VPython program starts out by creating objects (constructors) and
-# specifying their attributes. The 33 ms signal from the browser is adequate to ensure
+# specifying their attributes. The 17 ms signal from the browser is adequate to ensure
 # prompt data transmissions to the browser.
 
 # The situation with non-notebook use is similar, but the http server is threaded,
@@ -400,9 +400,10 @@ class GlowWidget(object):
 def _wait(cvs): # wait for an event
     cvs._waitfor = None
     if _isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
+    t = clock()
     while cvs._waitfor is None:
-        rate(30)
-    return cvs._waitfor
+        rate(1000)
+    if _isnotebook: baseObj.trigger() # restart activity in glowcomm.html
 
 class color(object):
     black = vector(0,0,0)
@@ -1999,6 +2000,7 @@ class gobj(baseObj):
         self._legend = False
         self._interval = -1
         self._graph = None
+        self._visible = True
         objName = args['_objName']
         del args['_objName']
         self._constructing = True ## calls are from constructor
@@ -2143,6 +2145,15 @@ class gobj(baseObj):
         else:
             p = self.preresolve2(args2)
         self.addmethod('plot', p)
+
+    @property
+    def visible(self):
+        return self._visible
+    @visible.setter
+    def visible(self,value):
+        self._visible = value
+        if not self._constructing:
+            self.addattr('visible')
 
     def delete(self):
         self.addmethod('delete', 'None')
@@ -2840,7 +2851,8 @@ class canvas(baseObj):
         baseObj._canvas_constructing = False
 
     def follow(self, obj):    ## should allow a function also
-        self.addmethod('follow', obj.idx)
+        if obj is None: self.addmethod('follow', 'None')
+        else: self.addmethod('follow', obj.idx)
 
     def select(self):
         canvas.selected = self
