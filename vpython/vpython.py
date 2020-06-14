@@ -402,7 +402,7 @@ def _wait(cvs): # wait for an event
     if _isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
     t = clock()
     while cvs._waitfor is None:
-        rate(1000)
+        rate(100)
     if _isnotebook: baseObj.trigger() # restart activity in glowcomm.html
 
 class color(object):
