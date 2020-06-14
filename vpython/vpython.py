@@ -97,7 +97,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E', 'scroll':'F'}
+          'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -113,7 +113,7 @@ __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_a
             'marker_color']
 
 __textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label', 'capture',
-                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
+                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
 
 def _encode_attr2(sendval, val, ismethods):
     s = ''
@@ -3573,7 +3573,8 @@ class menu(controls):
         return self._choices
     @choices.setter
     def choices(self, value):
-        raise AttributeError('choices cannot be modified after a menu is created')
+        self._choices = value
+        self.addattr('choices')
 
     @property
     def index(self):
