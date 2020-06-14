@@ -216,7 +216,7 @@ var lastrange = 1
 var lastautoscale = true
 var lastsliders = {}
 var lastkeysdown = []
-var interval = 33 // milliseconds
+var interval = 17 // milliseconds
 
 function update_canvas() { // mouse location and other stuff
     "use strict";
@@ -321,6 +321,8 @@ function send_pick(cvs, p, seg) {
     "use strict";
     var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg}
 	events.push(evt)
+    if (timer !== null) clearTimeout(timer)
+    send() // send the info NOW
 }
 
 function send_compound(cvs, pos, size, up) {
@@ -328,6 +330,8 @@ function send_compound(cvs, pos, size, up) {
     var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 
         'size': [size.x, size.y, size.z], 'up': [up.x, up.y, up.z]}
 	events.push(evt)
+    if (timer !== null) clearTimeout(timer)
+    send() // send the info NOW
 }
 
 var waitfor_canvas = null
@@ -560,6 +564,9 @@ function decode(data) {
 				}
 			} else if (attr == 'waitfor' || attr == 'pause' || attr == 'delete') {
 				val = m[3]
+            } else if (attr == 'follow') {
+                if (m[3] == 'None') val = null
+                else val = Number(m[3])
 			} else val = Number(m[3])
 			out = {'idx':idx, 'attr':attr, 'val':val}
 			if (datatype == 'attr') as.push(out)
@@ -970,7 +977,8 @@ async function handle_methods(dmeth) {
 			}
 			obj.unbind(val, process_binding)
 		} else if (method === "follow") {
-			obj.camera.follow(glowObjs[val])
+            if (val === null) obj.camera.follow(null)
+			else obj.camera.follow(glowObjs[val])
 		} else if (method === "capture") {
 			await obj.capture(val)
 		} else if (method === 'waitfor') {
@@ -987,7 +995,7 @@ async function handle_methods(dmeth) {
 			}
 			process_pause()
 		} else if (method === 'pick') {
-			var p = glowObjs[val].mouse.pick()   // wait for pick render; val is canvas
+			var p = glowObjs[val].mouse.pick()  // wait for pick render; val is canvas
 			var seg = null
 			if (p !== null) {
 				if (p instanceof curve) seg = p.segment
