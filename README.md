@@ -92,3 +92,12 @@ If you execute build_original_no_overload.py, and change the statement "if True:
 Note that in site-packages/vpython/vpython_libraries it is glowcomm.html that is used by launchers such as idle or spyder; glowcomm.js is used with Jupyter notebook (and a modified version is used in Jupyterlab).
 
 Placing console.log(....) statements in the GlowScript code or in the JavaScript section of glowcomm.html can be useful in debugging. You may also need to put debugging statements into site-packages/vpython/vpython.py.
+
+
+## Environment options
+
+The following options make sense for running VPython in a headless environment:
+ 
+* VPYTHON_PORT -> Specify the TCP/IP port number for the HTTP server.
+* VPYTHON_NOBROWSER -> Set this to disable trying to launch a browser.
+    The link will be printed instead.

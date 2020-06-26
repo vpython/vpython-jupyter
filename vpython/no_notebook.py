@@ -64,7 +64,7 @@ def find_free_port():
     return s.getsockname()[1]
 
 
-__HTTP_PORT = find_free_port()
+__HTTP_PORT = int(os.getenv("VPYTHON_PORT", find_free_port()))
 __SOCKET_PORT = find_free_port()
 
 try:
@@ -248,18 +248,25 @@ class WSserver(WebSocketServerProtocol):
 
 try:
     if platform.python_implementation() == 'PyPy':
-        server_address = ('', 0)      # let HTTPServer choose a free port
+        server_address = ('', int(os.getenv("VPYTHON_PORT", 0)))      # let HTTPServer choose a free port
         __server = HTTPServer(server_address, serveHTTP)
         port = __server.server_port   # get the chosen port
         # Change the global variable to store the actual port used
         __HTTP_PORT = port
-        _webbrowser.open('http://localhost:{}'.format(port)
-                         )  # or webbrowser.open_new_tab()
+        url = 'http://localhost:{}'.format(__HTTP_PORT)
+        if os.getenv("VPYTHON_NOBROWSER"):
+            print(url)
+        else:
+            _webbrowser.open(url)  # or webbrowser.open_new_tab()
     else:
         __server = HTTPServer(('', __HTTP_PORT), serveHTTP)
-        # or webbrowser.open_new_tab()
-        if _browsertype == 'default':  # uses default browser
-            _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT))
+
+        url = 'http://localhost:{}'.format(__HTTP_PORT)
+        if os.getenv("VPYTHON_NOBROWSER"):
+            print(url)
+        else:
+            if _browsertype == 'default':  # uses default browser
+                _webbrowser.open(url)         # or webbrowser.open_new_tab()
 
 except:
     pass
