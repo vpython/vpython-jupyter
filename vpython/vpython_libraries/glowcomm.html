@@ -58,7 +58,15 @@ window.onload = function() {
     "use strict";
 	
 	//var sock = socket_port() // created by no_notebook.py
-	ws = new WebSocket("ws://localhost:"+sock)
+    let ws_url;
+    if (document.location.hostname.includes("localhost")){
+      ws_url = "ws://localhost:"+sock;
+    }
+    else {
+      ws_url = 'ws://' + document.location.hostname + ":" + sock;
+    }
+
+	ws = new WebSocket(ws_url);
 	ws.binaryType = "arraybuffer";
 
 	ws.onopen = function() {
