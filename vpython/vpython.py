@@ -3339,6 +3339,7 @@ class controls(baseObj):
     def setup(self, args):
         super(controls, self).__init__()  ## get idx, attrsupdt from baseObj
         ## default values of common attributes
+        self._disabled = False
         self._constructing = True
         argsToSend = []
         objName = args['_objName']
