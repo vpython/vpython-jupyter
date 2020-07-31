@@ -36,13 +36,8 @@ IPython.notebook.kernel.comm_manager.register_target('glow',
            } else {
               new_uri = "ws:";
            }
-           if (document.location.hostname.includes("localhost")){
-              url = "ws://localhost:" + port + uri;
-           }
-           else {
-              new_uri += '//' + document.location.host + service_url;
-              url = new_uri
-           }
+           new_uri += '//' + document.location.host + service_url;
+           url = new_uri
            ws = new WebSocket(url);
            ws.binaryType = "arraybuffer";
            
