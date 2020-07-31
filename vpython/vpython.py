@@ -585,6 +585,7 @@ class standardAttributes(baseObj):
         del args['_objName']
 
     # default values
+        self._sizing = True # axis/size connection is the default; False for sphere, ring, text, compound
         self._pos = vector(0,0,0)
         self._axis = vector(1,0,0)
         self._up = vector(0,1,0)
@@ -761,32 +762,52 @@ class standardAttributes(baseObj):
     def axis(self):
         return self._axis
     @axis.setter
-    def axis(self,value):
-        self._save_oldaxis = adjust_up(self._axis, value, self._up, self._save_oldaxis) # this sets self._axis and self._up
+    def axis(self,value): # sphere or ring or text or compound have no axis/size link
+        currentaxis = self._axis
+        self._axis = value
+        if value.mag2 == 0:
+            if self._save_oldaxis is None: self._save_oldaxis = currentaxis
+        else:
+            if self._save_oldaxis is not None:
+                self._save_oldaxis = adjust_up(self._axis, value, self._up, self._save_oldaxis) # this sets self._axis and self._up
         if not self._constructing:
             self.addattr('axis')
-        self._size._x = value.mag # changing axis length changes size.x
+        if self._sizing:
+            self._size._x = value.mag # changing axis length changes size.x
 
     @property
     def size(self):
         return self._size
     @size.setter
-    def size(self,value):
-        self._size.value = value
+    def size(self,value): # sphere or ring or text or compound have no axis/size link        
+        currentaxis = self._axis
+        self._size = value
+        if value.x == 0:
+            if self._save_oldaxis is not None:
+                currentaxis = self._save_oldaxis
+                self._save_oldaxis = None
+            else:
+                currentaxis = vector(1,0,0)
         if not self._constructing:
             self.addattr('size')
-        a = self._axis.norm() * value.x
-        if mag(self._axis) == 0:
-            a = vector(value.x,0,0)
-        self._axis.value = a # changing size changes length of axis
+        if self._sizing:
+            self._axis = currentaxis.norm()*value.x            
 
     @property
     def length(self):
         return self._size.x
     @length.setter
     def length(self,value):
-        self._axis = self._axis.norm() * value
-        self._size._x = value
+        if value == 0:
+            if self._save_oldaxis is None: self._save_oldaxis = vector(self._axis.x, self._axis.y, self._axis.z)
+            self._axis = vector(0,0,0)
+            self._size._x = 0
+        else:
+            if self._save_oldaxis is not None:
+                self._axis = self._save_oldaxis
+                self._save_oldaxis = None
+            if self._size._x == 0: self.axis = vector(value, 0, 0)
+            else: self.axis = value*self._axis.norm() # this will set length
         if not self._constructing:
             self.addattr('axis')
             self.addattr('size')
@@ -1122,6 +1143,7 @@ class sphere(standardAttributes):
         args['_default_size'] = vector(2,2,2)
         args['_objName'] = "sphere"
         super(sphere, self).setup(args)
+        self._sizing = False # no axis/size connection
 
     @property
     def radius(self):
@@ -1212,6 +1234,7 @@ class ring(standardAttributes):
         args['_default_size'] = vector(0.2,2.2,2.2)
         args['_objName'] = "ring"
         super(ring, self).setup(args)
+        self._sizing = False # no axis/size connection
 
     @property
     def thickness(self):
@@ -1467,6 +1490,7 @@ class compound(standardAttributes):
         self.compound_idx += 1
         args['_objName'] = 'compound'+str(self.compound_idx)
         super(compound, self).setup(args)
+        self._sizing = False # no axis/size connection
 
         for obj in objList:
             # GlowScript will make the objects invisible, so need not set obj.visible
@@ -3859,6 +3883,7 @@ class extrusion(standardAttributes):
 class text(standardAttributes):
 
     def __init__(self, **args):
+        self._sizing = False # no axis/size connection
         args['_default_size'] = vector(1,1,1) # to keep standardAttributes happy
         args['_objName'] = "text"
         self._height = 1  ## not derived from size
@@ -3913,10 +3938,10 @@ class text(standardAttributes):
         return self._axis
     @axis.setter
     def axis(self,value): # changing axis does not affect size
-        oldaxis = vector(self.axis)
+        old = vector(self.axis)
         u = self.up
         self._axis.value = value
-        self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
+        self._save_oldaxis = adjust_up(norm(old), self._axis, self._up, self._save_oldaxis)
         self.addattr('axis')
         self.addattr('up')
 
