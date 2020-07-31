@@ -40,12 +40,7 @@ export function createWebsocket(msg, serviceUrl) {
         var uri = msg.content.data.wsuri
         var url;
     
-        if (document.location.hostname.includes("localhost")){
-           url = "ws://localhost:" + port + uri;
-        }
-        else {
-           url = serviceUrl + port + uri;
-        }
+        url = serviceUrl + port + uri;
         ws = new WebSocket(url);
         ws.binaryType = "arraybuffer";
 		
