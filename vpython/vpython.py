@@ -97,7 +97,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G'}
+          'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G', 'depth':'H'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -3979,7 +3979,7 @@ class text(standardAttributes):
             if abs(val) < 0.01*self._height:
                 if val < 0: val = -0.01*self._height
                 else: val = 0.01*self._height
-            self._depth = value
+            self._depth = val
             self.addattr('depth')
 
     @property

@@ -449,7 +449,7 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid',
               'u':'logx', 'v':'logy', 'w':'dot', 'x':'dot_radius', 
               'y':'markers', 'z':'legend', 'A':'label','B':'delta', 'C':'marker_color',
-              'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices'}
+              'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices', 'H':'depth'}
 
 // methods are X in {'m': '23X....'}
 var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopvxyzCDFAB
