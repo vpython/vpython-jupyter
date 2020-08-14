@@ -129,8 +129,10 @@ def _encode_attr2(sendval, val, ismethods):
             s += "{:.16G},".format(p)
         s = s[:-1]
     elif sendval == 'plot' or sendval == 'data':
-        for p in val:
-            s += "{:.16G},{:.16G},".format(p[0], p[1])
+        if sendval == 'data' and len(val) == 0: s += "None, None,"
+        else:
+            for p in val:
+                s += "{:.16G},{:.16G},".format(p[0], p[1])
         s = s[:-1]
     elif sendval in ['v0', 'v1', 'v2', 'v3']: # val is the vertex object referenced by triangle or quad
         s += str(val.idx)
@@ -2025,6 +2027,7 @@ class gobj(baseObj):
         self._interval = -1
         self._graph = None
         self._visible = True
+        self._data = []
         objName = args['_objName']
         del args['_objName']
         self._constructing = True ## calls are from constructor
@@ -2160,6 +2163,8 @@ class gobj(baseObj):
             raise AttributeError("Cannot currently change color in a plot statement.")
         if 'pos' in args:
             return self.resolveargs(args['pos'])
+        elif 'data' in args:
+            return self.resolveargs(args['data'])
         else:
             raise AttributeError("Must be plot(x,y) or plot(pos=[x,y]) or plot([x,y]) or plot([x,y], ...) or plot([ [x,y], ... ])")
 
@@ -2168,6 +2173,7 @@ class gobj(baseObj):
             p = self.preresolve1(args1)
         else:
             p = self.preresolve2(args2)
+        self._data = self._data + p
         self.addmethod('plot', p)
 
     @property
