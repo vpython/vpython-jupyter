@@ -20,7 +20,9 @@ For a development install use the instructions for creating a custom jupyter lab
 
 https://jupyterlab.readthedocs.io/en/stable/developer/extension_tutorial.html#extension-tutorial
 
-but taylor the instructions for creating a vpython labextension.
+Except where the tutorial says: `conda install -c conda-forge jupyterlab=2`, use `jupyterlab=1`
+and tailor the instructions for creating a vpython labextension. Also, the tutorial command
+`jupyter lab --watch` will fail. Just use `jupyter lab`.
 
 ```bash
 jlpm install
