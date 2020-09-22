@@ -13,7 +13,7 @@ clock = time.perf_counter
 import sys
 from . import __version__, __gs_version__
 from ._notebook_helpers import _isnotebook
-from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
+from ._vector_import_helper import (vector, mag, norm, dot, adjust_up,
                                     adjust_axis, object_rotate)
 
 # List of names that will be imported from this file with import *
@@ -97,7 +97,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G', 'depth':'H'}
+          'size_units':'D', 'userpan':'E', 'scroll':'F'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -113,7 +113,7 @@ __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_a
             'marker_color']
 
 __textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label', 'capture',
-                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
+                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint']
 
 def _encode_attr2(sendval, val, ismethods):
     s = ''
@@ -129,10 +129,8 @@ def _encode_attr2(sendval, val, ismethods):
             s += "{:.16G},".format(p)
         s = s[:-1]
     elif sendval == 'plot' or sendval == 'data':
-        if sendval == 'data' and len(val) == 0: s += "None, None,"
-        else:
-            for p in val:
-                s += "{:.16G},{:.16G},".format(p[0], p[1])
+        for p in val:
+            s += "{:.16G},{:.16G},".format(p[0], p[1])
         s = s[:-1]
     elif sendval in ['v0', 'v1', 'v2', 'v3']: # val is the vertex object referenced by triangle or quad
         s += str(val.idx)
@@ -330,10 +328,10 @@ class baseObj(object):
 # Now there is no threading in Jupyter VPython. Data is sent to the
 # browser from the trigger() function, which is called by a
 # canvas_update event sent to Python from the browser (glowcomm.js), currently
-# every 17 milliseconds. When trigger() is called, it immediately signals
-# the browser to set a timeout of 17 ms to send another signal to Python.
+# every 33 milliseconds. When trigger() is called, it immediately signals
+# the browser to set a timeout of 33 ms to send another signal to Python.
 # Note that a typical VPython program starts out by creating objects (constructors) and
-# specifying their attributes. The 17 ms signal from the browser is adequate to ensure
+# specifying their attributes. The 33 ms signal from the browser is adequate to ensure
 # prompt data transmissions to the browser.
 
 # The situation with non-notebook use is similar, but the http server is threaded,
@@ -402,10 +400,9 @@ class GlowWidget(object):
 def _wait(cvs): # wait for an event
     cvs._waitfor = None
     if _isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
-    t = clock()
     while cvs._waitfor is None:
-        rate(100)
-    if _isnotebook: baseObj.trigger() # restart activity in glowcomm.html
+        rate(30)
+    return cvs._waitfor
 
 class color(object):
     black = vector(0,0,0)
@@ -587,7 +584,6 @@ class standardAttributes(baseObj):
         del args['_objName']
 
     # default values
-        self._sizing = True # axis/size connection is the default; False for sphere, ring, text, compound
         self._pos = vector(0,0,0)
         self._axis = vector(1,0,0)
         self._up = vector(0,1,0)
@@ -764,52 +760,32 @@ class standardAttributes(baseObj):
     def axis(self):
         return self._axis
     @axis.setter
-    def axis(self,value): # sphere or ring or text or compound have no axis/size link
-        currentaxis = self._axis
-        self._axis = value
-        if value.mag2 == 0:
-            if self._save_oldaxis is None: self._save_oldaxis = currentaxis
-        else:
-            if self._save_oldaxis is not None:
-                self._save_oldaxis = adjust_up(self._axis, value, self._up, self._save_oldaxis) # this sets self._axis and self._up
+    def axis(self,value):
+        self._save_oldaxis = adjust_up(self._axis, value, self._up, self._save_oldaxis) # this sets self._axis and self._up
         if not self._constructing:
             self.addattr('axis')
-        if self._sizing:
-            self._size._x = value.mag # changing axis length changes size.x
+        self._size._x = value.mag # changing axis length changes size.x
 
     @property
     def size(self):
         return self._size
     @size.setter
-    def size(self,value): # sphere or ring or text or compound have no axis/size link        
-        currentaxis = self._axis
-        self._size = value
-        if value.x == 0:
-            if self._save_oldaxis is not None:
-                currentaxis = self._save_oldaxis
-                self._save_oldaxis = None
-            else:
-                currentaxis = vector(1,0,0)
+    def size(self,value):
+        self._size.value = value
         if not self._constructing:
             self.addattr('size')
-        if self._sizing:
-            self._axis = currentaxis.norm()*value.x            
+        a = self._axis.norm() * value.x
+        if mag(self._axis) == 0:
+            a = vector(value.x,0,0)
+        self._axis.value = a # changing size changes length of axis
 
     @property
     def length(self):
         return self._size.x
     @length.setter
     def length(self,value):
-        if value == 0:
-            if self._save_oldaxis is None: self._save_oldaxis = vector(self._axis.x, self._axis.y, self._axis.z)
-            self._axis = vector(0,0,0)
-            self._size._x = 0
-        else:
-            if self._save_oldaxis is not None:
-                self._axis = self._save_oldaxis
-                self._save_oldaxis = None
-            if self._size._x == 0: self.axis = vector(value, 0, 0)
-            else: self.axis = value*self._axis.norm() # this will set length
+        self._axis = self._axis.norm() * value
+        self._size._x = value
         if not self._constructing:
             self.addattr('axis')
             self.addattr('size')
@@ -1039,24 +1015,6 @@ class standardAttributes(baseObj):
                 self._pos.value = newpos
                 self.addattr('pos')
 
-    def bounding_box(self):
-        centered = ['box', 'compound', 'ellipsoid', 'sphere', 'simple_sphere', 'ring']
-        x = norm(self._axis)
-        y = norm(self._up)
-        z = norm(cross(x,y))
-        L = self._size.x
-        H = self._size.y
-        W = self._size.z
-        p = vector(self._pos) # make a copy of pos, so changes to p won't affect the object
-        if self._objName not in centered:
-            p = p + 0.5*L*x # move to center
-        pts = []
-        for dx in [-L/2, L/2]:
-            for dy in [-H/2, H/2]:
-                for dz in [-W/2, W/2]:
-                    pts.append(p + dx*x + dy*y + dz*z)
-        return pts
-
     def _on_size_change(self): # the vector class calls this when there's a change in x, y, or z
         self._axis.value = self._axis.norm() * self._size.x  # update axis length when box.size.x is changed
         self.addattr('size')
@@ -1145,7 +1103,6 @@ class sphere(standardAttributes):
         args['_default_size'] = vector(2,2,2)
         args['_objName'] = "sphere"
         super(sphere, self).setup(args)
-        self._sizing = False # no axis/size connection
 
     @property
     def radius(self):
@@ -1236,7 +1193,6 @@ class ring(standardAttributes):
         args['_default_size'] = vector(0.2,2.2,2.2)
         args['_objName'] = "ring"
         super(ring, self).setup(args)
-        self._sizing = False # no axis/size connection
 
     @property
     def thickness(self):
@@ -1492,7 +1448,6 @@ class compound(standardAttributes):
         self.compound_idx += 1
         args['_objName'] = 'compound'+str(self.compound_idx)
         super(compound, self).setup(args)
-        self._sizing = False # no axis/size connection
 
         for obj in objList:
             # GlowScript will make the objects invisible, so need not set obj.visible
@@ -1856,8 +1811,8 @@ class curveMethods(standardAttributes):
         return val
 
     def point(self,N):
-        if N >= len(self._pts) or (N < 0 and -N >= len(self.pts)):
-            raise ValueError('N = {} is outside the bounds 0-{} of the curve points'.format(N, len(self._pos)))
+        if N >= len(self._pts) or (N < 0 and -N > len(self._pts)):
+            raise ValueError('N = {} is outside the bounds 0-{} of the curve points'.format(N, len(self._pts)-1))
         info = self._pts[N]
         if 'color' not in info: info['color'] = self.color
         if 'radius' not in info: info['radius'] = self.radius
@@ -2026,8 +1981,6 @@ class gobj(baseObj):
         self._legend = False
         self._interval = -1
         self._graph = None
-        self._visible = True
-        self._data = []
         objName = args['_objName']
         del args['_objName']
         self._constructing = True ## calls are from constructor
@@ -2163,8 +2116,6 @@ class gobj(baseObj):
             raise AttributeError("Cannot currently change color in a plot statement.")
         if 'pos' in args:
             return self.resolveargs(args['pos'])
-        elif 'data' in args:
-            return self.resolveargs(args['data'])
         else:
             raise AttributeError("Must be plot(x,y) or plot(pos=[x,y]) or plot([x,y]) or plot([x,y], ...) or plot([ [x,y], ... ])")
 
@@ -2173,17 +2124,7 @@ class gobj(baseObj):
             p = self.preresolve1(args1)
         else:
             p = self.preresolve2(args2)
-        self._data = self._data + p
         self.addmethod('plot', p)
-
-    @property
-    def visible(self):
-        return self._visible
-    @visible.setter
-    def visible(self,value):
-        self._visible = value
-        if not self._constructing:
-            self.addattr('visible')
 
     def delete(self):
         self.addmethod('delete', 'None')
@@ -2881,8 +2822,7 @@ class canvas(baseObj):
         baseObj._canvas_constructing = False
 
     def follow(self, obj):    ## should allow a function also
-        if obj is None: self.addmethod('follow', 'None')
-        else: self.addmethod('follow', obj.idx)
+        self.addmethod('follow', obj.idx)
 
     def select(self):
         canvas.selected = self
@@ -3369,7 +3309,6 @@ class controls(baseObj):
     def setup(self, args):
         super(controls, self).__init__()  ## get idx, attrsupdt from baseObj
         ## default values of common attributes
-        self._disabled = False
         self._constructing = True
         argsToSend = []
         objName = args['_objName']
@@ -3604,8 +3543,7 @@ class menu(controls):
         return self._choices
     @choices.setter
     def choices(self, value):
-        self._choices = value
-        self.addattr('choices')
+        raise AttributeError('choices cannot be modified after a menu is created')
 
     @property
     def index(self):
@@ -3889,7 +3827,6 @@ class extrusion(standardAttributes):
 class text(standardAttributes):
 
     def __init__(self, **args):
-        self._sizing = False # no axis/size connection
         args['_default_size'] = vector(1,1,1) # to keep standardAttributes happy
         args['_objName'] = "text"
         self._height = 1  ## not derived from size
@@ -3944,10 +3881,10 @@ class text(standardAttributes):
         return self._axis
     @axis.setter
     def axis(self,value): # changing axis does not affect size
-        old = vector(self.axis)
+        oldaxis = vector(self.axis)
         u = self.up
         self._axis.value = value
-        self._save_oldaxis = adjust_up(norm(old), self._axis, self._up, self._save_oldaxis)
+        self._save_oldaxis = adjust_up(norm(oldaxis), self._axis, self._up, self._save_oldaxis)
         self.addattr('axis')
         self.addattr('up')
 
@@ -3985,7 +3922,7 @@ class text(standardAttributes):
             if abs(val) < 0.01*self._height:
                 if val < 0: val = -0.01*self._height
                 else: val = 0.01*self._height
-            self._depth = val
+            self._depth = value
             self.addattr('depth')
 
     @property
