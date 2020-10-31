@@ -97,7 +97,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E', 'scroll':'F'}
+          'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G', 'depth':'H', 'round':'I'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -488,7 +488,7 @@ class standardAttributes(baseObj):
                           'shininess', 'emissive', 'texture', 'frame', 'material',
                           'make_trail', 'trail_type', 'interval',
                           'retain', 'trail_color', 'trail_radius', 'texture',
-                          'shaftwidth', 'headwidth', 'headlength', 'pickable'],
+                          'round', 'shaftwidth', 'headwidth', 'headlength', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height']],
                  'ring':[['pos', 'color', 'trail_color', 'size'],
                         ['axis', 'up'],
@@ -1242,11 +1242,19 @@ class arrow(standardAttributes):
     def __init__(self, **args):
         args['_default_size'] = vector(1,0.2,0.2)
         args['_objName'] = "arrow"
+        self._round = False
         self._shaftwidth = 0
         self._headwidth = 0
         self._headlength = 0
 
         super(arrow, self).setup(args)
+
+    @property
+    def round(self):
+        return self._round
+    @round.setter
+    def round(self,value):
+        raise AttributeError('Cannot change the "round" attribute of an arrow.')
 
     @property
     def shaftwidth(self):
