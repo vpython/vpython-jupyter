@@ -794,10 +794,10 @@ function handle_cmds(dcmds) {
 				delete cfg['obj']
 				var attr = cfg['attr']
 				delete cfg['attr']
-                var val = cfg['attrval']
-                delete cfg['attrval']
-                if (attrs.indexOf(attr) < 0) attr = '_attach_arrow'
-                o.attr = val
+				var val = cfg['attrval']
+				delete cfg['attrval']
+				if (attrs.indexOf(attr) < 0) attr = '_attach_arrow'
+				o.attr = val
 				glowObjs[idx] = attach_arrow( o, attr, cfg )
 				break
 			}

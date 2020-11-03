@@ -543,7 +543,7 @@ class standardAttributes(baseObj):
                         ['v0', 'v1', 'v2', 'v3'] ],
                  'attach_arrow': [ [ 'color', 'attrval'],
                         [],
-                        ['shaftwidth', 'scale', 'obj', 'attr'],
+                        ['shaftwidth', 'round', 'scale', 'obj', 'attr'],
                         [] ],
                  'attach_trail': [ ['color'],
                         [],
@@ -612,6 +612,7 @@ class standardAttributes(baseObj):
         self._pickable = True
         self._save_oldaxis = None # used in linking axis and up
         self._save_oldup = None # used in linking axis and up
+        self._round = False
         _special_clone = None
         if '_cloneid' in args: # text, extrusion, or compound is being cloned
             _special_clone = args['_cloneid']
@@ -1287,6 +1288,8 @@ class attach_arrow(standardAttributes):
     def __init__(self, obj, attr, **args):
         attrs = ['pos', 'size', 'axis', 'up', 'color']
         args['_default_size'] = None
+        a = getattr(obj, attr) # This raises an error if obj does not have attr
+        if not isinstance(a, vector): raise AttributeError('The attach_arrow attribute "'+attr+ '" is not a vector.')
         self.obj = args['obj'] = obj.idx
         self.attr = args['attr'] = attr # could be for example "velocity"
         self.attrval = args['attrval'] = getattr(baseObj.object_registry[self.obj], attr)
@@ -1294,9 +1297,17 @@ class attach_arrow(standardAttributes):
         self._last_val = None
         self._scale = 1
         self._shaftwidth = 0
+        self._round = False
         super(attach_arrow, self).setup(args)
         # Only if the attribute is a user attribute do we need to add to attach_arrows:
         if attr not in attrs: baseObj.attach_arrows.append(self)
+
+    @property
+    def round(self):
+        return self._round
+    @round.setter
+    def round(self,value):
+        raise AttributeError('Cannot change the "round" attribute of an attach_arrow.')
 
     @property
     def scale(self):
