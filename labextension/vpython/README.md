@@ -24,6 +24,42 @@ Except where the tutorial says: `conda install -c conda-forge jupyterlab=2`, use
 and tailor the instructions for creating a vpython labextension. Also, the tutorial command
 `jupyter lab --watch` will fail. Just use `jupyter lab`.
 
+The original instructions below caused trouble for me (steve, I got various React errors) but this is what worked:
+
+1) Create and activate a conda environment, and then install jupyterlab:
+
+    conda create -n jupyterlab-ext --override-channels --strict-channel-priority -c conda-forge -c anaconda jupyterlab cookiecutter nodejs git
+
+    conda activate jupyterlab-ext
+
+    conda install -c conda-forge jupyterlab=1
+
+2) git clone the repository (the branch from the pull request) somewhere using whatever git machinery you prefer.
+
+Then “cd” into the ‘vpython-jupyter/labextension/vpython’ of that repository.
+
+3) In the ‘vpython-jupyter/labextension/vpython’ directory of that repository execute:
+
+    cp -r ../../vpython/vpython_{libraries,data} .
+
+    yarn install
+
+    jupyter labextension install .
+
+4) Install vpyton in this virtual environment:
+
+   cd ../..
+
+   pip install -e .
+   
+And then to run a lab notebook:
+
+    jupyter lab
+
+Then you should be able to import vpython now and run notebooks in jupyterlab.
+
+Original instructions:
+
 ```bash
 jlpm install
 jlpm add @jupyterlab/application
@@ -45,5 +81,3 @@ To rebuild the package and the JupyterLab app:
 jlpm run build
 jupyter lab build
 ```
-
-

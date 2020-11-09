@@ -444,7 +444,7 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid',
               'u':'logx', 'v':'logy', 'w':'dot', 'x':'dot_radius', 
               'y':'markers', 'z':'legend', 'A':'label','B':'delta', 'C':'marker_color',
-              'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices', 'H':'depth'}
+              'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices', 'H':'depth', 'I':'round'}
 
 // methods are X in {'m': '23X....'}
 var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopvxyzCDFAB
@@ -794,10 +794,10 @@ function handle_cmds(dcmds) {
 				delete cfg['obj']
 				var attr = cfg['attr']
 				delete cfg['attr']
-                var val = cfg['attrval']
-                delete cfg['attrval']
-                if (attrs.indexOf(attr) < 0) attr = '_attach_arrow'
-                o.attr = val
+				var val = cfg['attrval']
+				delete cfg['attrval']
+				if (attrs.indexOf(attr) < 0) attr = '_attach_arrow'
+				o.attr = val
 				glowObjs[idx] = attach_arrow( o, attr, cfg )
 				break
 			}
