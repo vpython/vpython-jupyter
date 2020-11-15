@@ -584,11 +584,20 @@ function o2vec3(p) {
 function handler(data) {
     "use strict";
 	
-	/*
-	console.log('---------------')
-	for (var d in data) {
-		for (var i in data[d]) console.log(i, JSON.stringify(data[d][i]))
-	}
+    /*
+    // Debugging what is sent from server:
+    let found = false
+    for (let d in data) {
+        for (const i in data[d]) {
+            if (!found) {
+                found = true
+                console.log('================')
+            }
+            if (found) {
+                console.log(i, JSON.stringify(data[d][i]))
+            }
+        }
+    }
     */
 	
 	if (data.cmds !== undefined && data.cmds.length > 0) handle_cmds(data.cmds)
@@ -794,10 +803,10 @@ function handle_cmds(dcmds) {
 				delete cfg['obj']
 				var attr = cfg['attr']
 				delete cfg['attr']
-				var val = cfg['attrval']
-				delete cfg['attrval']
-				if (attrs.indexOf(attr) < 0) attr = '_attach_arrow'
-				o.attr = val
+                var val = cfg['attrval']
+                delete cfg['attrval']
+                if (attrs.indexOf(attr) < 0) attr = '_attach_arrow'
+                o.attr = val
 				glowObjs[idx] = attach_arrow( o, attr, cfg )
 				break
 			}

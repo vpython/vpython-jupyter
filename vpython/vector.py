@@ -302,7 +302,9 @@ def adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is chan
         return save_oldaxis
     if save_oldaxis is not None:
         # Restore saved oldaxis now that newaxis is nonzero
-        oldaxis = save_oldaxis
+        oldaxis._x = save_oldaxis._x # avoid creating a new vector
+        oldaxis._y = save_oldaxis._y
+        oldaxis._z = save_oldaxis._z
         save_oldaxis = None
     if newaxis.dot(up) != 0: # axis and up not orthogonal
         angle = oldaxis.diff_angle(newaxis)
@@ -318,7 +320,6 @@ def adjust_up(oldaxis, newaxis, up, save_oldaxis): # adjust up when axis is chan
     oldaxis._x = newaxis._x # avoid creating a new vector
     oldaxis._y = newaxis._y
     oldaxis._z = newaxis._z
-    return save_oldaxis
 
 def adjust_axis(oldup, newup, axis, save_oldup): # adjust axis when up is changed
     if abs(newup._x) + abs(newup._y) + abs(newup._z) == 0:

@@ -40,7 +40,12 @@ export function createWebsocket(msg, serviceUrl) {
         var uri = msg.content.data.wsuri
         var url;
     
-        url = serviceUrl + port + uri;
+        if (document.location.hostname.includes("localhost")){
+           url = "ws://localhost:" + port + uri;
+        }
+        else {
+           url = serviceUrl + port + uri;
+        }
         ws = new WebSocket(url);
         ws.binaryType = "arraybuffer";
 		
@@ -612,11 +617,20 @@ function o2vec3(p) {
 function handler(data) {
     "use strict";
 	
-	/*
-	console.log('---------------')
-	for (var d in data) {
-		for (var i in data[d]) console.log(i, JSON.stringify(data[d][i]))
-	}
+    /*
+    // Debugging what is sent from server:
+    let found = false
+    for (let d in data) {
+        for (const i in data[d]) {
+            if (!found) {
+                found = true
+                console.log('================')
+            }
+            if (found) {
+                console.log(i, JSON.stringify(data[d][i]))
+            }
+        }
+    }
     */
 	
 	if (data.cmds !== undefined && data.cmds.length > 0) handle_cmds(data.cmds)
