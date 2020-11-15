@@ -539,13 +539,22 @@ function o2vec3(p) {
 function handler(data) {
     "use strict";
 	
-	/*
-	console.log('---------------')
-	for (var d in data) {
-		for (var i in data[d]) console.log(i, JSON.stringify(data[d][i]))
-	}
-        */
-	
+    /*
+    // Debugging what is sent from server:
+    let found = false
+    for (let d in data) {
+        for (const i in data[d]) {
+            if (!found) {
+                found = true
+                console.log('================')
+            }
+            if (found) {
+                console.log(i, JSON.stringify(data[d][i]))
+            }
+        }
+    }
+    */
+    
 	if (data.cmds !== undefined && data.cmds.length > 0) handle_cmds(data.cmds)
 	if (data.methods !== undefined && data.methods.length > 0) handle_methods(data.methods)
 	if (data.attrs !== undefined && data.attrs.length > 0) handle_attrs(data.attrs)
@@ -723,23 +732,36 @@ function handle_cmds(dcmds) {
 			}
 			case 'local_light':   {glowObjs[idx] = local_light(cfg); break}
 			case 'distant_light': {glowObjs[idx] = distant_light(cfg); break}
-			case 'canvas':        {
+			case 'canvas': {
+				var container = document.getElementById("glowscript");
+				if (container !== null) {
+					window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}
+				}
 				glowObjs[idx] = canvas(cfg)
 				glowObjs[idx]['idx'] = idx
+				try{
+					glowObjs[idx].wrapper[0].addEventListener("contextmenu", function(event){
+						event.preventDefault(); 
+						event.stopPropagation(); 
+					});
+				}
+				catch(err) {
+					console.log("glowcomm canvas contextmenu event : ",err.message);
+				}
 				break
 					// Display frames per second and render time:
 					//$("<div id='fps'/>").appendTo(glowObjs[idx].title)
 			}
 			case 'attach_arrow':  {
-				var attrs = ['pos', 'size', 'axis', 'up', 'color']
+                var attrs = ['pos', 'size', 'axis', 'up', 'color']
 				var o = glowObjs[cfg['obj']]
 				delete cfg['obj']
 				var attr = cfg['attr']
 				delete cfg['attr']
-				var val = cfg['attrval']
-				delete cfg['attrval']
-				if (attrs.indexOf(attr) < 0) attr = '_attach_arrow'
-				o.attr = val
+                var val = cfg['attrval']
+                delete cfg['attrval']
+                if (attrs.indexOf(attr) < 0) attr = '_attach_arrow'
+                o.attr = val
 				glowObjs[idx] = attach_arrow( o, attr, cfg )
 				break
 			}
@@ -798,7 +820,6 @@ function handle_cmds(dcmds) {
 				cfg.objName = obj
 				cfg.bind = control_handler
 				cfg = fix_location(cfg)
-                console.log(cfg.choices)
 				glowObjs[idx] = menu(cfg)
 				if (cfg['selected'] === 'None') {
 					cfg['selected'] = null                              
