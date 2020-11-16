@@ -315,7 +315,9 @@ cpdef vector adjust_up(vector oldaxis, vector newaxis, vector up, vector save_ol
         return save_oldaxis
     if save_oldaxis is not None:
         # Restore saved oldaxis now that newaxis is nonzero
-        oldaxis = save_oldaxis
+        oldaxis._x = save_oldaxis._x # avoid creating a new vector
+        oldaxis._y = save_oldaxis._y
+        oldaxis._z = save_oldaxis._z
         save_oldaxis = None
     if newaxis.dot(up) != 0: # axis and up not orthogonal
         angle = oldaxis.diff_angle(newaxis)
