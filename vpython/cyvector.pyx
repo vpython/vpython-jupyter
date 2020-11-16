@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 from random import random
 
 # List of names imported from this module with import *

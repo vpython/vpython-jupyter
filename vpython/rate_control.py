@@ -66,7 +66,6 @@ def _sleep(dt):
         return
     tend = _clock()+dt
     while _clock() < tend:
-        print (tend- _clock(),tend)
         pass
 
 class simulateDelay:
