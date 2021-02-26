@@ -1097,7 +1097,7 @@ class standardAttributes(baseObj):
                     '_pickable':self._pickable}
         elif objName == 'curve':
             oldargs = {'origin':self._origin, 'pos':self.pos,
-                    'color':self._color, r'adius':self._radius,
+                    'color':self._color, 'radius':self._radius,
                     'size':self._size, 'axis':self._axis, 'up':self._up,
                     'shininess':self._shininess, 'emissive':self._emissive,
                     'visible':True, 'pickable':self._pickable}
