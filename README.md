@@ -40,7 +40,7 @@ controls available to zoom and rotate the camera:
     Shift-drag to pan left/right and up/down.
     Touch screen: pinch/extend to zoom, swipe or two-finger rotate.
 
-Currently, to re-run a VPython program in a Jupyter notebook you need to click the circular arrow icon to "restart the kernel" and then click the red-highlighted button, then click in the first cell, then click the run icon. Alternatively, if you insert `scene = canvas()`` at the start of your program, you can rerun the program without restarting the kernel.
+Currently, to re-run a VPython program in a Jupyter notebook you need to click the circular arrow icon to "restart the kernel" and then click the red-highlighted button, then click in the first cell, then click the run icon. Alternatively, if you insert `scene = canvas()` at the start of your program, you can rerun the program without restarting the kernel.
 
 Run example VPython programs: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/vpython/vpython-jupyter/7.6.1?filepath=index.ipynb)
 
