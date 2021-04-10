@@ -3788,6 +3788,9 @@ class extrusion(standardAttributes):
             args['color'] = self.vecs_to_list(args, 'color')
         else:
             args['_firstcolor'] = vector(1,1,1)
+        for attr in ['scale', 'xscale', 'yscale', 'twist']:
+            if attr in args and isinstance(args[attr],list) and len(args[attr]) != self._pathlength:
+                raise AttributeError("The "+attr+" list must be the same length as the list of points on the path ("+str(self._pathlength)+").")
 
         super(extrusion, self).setup(args)
 
