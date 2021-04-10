@@ -897,47 +897,6 @@ function handle_cmds(dcmds) {
 			default:
 				console.log("Unable to create object")
 		}
-		
-		/*
-		if (obj === 'redisplay') {
-			var c = document.getElementById(cmd.sceneId)
-			if (c !== null) {
-				var scn = "#" + cmd.sceneId
-				glowObjs[idx].sceneclone = $(scn).clone(true,true)
-				//document.getElementById('glowscript2').appendChild(c)
-				//document.getElementById('glowscript2').replaceWith(c)
-				$('#glowscript2').replaceWith(c)
-				c = document.getElementById(cmd.sceneId)
-				var cont = scn + " .glowscript"
-				window.__context = { glowscript_container:    $(cont) }
-			} else {
-				window.__context = { glowscript_container: $("#glowscript").removeAttr("id") }                    
-				var newcnvs = canvas()
-				for (var obj in glowObjs[idx].objects) {
-					var o = glowObjs[idx].objects[obj]
-					if ((o.constructor.name !== 'curve') && (o.constructor.name !== 'points')) {
-						glowObjs[o.gidx] = o.clone({canvas: newcnvs})
-						var olen = newcnvs.objects.length
-						if (olen > 0) {
-							newcnvs.objects[olen - 1].gidx = o.gidx
-						}
-					}
-				}
-				glowObjs[idx] = newcnvs
-				$("#glowscript2").attr("id",cmd.sceneId)
-			}
-		} else if (obj === 'delete') {
-			b = glowObjs[idx]
-			if ((b !== null) || (b.visible !== undefined)) {
-				b.visible = false
-			}
-			glowObjs[idx] = null
-		} else if (obj === 'heartbeat') {
-			//console.log("heartbeat")
-		} else if (obj === 'debug') {
-			console.log("debug : ", cmd)
-		}
-		*/
 	} // end of cmds (constructors and special data)
 }
 
