@@ -454,14 +454,12 @@ function decode(data) {
                     vs = [Number(val[1]), Number(val[2]), Number(val[3]), Number(val[4])]
                 }
 			} else if (textattrs.indexOf(attr) > -1) {
-                if (attr == 'choices') { // menu choices to be wrapped in a list
+                if (attr == 'choices') { // menu choices are wrapped in a list
                     val = m[3].slice(2,-2)
                     val = val.replace(/'/g, '') // remove quotes
-                    val = val.replace(/,/g, '') // remove commas
-                    let s = val.split(' ')
+                    let s = val.split(',')
                     val = []
-                    let a
-                    for (a of s) {val.push(a)}
+                    for (let a of s) {val.push(a)}
                 } else {
                     // '\n' doesn't survive JSON transmission, so in vpython.py we replace '\n' with '<br>'
                     val = m[3].replace(/<br>/g, "\n")
@@ -541,7 +539,6 @@ function handler(data) {
 		for (var i in data[d]) console.log(i, JSON.stringify(data[d][i]))
 	}
 	*/
-
 	
 	if (data.cmds !== undefined && data.cmds.length > 0) handle_cmds(data.cmds)
 	if (data.methods !== undefined && data.methods.length > 0) handle_methods(data.methods)
@@ -800,6 +797,7 @@ function handle_cmds(dcmds) {
 				cfg.objName = obj
 				cfg.bind = control_handler
 				cfg = fix_location(cfg)
+				console.log('menu cfg', cfg)
 				glowObjs[idx] = menu(cfg)
 				if (cfg['selected'] === 'None') {
 					cfg['selected'] = null                              
@@ -809,47 +807,6 @@ function handle_cmds(dcmds) {
 			default:
 				console.log("Unable to create object")
 		}
-		
-		/*
-		if (obj === 'redisplay') {
-			var c = document.getElementById(cmd.sceneId)
-			if (c !== null) {
-				var scn = "#" + cmd.sceneId
-				glowObjs[idx].sceneclone = $(scn).clone(true,true)
-				//document.getElementById('glowscript2').appendChild(c)
-				//document.getElementById('glowscript2').replaceWith(c)
-				$('#glowscript2').replaceWith(c)
-				c = document.getElementById(cmd.sceneId)
-				var cont = scn + " .glowscript"
-				window.__context = { glowscript_container:    $(cont) }
-			} else {
-				window.__context = { glowscript_container: $("#glowscript").removeAttr("id") }                    
-				var newcnvs = canvas()
-				for (var obj in glowObjs[idx].objects) {
-					var o = glowObjs[idx].objects[obj]
-					if ((o.constructor.name !== 'curve') && (o.constructor.name !== 'points')) {
-						glowObjs[o.gidx] = o.clone({canvas: newcnvs})
-						var olen = newcnvs.objects.length
-						if (olen > 0) {
-							newcnvs.objects[olen - 1].gidx = o.gidx
-						}
-					}
-				}
-				glowObjs[idx] = newcnvs
-				$("#glowscript2").attr("id",cmd.sceneId)
-			}
-		} else if (obj === 'delete') {
-			b = glowObjs[idx]
-			if ((b !== null) || (b.visible !== undefined)) {
-				b.visible = false
-			}
-			glowObjs[idx] = null
-		} else if (obj === 'heartbeat') {
-			//console.log("heartbeat")
-		} else if (obj === 'debug') {
-			console.log("debug : ", cmd)
-		}
-		*/
 	} // end of cmds (constructors and special data)
 }
 
@@ -931,6 +888,7 @@ function handle_attrs(dattrs) {
 		var obj = glowObjs[idx]
 		var attr = cmd['attr']
 		var val = cmd['val']
+		console.log(obj, attr, val)
 		var triangle_quad = ['v0', 'v1', 'v2', 'v3']
 		// vector attrs in attach_arrow have arbitrary names, so check for length 3 array instead
 		if (val instanceof vec) {
