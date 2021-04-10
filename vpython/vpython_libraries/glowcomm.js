@@ -36,8 +36,13 @@ IPython.notebook.kernel.comm_manager.register_target('glow',
            } else {
               new_uri = "ws:";
            }
-           new_uri += '//' + document.location.host + service_url;
-           url = new_uri
+           if (document.location.hostname.includes("localhost")){
+              url = "ws://localhost:" + port + uri;
+           }
+           else {
+              new_uri += '//' + document.location.host + service_url;
+              url = new_uri
+           }
            ws = new WebSocket(url);
            ws.binaryType = "arraybuffer";
            
@@ -161,7 +166,7 @@ function send() { // periodically send events and update_canvas and request obje
 
 // Should eventually have glowcomm.html, glowcom.js, and glowcommlab.js all import this common component.
 
-window.__GSlang = "vpython"
+window.__GSlang = "vpython" 
 
 function msclock() {
     "use strict";
@@ -288,8 +293,6 @@ function send_pick(cvs, p, seg) {
     "use strict";
     var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg}
 	events.push(evt)
-    if (timer !== null) clearTimeout(timer)
-    send() // send the info NOW
 }
 
 function send_compound(cvs, pos, size, up) {
@@ -297,8 +300,6 @@ function send_compound(cvs, pos, size, up) {
     var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z], 
         'size': [size.x, size.y, size.z], 'up': [up.x, up.y, up.z]}
 	events.push(evt)
-    if (timer !== null) clearTimeout(timer)
-    send() // send the info NOW
 }
 
 var waitfor_canvas = null
@@ -584,21 +585,13 @@ function o2vec3(p) {
 function handler(data) {
     "use strict";
 	
-    /*
-    // Debugging what is sent from server:
-    let found = false
-    for (let d in data) {
-        for (const i in data[d]) {
-            if (!found) {
-                found = true
-                console.log('================')
-            }
-            if (found) {
-                console.log(i, JSON.stringify(data[d][i]))
-            }
-        }
-    }
-    */
+	/*
+	console.log('---------------')
+	for (var d in data) {
+		for (var i in data[d]) console.log(i, JSON.stringify(data[d][i]))
+	}
+	*/
+
 	
 	if (data.cmds !== undefined && data.cmds.length > 0) handle_cmds(data.cmds)
 	if (data.methods !== undefined && data.methods.length > 0) handle_methods(data.methods)
@@ -625,7 +618,8 @@ function handle_cmds(dcmds) {
 		//assembling cfg
 		var vlst = ['pos', 'color', 'size', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
 				 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'textcolor', 'attrval',
-				 'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color', 'marker_color']
+				 'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color', 'marker_color',
+				 'start_normal', 'end_normal']
 		if ((obj != 'gcurve') && ( obj != 'gdots' ) ) vlst.push( 'size' )
 		var cfg = {}
 		var objects = []
@@ -639,10 +633,14 @@ function handle_cmds(dcmds) {
 				   cfg[attr] = o2vec3(val)
 				}                            
 			} else if ( (attr == 'pos' && (obj == 'curve' || obj == 'points')) ||
-						(attr == 'path' && obj == 'extrusion') ) { // only occurs in constructor
-				var ptlist = []
-				for (var kk = 0; kk < val.length; kk++) {
-					ptlist.push( o2vec3(val[kk]) )
+						(obj == 'extrusion' && (attr == 'path' || attr == 'color') ) ) { // only occurs in constructor
+				let ptlist = []
+				if (val[0].length === undefined) { // a single triple [x,y,z] to convert to a vector
+					ptlist = o2vec3(val)
+				} else {
+					for (var kk = 0; kk < val.length; kk++) {
+						ptlist.push( o2vec3(val[kk]) )
+					}
 				}
 				cfg[attr] = ptlist
 			} else if (vlst.indexOf(attr) !== -1) {
@@ -778,21 +776,8 @@ function handle_cmds(dcmds) {
 			case 'local_light':   {glowObjs[idx] = local_light(cfg); break}
 			case 'distant_light': {glowObjs[idx] = distant_light(cfg); break}
 			case 'canvas':        {
-				var container = document.getElementById("glowscript");
-				if (container !== null) {
-					window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}
-				}
 				glowObjs[idx] = canvas(cfg)
 				glowObjs[idx]['idx'] = idx
-				try{
-					glowObjs[idx].wrapper[0].addEventListener("contextmenu", function(event){
-						event.preventDefault(); 
-						event.stopPropagation(); 
-					});
-				}
-				catch(err) {
-					console.log("glowcomm canvas contextmenu event : ",err.message);
-				}
 				break
 					// Display frames per second and render time:
 					//$("<div id='fps'/>").appendTo(glowObjs[idx].title)
@@ -905,7 +890,6 @@ function handle_cmds(dcmds) {
 			}
 		} else if (obj === 'delete') {
 			b = glowObjs[idx]
-			//console.log("delete : ",idx)
 			if ((b !== null) || (b.visible !== undefined)) {
 				b.visible = false
 			}
