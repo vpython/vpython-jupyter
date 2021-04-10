@@ -658,7 +658,8 @@ function handle_cmds(dcmds) {
 		//assembling cfg
 		var vlst = ['pos', 'color', 'size', 'axis', 'up', 'direction', 'center', 'forward', 'foreground',
 				 'background', 'ambient', 'linecolor', 'dot_color', 'trail_color', 'textcolor', 'attrval',
-				 'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color', 'marker_color']
+				 'origin', 'normal', 'bumpaxis','texpos', 'start_face_color', 'end_face_color', 'marker_color',
+				 'start_normal', 'end_normal']
 		if ((obj != 'gcurve') && ( obj != 'gdots' ) ) vlst.push( 'size' )
 		var cfg = {}
 		var objects = []
@@ -672,10 +673,14 @@ function handle_cmds(dcmds) {
 				   cfg[attr] = o2vec3(val)
 				}                            
 			} else if ( (attr == 'pos' && (obj == 'curve' || obj == 'points')) ||
-						(attr == 'path' && obj == 'extrusion') ) { // only occurs in constructor
-				var ptlist = []
-				for (var kk = 0; kk < val.length; kk++) {
-					ptlist.push( o2vec3(val[kk]) )
+						(obj == 'extrusion' && (attr == 'path' || attr == 'color') ) ) { // only occurs in constructor
+				let ptlist = []
+				if (val[0].length === undefined) { // a single triple [x,y,z] to convert to a vector
+					ptlist = o2vec3(val)
+				} else {
+					for (var kk = 0; kk < val.length; kk++) {
+						ptlist.push( o2vec3(val[kk]) )
+					}
 				}
 				cfg[attr] = ptlist
 			} else if (vlst.indexOf(attr) !== -1) {
@@ -811,21 +816,8 @@ function handle_cmds(dcmds) {
 			case 'local_light':   {glowObjs[idx] = local_light(cfg); break}
 			case 'distant_light': {glowObjs[idx] = distant_light(cfg); break}
 			case 'canvas':        {
-				var container = document.getElementById("glowscript");
-				if (container !== null) {
-					window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}
-				}
 				glowObjs[idx] = canvas(cfg)
 				glowObjs[idx]['idx'] = idx
-				try{
-					glowObjs[idx].wrapper[0].addEventListener("contextmenu", function(event){
-						event.preventDefault(); 
-						event.stopPropagation(); 
-					});
-				}
-				catch(err) {
-					console.log("glowcomm canvas contextmenu event : ",err.message);
-				}
 				break
 					// Display frames per second and render time:
 					//$("<div id='fps'/>").appendTo(glowObjs[idx].title)
@@ -938,7 +930,6 @@ function handle_cmds(dcmds) {
 			}
 		} else if (obj === 'delete') {
 			b = glowObjs[idx]
-			//console.log("delete : ",idx)
 			if ((b !== null) || (b.visible !== undefined)) {
 				b.visible = false
 			}

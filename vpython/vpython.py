@@ -557,10 +557,11 @@ class standardAttributes(baseObj):
                          [],
                          ['location', 'text'],
                          []],
-                 'extrusion':[ ['pos', 'color', 'start_face_color', 'end_face_color'],
+                 'extrusion':[ ['pos', 'color', 'start_face_color', 'end_face_color', 'start_normal', 'end_normal'],
                         [ 'axis', 'size', 'up' ],
                         ['path', 'shape', 'visible', 'opacity','shininess', 'emissive',
-                         'show_start_face', 'show_end_face', 'smooth',
+                         'show_start_face', 'show_end_face', 'smooth', 'smooth_joints', 'sharp_joints',
+                         'scale', 'xscale', 'yscale', 'twist',
                          'make_trail', 'trail_type', 'interval', 'show_start_face', 'show_end_face',
                          'retain', 'trail_color', 'trail_radius', 'texture', 'pickable' ],
                         ['red', 'green', 'blue','length', 'width', 'height'] ],
@@ -630,8 +631,11 @@ class standardAttributes(baseObj):
             if a in args:
                 argsToSend.append(a)
                 val = args[a]
-                if isinstance(val, vector): setattr(self, '_'+a, vector(val))  ## '_' bypasses setters; copy of val
-                else: raise AttributeError(a+' must be a vector')
+                if objName == 'extrusion' and a == 'color':
+                    setattr(self, '_'+a, val)  # '_' bypasses setters
+                else:
+                    if isinstance(val, vector): setattr(self, '_'+a, vector(val))  # '_' bypasses setters; copy of val
+                    else: raise AttributeError(a+' must be a vector')
                 del args[a]
 
     # Track side effects of modifying size, axis, or up
@@ -715,14 +719,11 @@ class standardAttributes(baseObj):
         if _special_clone is not None: cmd["_cloneid"] = _special_clone
         self.appendcmd(cmd)
 
-        # if ('frame' in args and args['frame'] is not None):
-            # frame.objects.append(self)
-            # frame.update_obj_list()
-
     # attribute vectors have these methods which call self.addattr()
     # The vector class calls a change function when there's a change in x, y, or z.
         noSize = ['points', 'label', 'vertex', 'triangle', 'quad', 'attach_arrow', 'attach_trail']
-        self._color.on_change = self._on_color_change
+        if not (objName == 'extrusion'): # 
+            self._color.on_change = self._on_color_change
         if objName not in noSize:
             self._axis.on_change = self._on_axis_change
             self._size.on_change = self._on_size_change
@@ -836,6 +837,9 @@ class standardAttributes(baseObj):
         return self._color
     @color.setter
     def color(self,value):
+        if isinstance(self._color, list): # may be a list of extrusion colors of the form [ [1,0,0], [0,1,0] ]
+            self._color = vector(0,0,0)   # change list to a vector
+            self._color.value = value     # modify the vector
         self._color.value = value
         if not self._constructing:
             self.addattr('color')
@@ -3175,6 +3179,8 @@ class canvas(baseObj):
                 obj._descender = p[1]
                 obj._up.value = list_to_vec(evt['up'])
             else:
+                if obj._objName == 'extrusion':
+                    obj._color = obj._firstcolor # use the first segment color to represent multicolor extrusions
                 # Set attribute_vector.value, which avoids nullifying the
                 # on_change functions that detect changes in e.g. obj.pos.y
                 obj._pos.value = list_to_vec(p)
@@ -3774,16 +3780,14 @@ class extrusion(standardAttributes):
             savesize = args['size']
             del args['size']
         self._shape = [ ]
-        pozz = args['path']
-        npozz = []
-        for pp in pozz:
-            npozz.append(pp.value)  ## convert vectors to lists
-        args['path'] = npozz[:]
-        self._show_start_face = True
-        self._show_end_face = True
+        self._pathlength = len(args['path'])
+        args['path'] = self.vecs_to_list(args, 'path')
         if 'color' in args:
-            self._start_face_color = args['color']
-            self._end_face_color = args['color']
+            if isinstance(args['color'], vector): args['_firstcolor'] = args['color']
+            else: args['_firstcolor'] = args['color'][0]
+            args['color'] = self.vecs_to_list(args, 'color')
+        else:
+            args['_firstcolor'] = vector(1,1,1)
 
         super(extrusion, self).setup(args)
 
@@ -3791,6 +3795,16 @@ class extrusion(standardAttributes):
         _wait(self.canvas)
         if savesize is not None:
             self._size = savesize
+
+    def vecs_to_list(self, a, attr):
+        pozz = a[attr]
+        if isinstance(pozz, vector): return pozz.value
+        if len(pozz) != self._pathlength:
+            raise AttributeError("The "+attr+" list must be the same length as the list of points on the path ("+str(self._pathlength)+").")
+        npozz = []
+        for pp in pozz:
+            npozz.append(pp.value)  ## convert vectors to lists
+        return npozz[:]
 
     @property
     def axis(self):
@@ -3876,6 +3890,34 @@ class extrusion(standardAttributes):
     def smooth(self, value):
         raise AttributeError('smooth cannot be changed after extrusion is created')
 
+    def checkjointlist(self, js, name):
+        if not isinstance(js, list): raise AttributeError(name+' must be a list of joint indices.')
+        for k in js:
+            if k < 0 or k > self._pathlength:
+               raise AttributeError(str(k)+' is not in the range of joints in the path (0-'+str(self._pathlength-1)+').')
+        
+    @property
+    def smooth_joints(self):
+        if self._constructing:
+            self.checkjointlist(self._smooth_joints, 'smooth_joints')
+            return self._smooth_joints
+        else:
+            return None
+    @smooth_joints.setter
+    def smooth_joints(self, value):
+        raise AttributeError('smooth_joints cannot be changed after extrusion is created')
+        
+    @property
+    def sharp_joints(self):
+        if self._constructing:
+            self.checkjointlist(self._sharp_joints, 'sharp_joints')
+            return self._sharp_joints
+        else:
+            return None
+    @sharp_joints.setter
+    def sharp_joints(self, value):
+        raise AttributeError('sharp_joints cannot be changed after extrusion is created')
+
     @property
     def show_start_face(self):
         if self._constructing:
@@ -3915,6 +3957,76 @@ class extrusion(standardAttributes):
     @end_face_color.setter
     def end_face_color(self,value):
         raise AttributeError('end_face_color cannot be changed after extrusion is created')
+
+    @property
+    def start_normal(self):
+        if self._constructing:
+            return self._start_normal
+        else:
+            return None
+    @start_normal.setter
+    def start_normal(self,value):
+        raise AttributeError('start_normal cannot be changed after extrusion is created')
+
+    @property
+    def end_normal(self):
+        if self._constructing:
+            return self._end_normal
+        else:
+            return None
+    @end_normal.setter
+    def end_normal(self,value):
+        raise AttributeError('end_normal cannot be changed after extrusion is created')
+
+    @property
+    def twist(self):
+        if self._constructing:
+            return self._twist
+        else:
+            return None
+    @twist.setter
+    def twist(self,value):
+        raise AttributeError('twist cannot be changed after extrusion is created')
+
+    @property
+    def scale(self):
+        if self._constructing:
+            return self._scale
+        else:
+            return None
+    @scale.setter
+    def scale(self,value):
+        raise AttributeError('scale cannot be changed after extrusion is created')
+
+    @property
+    def xscale(self):
+        if self._constructing:
+            return self._xscale
+        else:
+            return None
+    @xscale.setter
+    def xscale(self,value):
+        raise AttributeError('xscale cannot be changed after extrusion is created')
+
+    @property
+    def yscale(self):
+        if self._constructing:
+            return self._yscale
+        else:
+            return None
+    @yscale.setter
+    def yscale(self,value):
+        raise AttributeError('xscale cannot be changed after extrusion is created')
+
+    @property
+    def yscale(self):
+        if self._constructing:
+            return self._yscale
+        else:
+            return None
+    @yscale.setter
+    def yscale(self,value):
+        raise AttributeError('xscale cannot be changed after extrusion is created')
 
 class text(standardAttributes):
 
