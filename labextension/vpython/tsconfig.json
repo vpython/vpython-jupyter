@@ -1,17 +1,19 @@
 {
   "compilerOptions": {
     "allowJs": true,
-    "lib": ["es6", "ES5", "ES2015.Promise", "DOM"],
+	  "lib": ["es6", "ES5", "ES2015.Promise", "DOM"],
+    "esModuleInterop": true,
+    "jsx": "react",
     "module": "commonjs",
     "moduleResolution": "node",
-    "noImplicitAny": true,
     "noEmitOnError": true,
+    "noImplicitAny": true,
     "noUnusedLocals": true,
     "outDir": "lib",
     "rootDir": "src",
-    "target": "es6",
     "strict": true,
     "strictNullChecks": false,
+    "target": "es6",
     "types": []
   },
   "include": ["src/*"]
