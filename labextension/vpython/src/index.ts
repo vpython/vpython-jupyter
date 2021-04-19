@@ -1,6 +1,6 @@
 import {
   IDisposable, DisposableDelegate
-} from '@phosphor/disposable';
+} from '@lumino/disposable';
 
 import {
   JupyterFrontEnd, JupyterFrontEndPlugin
@@ -35,13 +35,15 @@ class VPythonExtension implements DocumentRegistry.IWidgetExtension<NotebookPane
    */
   createNew(panel: NotebookPanel, context: DocumentRegistry.IContext<INotebookModel>): IDisposable {
 
-    Promise.all([panel.revealed, panel.session.ready, context.ready]).then(function() {
-		const session = context.session;
+    //Promise.all([panel.revealed, panel.sessionContext.ready, context.ready]).then(function() {
+	//	sessionContext: ISessionContext
+    Promise.all([panel.revealed, panel.sessionContext.ready, context.ready]).then(function() {
+		const session = context.sessionContext.session;
 		const kernelInstance = session.kernel;
 		(<any>window).JLab_VPython = true;
 
- 		try {	
-			kernelInstance.registerCommTarget('glow', (vp_comm, commMsg) => {
+ 		try {
+			kernelInstance.registerCommTarget('glow', (vp_comm: any, commMsg: any) => {
 				// Use Dynamic import() Expression to import glowcomm when comm is opened
 				import("./glowcommlab").then(glowcommlab => {
 					glowcommlab.comm = vp_comm
@@ -56,7 +58,7 @@ class VPythonExtension implements DocumentRegistry.IWidgetExtension<NotebookPane
 					glowcommlab.setupWebsocket(commMsg, serviceUrl)					
 				});
 			
-				vp_comm.onClose = (msg) => {console.log("comm onClose");};
+				vp_comm.onClose = (msg: any) => {console.log("comm onClose");};
 			});
 		}
 		catch(err) {
