@@ -83,8 +83,8 @@ export function setupWebsocket(msg,serviceUrl) {
 	wscheckfontsloaded(msg,serviceUrl)
 }
 
-var datadir = './static/lab/vpython_data/'
-window.Jupyter_VPython = "./static/lab/vpython_data/" // prefix used by glow.min.js for textures
+var datadir = '/static/lab/vpython_data/'
+window.Jupyter_VPython = "/static/lab/vpython_data/" // prefix used by glow.min.js for textures
 
 function fontloading() {
     "use strict";
