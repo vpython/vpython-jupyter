@@ -35,8 +35,6 @@ class VPythonExtension implements DocumentRegistry.IWidgetExtension<NotebookPane
    */
   createNew(panel: NotebookPanel, context: DocumentRegistry.IContext<INotebookModel>): IDisposable {
 
-    //Promise.all([panel.revealed, panel.sessionContext.ready, context.ready]).then(function() {
-	//	sessionContext: ISessionContext
     Promise.all([panel.revealed, panel.sessionContext.ready, context.ready]).then(function() {
 		const session = context.sessionContext.session;
 		const kernelInstance = session.kernel;
