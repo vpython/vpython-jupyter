@@ -83,8 +83,13 @@ export function setupWebsocket(msg,serviceUrl) {
 	wscheckfontsloaded(msg,serviceUrl)
 }
 
-var datadir = '/static/lab/vpython_data/'
-window.Jupyter_VPython = "/static/lab/vpython_data/" // prefix used by glow.min.js for textures
+// Old datadir value for a source extension npm package. (used prior to JupyterLab 3.0)
+//var datadir = '/static/lab/vpython_data/'
+//window.Jupyter_VPython = "/static/lab/vpython_data/" // prefix used by glow.min.js for textures
+
+// New datadir value for a prebuilt extension (new in JupyterLab 3.0) 
+var datadir = '/lab/extensions/vpython/static/vpython_data/'
+window.Jupyter_VPython = "/lab/extensions/vpython/static/vpython_data/" // prefix used by glow.min.js for textures
 
 function fontloading() {
     "use strict";
