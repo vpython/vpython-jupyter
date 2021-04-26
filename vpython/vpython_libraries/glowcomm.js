@@ -774,20 +774,25 @@ function handle_cmds(dcmds) {
 			case 'local_light':   {glowObjs[idx] = local_light(cfg); break}
 			case 'distant_light': {glowObjs[idx] = distant_light(cfg); break}
 			case 'canvas':        {
-				var container = document.getElementById("glowscript");
-				if (container !== null) {
-					window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}
-				}
-				glowObjs[idx] = canvas(cfg)
-				glowObjs[idx]['idx'] = idx
-				try{
-					glowObjs[idx].wrapper[0].addEventListener("contextmenu", function(event){
-						event.preventDefault(); 
-						event.stopPropagation(); 
-					});
-				}
-				catch(err) {
-					console.log("glowcomm canvas contextmenu event : ",err.message);
+				if ((typeof isjupyterlab_vpython !== 'undefined') && (isjupyterlab_vpython === true)) {
+					var container = document.getElementById("glowscript");
+					if (container !== null) {
+						window.__context = { glowscript_container: $("#glowscript").removeAttr("id")}
+					}
+					glowObjs[idx] = canvas(cfg)
+					glowObjs[idx]['idx'] = idx
+					try{
+						glowObjs[idx].wrapper[0].addEventListener("contextmenu", function(event){
+							event.preventDefault(); 
+							event.stopPropagation(); 
+						});
+					}
+					catch(err) {
+						console.log("glowcomm canvas contextmenu event : ",err.message);
+					}
+				} else {
+					glowObjs[idx] = canvas(cfg)
+					glowObjs[idx]['idx'] = idx
 				}
 				break
 					// Display frames per second and render time:
