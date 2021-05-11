@@ -4,6 +4,7 @@ import 'script-loader!../vpython_libraries/glow.min.js';
 import 'script-loader!../vpython_libraries/plotly.min.js';
 import '../style/jquery-ui.custom.css'
 import '../style/ide.css'
+import img from '../vpython_data/flower_texture.jpg'     // use this to get the path to vpython_data
 
 // Ensure downstream JupyterLab webpack places the fonts and images in predictable locations
 import '!!file-loader?name=/vpython_data/[name].[ext]!../vpython_data/earth_texture.jpg'
@@ -41,12 +42,7 @@ export function createWebsocket(msg, serviceUrl) {
         var uri = msg.content.data.wsuri
         var url;
     
-        if (document.location.hostname.includes("localhost")){
-           url = "ws://localhost:" + port + uri;
-        }
-        else {
-           url = serviceUrl + port + uri;
-        }
+        url = serviceUrl + port + uri;
         ws = new WebSocket(url);
         ws.binaryType = "arraybuffer";
 		
@@ -84,13 +80,11 @@ export function setupWebsocket(msg,serviceUrl) {
 	wscheckfontsloaded(msg,serviceUrl)
 }
 
-// Old datadir value for a source extension npm package. (used prior to JupyterLab 3.0)
-//var datadir = '/static/lab/vpython_data/'
-//window.Jupyter_VPython = "/static/lab/vpython_data/" // prefix used by glow.min.js for textures
-
 // New datadir value for a prebuilt extension (new in JupyterLab 3.0) 
-var datadir = '/lab/extensions/vpython/static/vpython_data/'
-window.Jupyter_VPython = "/lab/extensions/vpython/static/vpython_data/" // prefix used by glow.min.js for textures
+var url = new URL(img);
+var datadir = url.pathname.substring(0, url.pathname.lastIndexOf('/')) + "/vpython_data/";   // path to vpython_data dir
+window.Jupyter_VPython = datadir // prefix used by glow.min.js for textures
+url = null
 
 function fontloading() {
     "use strict";
