@@ -1,6 +1,6 @@
 {
   "name": "vpython",
-  "version": "3.0.3",
+  "version": "3.0.7",
   "description": "VPython extension for JupyterLab",
   "keywords": [
     "jupyter",
