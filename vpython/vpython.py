@@ -120,7 +120,7 @@ def _encode_attr2(sendval, val, ismethods):
     if sendval in __vecattrs: # it would be good to do some kind of compression of doubles
         s += "{:.16G},{:.16G},{:.16G}".format(val[0], val[1], val[2])
     elif sendval in __textattrs:
-        # '\n' doesn't survive JSON transmission, so we replace '\n' with '<br>' (and convert back in glowcomm)
+		# '\n' doesn't survive JSON transmission, so we replace '\n' with '<br>' (and convert back in glowcomm)
         if not isinstance(val, str): val = print_to_string(val)
         val = val.replace('\n', '<br>')
         s += val
@@ -3138,10 +3138,17 @@ class canvas(baseObj):
     def pixel_to_world(self, value):
         raise AttributeError('pixel_to_world is read-only')
 
-    def capture(self, filename):
+    def capture(self, *s):
+        if len(s) == 0:
+            raise AttributeError('scene.capture requires at least one argument.')
+        filename = s[0]
         if not isinstance(filename, str): raise AttributeError('A capture file name must be a string.')
         if '.png' not in filename: filename += '.png'
-        self.addmethod('capture', filename)
+        include_labels = "T"
+        if len(s) == 2:
+            if s[1] == True: include_labels = "T"
+            else: include_labels = "F"
+        self.addmethod('capture', include_labels+filename)
 
     @property
     def objects(self):

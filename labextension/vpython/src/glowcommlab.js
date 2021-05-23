@@ -961,7 +961,9 @@ async function handle_methods(dmeth) {
             if (val === null) obj.camera.follow(null)
 			else obj.camera.follow(glowObjs[val])
 		} else if (method === "capture") {
-			await obj.capture(val)
+			// val has the form "Tname.png" (display labels) or "Fname.png" (do not display labels)
+			let TF =  (val[0] == 'T') ? true: false
+			await obj.capture(val.slice(1), TF)
 		} else if (method === 'waitfor') {
 			waitfor_canvas = idx
 			waitfor_options = val
