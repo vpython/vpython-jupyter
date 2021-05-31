@@ -45,6 +45,11 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: 3.8
+    - name: Stable with rustfmt and clippy
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: default
+        toolchain: stable
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
