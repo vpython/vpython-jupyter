@@ -62,24 +62,34 @@ def stl_to_triangles(fileinfo): # specify file
         fList = fd.readlines()
     
         # Decompose list into vertex positions and normals
+        ret = [] # will return a list of compounds if necessary
         vs = []
+        vertices = 0
         for line in fList:
             FileLine = line.split( )
             if FileLine[0] == b'facet':
                 N = vec(float(FileLine[2]), float(FileLine[3]), float(FileLine[4]))
             elif FileLine[0] == b'vertex':
+                vertices += 1
                 vs.append( vertex(pos=vec(float(FileLine[1]), float(FileLine[2]), float(FileLine[3])), normal=N, color=color.white) )
                 if len(vs) == 3:
                     tris.append(triangle(vs=vs))
                     vs = []
-                    
-    return compound(tris)
+                    if vertices > 64000:
+                        print(vertices)
+                        ret.append(compound(tris))
+                        tris = []
+                        vertices = 0
+    if len(tris) > 0: ret.append(compound(tris))
+    if len(ret) == 1: return ret[0]               
+    else: return ret
 
 if __name__ == '__main__':
-    man = stl_to_triangles('STLbot.stl')
-    man.pos = vec(-200,0,0)
-    man.color = color.cyan
-    part = stl_to_triangles('Part1.stl')
-    part.size *= 200
-    part.pos = vec(250,0,0)
-    part.color = color.orange
+    man = stl_to_triangles('z-as.stl')
+    print('Done')
+    # man.pos = vec(-200,0,0)
+    # man.color = color.cyan
+    # part = stl_to_triangles('Part1.stl')
+    # part.size *= 200
+    # part.pos = vec(250,0,0)
+    # part.color = color.orange
