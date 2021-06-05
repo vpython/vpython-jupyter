@@ -32,6 +32,7 @@ def stl_to_triangles(fileinfo): # specify file
     fd = open(fileinfo, mode='rb')
     text = fd.read()
     tris = [] # list of triangles to compound
+    keywords = [b'outer', b'endloop', b'endfacet', b'solid', b'endsolid']
     if False: # prevent executing code for binary file
         pass
     # The following code for binary files must be updated:
@@ -60,6 +61,7 @@ def stl_to_triangles(fileinfo): # specify file
     else:
         fd.seek(0)
         fList = fd.readlines()
+        print('Number of lines =', len(fList))
     
         # Decompose list into vertex positions and normals
         ret = [] # will return a list of compounds if necessary
@@ -67,9 +69,10 @@ def stl_to_triangles(fileinfo): # specify file
         vertices = 0
         for line in fList:
             FileLine = line.split( )
-            if FileLine[0] == b'facet':
+            first = FileLine[0]
+            if first == b'facet':
                 N = vec(float(FileLine[2]), float(FileLine[3]), float(FileLine[4]))
-            elif FileLine[0] == b'vertex':
+            elif first == b'vertex':
                 vertices += 1
                 vs.append( vertex(pos=vec(float(FileLine[1]), float(FileLine[2]), float(FileLine[3])), normal=N, color=color.white) )
                 if len(vs) == 3:
@@ -80,16 +83,20 @@ def stl_to_triangles(fileinfo): # specify file
                         ret.append(compound(tris))
                         tris = []
                         vertices = 0
+            elif first in keywords:
+                pass
+            else:
+                print(line) # for debugging
     if len(tris) > 0: ret.append(compound(tris))
     if len(ret) == 1: return ret[0]               
     else: return ret
 
 if __name__ == '__main__':
-    man = stl_to_triangles('z-as.stl')
+    man = stl_to_triangles('STLbot.stl')
+    man.pos = vec(-200,0,0)
+    man.color = color.cyan
+    part = stl_to_triangles('Part1.stl')
+    part.size *= 200
+    part.pos = vec(250,0,0)
+    part.color = color.orange
     print('Done')
-    # man.pos = vec(-200,0,0)
-    # man.color = color.cyan
-    # part = stl_to_triangles('Part1.stl')
-    # part.size *= 200
-    # part.pos = vec(250,0,0)
-    # part.color = color.orange
