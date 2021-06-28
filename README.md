@@ -69,7 +69,8 @@ in the `labextension` folder.
 
 ## vpython build status (for the vpython developers)
 
-[![Build Status](https://travis-ci.com/vpython/vpython-jupyter.svg?branch=master)](https://travis-ci.com/vpython/vpython-jupyter) [![Build status](https://ci.appveyor.com/api/projects/status/mb3y238y1eae7xnh?svg=true)](https://ci.appveyor.com/project/vpython/vpython-jupyter)
+![Testing workfloww](https://github.com/vpython/vpython-jupyter/actions/workflows/build.yml/badge.svg)
+
 
 ## Working with the source code
 
