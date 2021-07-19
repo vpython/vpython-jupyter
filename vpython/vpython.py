@@ -3138,17 +3138,18 @@ class canvas(baseObj):
     def pixel_to_world(self, value):
         raise AttributeError('pixel_to_world is read-only')
 
-    def capture(self, *s):
-        if len(s) == 0:
-            raise AttributeError('scene.capture requires at least one argument.')
-        filename = s[0]
-        if not isinstance(filename, str): raise AttributeError('A capture file name must be a string.')
-        if '.png' not in filename: filename += '.png'
+    def capture(self, filename, capture_labels=None):
+        if not isinstance(filename, str):
+            raise TypeError("'filename' for Capture must be a string.")
+
+        if filename[-4:] != ".png":
+            filename += ".png"
+
         include_labels = "T"
-        if len(s) == 2:
-            if s[1] == True: include_labels = "T"
-            else: include_labels = "F"
-        self.addmethod('capture', include_labels+filename)
+        if capture_labels is not None:
+            include_labels = "T" if capture_labels else "F"
+
+        self.addmethod("capture", include_labels + filename)
 
     @property
     def objects(self):
