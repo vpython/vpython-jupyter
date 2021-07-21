@@ -29,6 +29,7 @@ We are certain the list is incomplete; please let one of us know by opening an [
 + @russkel
 + Kyle Dunn (@kdunn926)
 + Brian Su (@brianbbsu)
++ [@0dminnimda](https://github.com/0dminnimda)
 
 ## Full timeline of vpython development
 
