@@ -3142,7 +3142,7 @@ class canvas(baseObj):
         if not isinstance(filename, str):
             raise TypeError("'filename' for Capture must be a string.")
 
-        if filename[-4:] != ".png":
+        if filename.endswith(".png"):
             filename += ".png"
 
         include_labels = "T" if capture_labels else "F"
