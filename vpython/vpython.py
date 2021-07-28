@@ -2761,7 +2761,7 @@ class Camera(object):
     @pos.setter
     def pos(self, value):
         c = self._canvas
-        c._autoscale = False
+        c.autoscale = False
         c.center = value+self.axis
 
     @property
@@ -2771,7 +2771,7 @@ class Camera(object):
     @axis.setter
     def axis(self, value):
         c = self._canvas
-        c._autoscale = False
+        c.autoscale = False
         c.center = self.pos+value # use current self.pos before it is changed by change in c.axis
         c.axis = norm(value)
         c.range = mag(value)*tan(c.fov/2)
