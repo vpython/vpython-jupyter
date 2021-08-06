@@ -5,3 +5,4 @@
 - name: autobahn
 - name: txaio
 - name: vpython
+- name: python_abi
