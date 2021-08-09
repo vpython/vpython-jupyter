@@ -163,6 +163,11 @@ def test_names_in_base_namspace():
         for name in ['dist', 'comb', 'prod', 'perm', 'isqrt']:
             api_name_set.add(name)
 
+    # Python 3.9 adds three more new math functions.
+    if python_version.major == 3 and python_version.minor >= 9:
+        for name in ['lcm', 'ulp', 'nextafter']:
+            api_name_set.add(name)
+
     print(sorted(api_name_set - current_names))
 
     # We may have added new names, so start with this weaker test
