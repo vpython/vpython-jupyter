@@ -30,6 +30,7 @@ We are certain the list is incomplete; please let one of us know by opening an [
 + Kyle Dunn ([@kdunn926](https://github.com/kdunn926))
 + Brian Su ([@brianbbsu](https://github.com/brianbbsu))
 + [@0dminnimda](https://github.com/0dminnimda)
++ Mike Miller ([@Axe319](https://github.com/axe319))
 
 ## Full timeline of vpython development
 

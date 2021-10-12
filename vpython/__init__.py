@@ -10,14 +10,14 @@ del glowscript_version
 # both of those.
 
 from ._notebook_helpers import _isnotebook, __is_spyder
-import platform
-__p = platform.python_version()
+import sys
+__v = sys.version_info
 
-# Delete platform now that we are done with it
-del platform
+# Delete sys now that we are done with it
+del sys
 
-__ispython3 = (__p[0] == '3')
-__require_notebook = (not __ispython3) or (__p[2] < '5') # Python 2.7 or 3.4 require Jupyter notebook
+__ispython3 = (__v.major == 3)
+__require_notebook = (not __ispython3) or (__v.minor < 5) # Python 2.7 or 3.4 require Jupyter notebook
 
 if __require_notebook and (not _isnotebook):
         s = "The non-notebook version of vpython requires Python 3.5 or later."
