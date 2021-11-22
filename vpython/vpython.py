@@ -101,13 +101,13 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
-__methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused eghijklmnopvxyzCDFAB
+__methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused eghijklmnopvxyzCDFABu
              'plot':'q', 'add_to_trail':'s',
-             'follow':'t', '_attach_arrow':'u', 'clear_trail':'w',
+             'follow':'t', 'clear_trail':'w',
              'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L',
              'delete':'M', 'capture':'N'}
 
-__vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_attach_arrow',
+__vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
             'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
             'marker_color']
@@ -209,14 +209,18 @@ class baseObj(object):
     def handle_attach(cls): # called when about to send data to the browser
         ## update every attach_arrow if relevant vector has changed
         for aa in cls.attach_arrows:
-            obj = baseObj.object_registry[aa._obj]
+            if not aa._run: continue
+            obj = baseObj.object_registry[aa._object]
+            if not hasattr(obj, aa.attr): # no longer an attribute of the object
+                continue
             vval = getattr(obj, aa.attr) # could be 'velocity', for example
             if not isinstance(vval, vector):
-                raise AttributeError("attach_arrow value must be a vector.")
-            if (isinstance(aa._last_val, vector) and aa._last_val.equals(vval)):
-                continue
-            aa.addmethod('_attach_arrow', vval.value)
-            aa._last_val = vector(vval) # keep copy of last vector
+                raise AttributeError('attach_arrow attribute "'+aa.attr+'" value must be a vector.')
+            if aa._last_pos.equals(obj._pos) and aa._last_val.equals(vval): continue
+            aa._last_val = vector(vval)      # keep copies of last vectors
+            aa._last_pos = vector(obj._pos)
+            aa.pos = obj._pos
+            aa.axis = aa._scale*vval
 
         ## update every attach_trail that depends on a function
         for aa in cls.attach_trails:
@@ -545,10 +549,6 @@ class standardAttributes(baseObj):
                         [],
                         ['texture', 'bumpmap', 'visible', 'pickable'],
                         ['v0', 'v1', 'v2', 'v3'] ],
-                 'attach_arrow': [ [ 'color', 'attrval'],
-                        [],
-                        ['shaftwidth', 'round', 'scale', 'obj', 'attr'],
-                        [] ],
                  'attach_trail': [ ['color'],
                         [],
                         ['radius', 'pps', 'retain', 'type', '_obj'],
@@ -721,14 +721,14 @@ class standardAttributes(baseObj):
 
     # attribute vectors have these methods which call self.addattr()
     # The vector class calls a change function when there's a change in x, y, or z.
-        noSize = ['points', 'label', 'vertex', 'triangle', 'quad', 'attach_arrow', 'attach_trail']
+        noSize = ['points', 'label', 'vertex', 'triangle', 'quad', 'attach_trail']
         if not (objName == 'extrusion'): # 
             self._color.on_change = self._on_color_change
         if objName not in noSize:
             self._axis.on_change = self._on_axis_change
             self._size.on_change = self._on_size_change
             self._up.on_change = self._on_up_change
-        noPos = ['curve', 'points', 'triangle', 'quad', 'attach_arrow']
+        noPos = ['curve', 'points', 'triangle', 'quad']
         if objName not in noPos:
             self._pos.on_change = self._on_pos_change
         elif objName == 'curve':
@@ -1330,24 +1330,6 @@ class arrow(standardAttributes):
         if not self._constructing:
             self.addattr('headlength')
 
-class attach_arrow(standardAttributes):
-    def __init__(self, obj, attr, **args):
-        attrs = ['pos', 'size', 'axis', 'up', 'color']
-        args['_default_size'] = None
-        a = getattr(obj, attr) # This raises an error if obj does not have attr
-        if not isinstance(a, vector): raise AttributeError('The attach_arrow attribute "'+attr+ '" is not a vector.')        
-        self.obj = args['obj'] = obj.idx
-        self.attr = args['attr'] = attr # could be for example "velocity"
-        self.attrval = args['attrval'] = getattr(baseObj.object_registry[self.obj], attr)
-        args['_objName'] = "attach_arrow"
-        self._last_val = None
-        self._scale = 1
-        self._shaftwidth = 0
-        self._round = False
-        super(attach_arrow, self).setup(args)
-        # Only if the attribute is a user attribute do we need to add to attach_arrows:
-        if attr not in attrs: baseObj.attach_arrows.append(self)
-
     @property
     def round(self):
         return self._round
@@ -1374,10 +1356,34 @@ class attach_arrow(standardAttributes):
             self.addattr("shaftwidth")
 
     def stop(self):
-        self.addmethod('stop', 'None')
+        self._run = self.visible = False
 
     def start(self):
-        self.addmethod('start', 'None')
+        self._run = self.visible = True
+    
+def attach_arrow(o, attr, **args): # factory function returns arrow with special attributes
+    '''
+    The object "o" with a vector attribute "p" will have an arrow attached with options such as "color".
+    The length of the arrow will be args.scale*o.p", updated with every render of the scene.
+    If one creates a new attachment with "arr = attach_arrow(obj, attr, options)" you
+    can later change (for example) its color with "arr.color = ..."
+    '''
+    if not hasattr(o, attr): raise AttributeError('Cannot attach an arrow to an object that has no "'+attr+'" attribute.')
+    if not isinstance(getattr(o, attr), vector): raise AttributeError('The attach_arrow attribute "'+attr+ '" is not a vector.')
+    if not isinstance(o.pos, vector): raise AttributeError("The object's pos attribute is not a vector.")
+    
+    scale = 1
+    if 'scale' in args: scale = args['scale']
+    shaftwidth = 0.5*o._size.y
+    if 'shaftwidth' in args: shaftwidth = args['shaftwidth']
+    c = o.color
+    if 'color' in args: c = args['color']
+    # Set _last_val to strange values so that the first update to WebGL won't match:
+    a = arrow(canvas=o.canvas, pickable=False, _object=o.idx, attr=attr, color=c,
+              scale=scale, shaftwidth=shaftwidth, _run=True,
+              _last_val=vector(134.472, 789.472, 465.472), _last_pos=vector(134.472, 789.472, 465.472))
+    baseObj.attach_arrows.append(a)
+    return a
 
 class attach_trail(standardAttributes):
     def __init__(self, obj, **args):
@@ -2428,7 +2434,7 @@ class graph(baseObj):
     @foreground.setter
     def foreground(self,val):
         if not isinstance(val, vector): raise TypeError('foreground must be a vector')
-        self._foreground = vector(value)
+        self._foreground = vector(val)
         self.addattr('foreground')
 
     @property
@@ -2436,7 +2442,7 @@ class graph(baseObj):
     @background.setter
     def background(self,val):
         if not isinstance(val,vector): raise TypeError('background must be a vector')
-        self._background = vector(value)
+        self._background = vector(val)
         self.addattr('background')
 
     @property
@@ -3404,13 +3410,13 @@ class controls(baseObj):
         ## default values of common attributes
         self._constructing = True
         argsToSend = []
-        objName = args['_objName']
+        self.objName = args['_objName']
         del args['_objName']
         if 'pos' in args:
             self.location = args['pos']
             if self.location == print_anchor:
                 #self.location = [-1, print_anchor]
-                raise AttributeError(objName+': Cannot specify "print_anchor" in VPython 7.')
+                raise AttributeError(self.objName+': Cannot specify "print_anchor" in VPython 7.')
             argsToSend.append('location')
             del args['pos']
         if 'canvas' in args:  ## specified in constructor
@@ -3438,12 +3444,12 @@ class controls(baseObj):
 
         ## override default scalar attributes
         for a,val in args.items():
-            if a in controls.attrlists[objName]:
+            if a in controls.attrlists[self.objName]:
                 argsToSend.append(a)
                 setattr(self, '_'+a, val)
             else:
                 setattr(self, a, val)
-        cmd = {"cmd": objName, "idx": self.idx}
+        cmd = {"cmd": self.objName, "idx": self.idx}
         cmd["canvas"] = self.canvas.idx
 
         ## send only args specified in constructor
@@ -3465,10 +3471,10 @@ class controls(baseObj):
 
     @property
     def pos(self):
-        raise AttributeError(objName+' pos attribute is not available.')
+        raise AttributeError(self.objName+' pos attribute is not available.')
     @pos.setter
     def pos(self, value):
-        raise AttributeError(objName+' pos attribute cannot be changed.')
+        raise AttributeError(self.objName+' pos attribute cannot be changed.')
 
     @property
     def disabled(self):

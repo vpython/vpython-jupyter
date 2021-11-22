@@ -447,14 +447,14 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'y':'markers', 'z':'legend', 'A':'label','B':'delta', 'C':'marker_color',
               'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices', 'H':'depth', 'I':'round'}
 
-// methods are X in {'m': '23X....'}
+// methods are X in {'m': '23X....'} available: u
 var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopvxyzCDFAB
 			   'q':'plot', 's':'add_to_trail',
-               't':'follow', 'u':'_attach_arrow', 'w':'clear_trail',
+               't':'follow', 'w':'clear_trail',
                'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
 		       'M':'delete', 'N':'capture'}
          
-var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_attach_arrow',
+var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
                 'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail', 'textcolor',
                 'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
                 'marker_color']
@@ -589,7 +589,8 @@ function handler(data) {
 		for (var i in data[d]) console.log(i, JSON.stringify(data[d][i]))
 	}
 	*/
-
+	
+	
 	
 	if (data.cmds !== undefined && data.cmds.length > 0) handle_cmds(data.cmds)
 	if (data.methods !== undefined && data.methods.length > 0) handle_methods(data.methods)
@@ -798,19 +799,6 @@ function handle_cmds(dcmds) {
 					// Display frames per second and render time:
 					//$("<div id='fps'/>").appendTo(glowObjs[idx].title)
 			}
-			case 'attach_arrow':  {
-                var attrs = ['pos', 'size', 'axis', 'up', 'color']
-				var o = glowObjs[cfg['obj']]
-				delete cfg['obj']
-				var attr = cfg['attr']
-				delete cfg['attr']
-                var val = cfg['attrval']
-                delete cfg['attrval']
-                if (attrs.indexOf(attr) < 0) attr = '_attach_arrow'
-                o.attr = val
-				glowObjs[idx] = attach_arrow( o, attr, cfg )
-				break
-			}
 			case 'attach_trail': {
 				if ( typeof cfg['_obj'] === 'string' ) {
 					var o = cfg['_obj'] // the string '_func'
@@ -899,8 +887,6 @@ async function handle_methods(dmeth) {
 			glowObjs[idx]['pos'] = val
 		} else if (method === 'add_to_trail') {
 			obj['_func'] = val
-		} else if (method === '_attach_arrow') {
-            obj.obj._attach_arrow = val
 		} else if (method === 'bind') {
 			var evts = val.split(' ')
 			for (var evt in evts) {
@@ -959,7 +945,6 @@ function handle_attrs(dattrs) {
 		var attr = cmd['attr']
 		var val = cmd['val']
 		var triangle_quad = ['v0', 'v1', 'v2', 'v3']
-		// vector attrs in attach_arrow have arbitrary names, so check for length 3 array instead
 		if (val instanceof vec) {
 			if (attr === 'pos' && (obj instanceof points || obj instanceof curve)) {
 				var ptlist = []
