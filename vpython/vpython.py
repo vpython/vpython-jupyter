@@ -1356,11 +1356,10 @@ class arrow(standardAttributes):
             self.addattr("shaftwidth")
 
     def stop(self):
-        self._run = False
+        self._run = self.visible = False
 
     def start(self):
-        self._run = True
-        self.visible = True
+        self._run = self.visible = True
     
 def attach_arrow(o, attr, **args): # factory function returns arrow with special attributes
     '''
