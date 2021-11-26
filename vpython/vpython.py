@@ -1593,7 +1593,7 @@ class vertex(standardAttributes):
             cv = args['canvas']
         else:
             cv = canvas.get_selected()
-        if cv.vertexCount > canvas.maxVertices-1:
+        if cv.vertexCount >= canvas.maxVertices:
             raise ValueError('too many vertex objects in use for this canvas')
         args['_default_size'] = None
         args['_objName'] = "vertex"
@@ -2813,7 +2813,7 @@ class meta_canvas(object):
 class canvas(baseObj):
     selected = None
     hasmouse = None
-    maxVertices = 65535  ## 2^16 - 1  due to GS weirdness
+    maxVertices = 4.2e9  ## 2^32
 
     def __init__(self, **args):
         baseObj._canvas_constructing = True
