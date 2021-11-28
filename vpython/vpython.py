@@ -28,13 +28,8 @@ __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'at
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
            'wtext', 'winput', 'keysdown']
 
-__p = platform.python_version()
-_ispython3 = (__p[0] == '3')
 
-if _ispython3:
-    from inspect import signature # Python 3; needed to allow zero arguments in a bound function
-else:
-    from inspect import getargspec # Python 2; needed to allow zero arguments in a bound function
+from inspect import signature # Python 3; needed to allow zero arguments in a bound function
 
 # __version__ is the version number of the Jupyter VPython installer, generated in building the installer.
 version = [__version__, 'jupyter']

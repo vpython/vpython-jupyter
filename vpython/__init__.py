@@ -9,21 +9,7 @@ del glowscript_version
 #  __gs_version__ exist before importing vpython, which itself imports
 # both of those.
 
-from ._notebook_helpers import _isnotebook, __is_spyder
-import sys
-__v = sys.version_info
-
-# Delete sys now that we are done with it
-del sys
-
-__ispython3 = (__v.major == 3)
-__require_notebook = (not __ispython3) or (__v.minor < 5) # Python 2.7 or 3.4 require Jupyter notebook
-
-if __require_notebook and (not _isnotebook):
-        s = "The non-notebook version of vpython requires Python 3.5 or later."
-        s += "\nvpython does work on Python 2.7 and 3.4 in the Jupyter notebook environment."
-        raise Exception(s)
-
+from ._notebook_helpers import __is_spyder
 
 from .vpython import canvas
 
