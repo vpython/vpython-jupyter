@@ -21,9 +21,6 @@ import versioneer
 install_requires = ['jupyter', 'jupyter-server-proxy', 'numpy', 'ipykernel',
                     'autobahn>=18.8.2']
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 5:
-    install_requires.append('autobahn')
-
 setup_args = dict(
     name='vpython',
     packages=['vpython'],
