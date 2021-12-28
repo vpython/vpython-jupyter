@@ -97,7 +97,8 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'right':'q', 'top':'r', 'bottom':'s', '_cloneid':'t',
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
-          'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G', 'depth':'H', 'round':'I'}
+          'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G', 'depth':'H',
+          'round':'I', 'name':'J'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -112,7 +113,7 @@ __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
             'marker_color']
 
-__textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label', 'capture',
+__textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label', 'capture', 'name',
                  'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
 
 def _encode_attr2(sendval, val, ismethods):
@@ -3399,7 +3400,7 @@ class wtext(standardAttributes):
 class controls(baseObj):
     attrlists = { 'button': ['text', 'color', 'textcolor', 'background', 'disabled'],
                   'checkbox':['checked', 'text', 'disabled'],
-                  'radio':['checked', 'text', 'disabled'],
+                  'radio':['checked', 'text', 'disabled', 'name'],
                   'menu':['selected', 'choices', 'index', 'disabled'],
                   'slider':['vertical', 'min', 'max', 'step', 'value', 'length',
                             'width', 'left', 'right', 'top', 'bottom', 'align', 'disabled'],
@@ -3585,6 +3586,14 @@ class radio(controls):
         self._checked = value
         if not self._constructing:
             self.addattr('checked')
+
+    @property
+    def name(self):
+        return self._name
+    @name.setter
+    def name(self, value):
+        if not self._constructing:
+            raise AttributeError('Cannot change the name attribute of a radio widget.')
 
 class winput(controls):
     def __init__(self, **args):

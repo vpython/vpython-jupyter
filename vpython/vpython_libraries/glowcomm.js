@@ -166,7 +166,7 @@ function send() { // periodically send events and update_canvas and request obje
 
 // Should eventually have glowcomm.html, glowcom.js, and glowcommlab.js all import this common component.
 
-window.__GSlang = "vpython" 
+window.__GSlang = "vpython"
 
 function msclock() {
     "use strict";
@@ -445,7 +445,8 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'p':'left', 'q':'right', 'r':'top', 's':'bottom', 't':'_cloneid',
               'u':'logx', 'v':'logy', 'w':'dot', 'x':'dot_radius', 
               'y':'markers', 'z':'legend', 'A':'label','B':'delta', 'C':'marker_color',
-              'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices', 'H':'depth', 'I':'round'}
+              'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices', 'H':'depth',
+			  'I':'round', 'J':'name'}
 
 // methods are X in {'m': '23X....'} available: u
 var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopvxyzCDFAB
@@ -459,7 +460,7 @@ var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin',
                 'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
                 'marker_color']
                 
-var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', 'ytitle', 'selected', 'capture',
+var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', 'ytitle', 'selected', 'capture', 'name',
                  'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
 
 // patt gets idx and attr code; vpatt gets x,y,z of a vector            
@@ -830,10 +831,14 @@ function handle_cmds(dcmds) {
 				break
 			}
 			case 'radio': {
+				cfg.canvas = canvas.get_selected()
+				cfg = fix_location(cfg)
+				delete cfg.canvas
 				cfg.objName = obj
 				cfg.bind = control_handler
-				cfg = fix_location(cfg)
+                           
 				glowObjs[idx] = radio(cfg)
+				// glowObjs[idx].canvas = canvas.get_selected()
 				break
 			}
 			case 'button': {
