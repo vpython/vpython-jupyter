@@ -809,8 +809,13 @@ class standardAttributes(baseObj):
             if self._save_oldaxis is not None:
                 self._axis = self._save_oldaxis
                 self._save_oldaxis = None
-            if self._size._x == 0: self.axis = vector(value, 0, 0)
-            else: self.axis = value*self._axis.norm() # this will set length
+            if self._size._x == 0:
+                self.axis = vector(value, 0, 0)
+            else:
+                if self._sizing:
+                    self.axis = value*self._axis.norm() # this will set length if self._sizing
+                else:
+                    self._size._x = value # for objects whose axis and size are not linked
         if not self._constructing:
             self.addattr('axis')
             self.addattr('size')
@@ -1522,7 +1527,7 @@ class compound(standardAttributes):
         self.compound_idx += 1
         args['_objName'] = 'compound'+str(self.compound_idx)
         super(compound, self).setup(args)
-        self._sizing = False # no axis/size connection
+        self._sizing = False # no axis/size connection except that changing axis.mag changes compound length
 
         for obj in objList:
             # GlowScript will make the objects invisible, so need not set obj.visible
