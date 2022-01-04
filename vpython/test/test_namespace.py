@@ -22,6 +22,7 @@ API_NAMES = [
     'atan2',
     'atanh',
     'attach_arrow',
+    'attach_light',
     'attach_trail',
     'baseObj',
     'box',
