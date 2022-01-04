@@ -18,7 +18,7 @@ from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
 
 # List of names that will be imported from this file with import *
 __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'attach_arrow',
-           'attach_trail', 'baseObj', 'box', 'bumpmaps', 'button',
+           'attach_light', 'attach_trail', 'baseObj', 'box', 'bumpmaps', 'button',
            'canvas', 'checkbox', 'clock', 'color', 'combin', 'compound', 'cone', 'controls',
            'curve', 'curveMethods', 'cylinder', 'distant_light', 'ellipsoid',
            'event_return', 'extrusion', 'faces', 'frame', 'gcurve', 'gdots',
@@ -98,7 +98,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
           'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G', 'depth':'H',
-          'round':'I', 'name':'J'}
+          'round':'I', 'name':'J', 'offset':'K', 'L':'attach_idx'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -111,7 +111,7 @@ __methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # un
 __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
             'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
-            'marker_color']
+            'marker_color', 'offset']
 
 __textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label', 'capture', 'name',
                  'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
@@ -208,6 +208,7 @@ class baseObj(object):
 
     @classmethod
     def handle_attach(cls): # called when about to send data to the browser
+
         ## update every attach_arrow if relevant vector has changed
         for aa in cls.attach_arrows:
             if not aa._run: continue
@@ -524,9 +525,9 @@ class standardAttributes(baseObj):
                          ['visible', 'xoffset', 'yoffset', 'font', 'height', 'opacity',
                            'border', 'line', 'box', 'space', 'align', 'linewidth', 'pixel_pos'],
                          ['text']],
-                 'local_light':[['pos', 'color'],
+                 'local_light':[['pos', 'color', 'offset'],
                          [],
-                         ['visible'],
+                         ['visible', 'attach_idx'],
                          []],
                  'distant_light':[['direction', 'color'],
                          [],
@@ -617,6 +618,8 @@ class standardAttributes(baseObj):
         self._size_units = 'pixels'
         self._texture = None
         self._pickable = True
+        self._offset = vector(0,0,0)
+        self._attach_idx = None
         self._save_oldaxis = None # used in linking axis and up
         self._save_oldup = None # used in linking axis and up
         _special_clone = None
@@ -1389,6 +1392,23 @@ def attach_arrow(o, attr, **args): # factory function returns arrow with special
               scale=scale, shaftwidth=shaftwidth, _run=True,
               _last_val=vector(134.472, 789.472, 465.472), _last_pos=vector(134.472, 789.472, 465.472))
     baseObj.attach_arrows.append(a)
+    return a
+    
+def attach_light(o, **args): # factory function returns local_light with special attributes
+    '''
+    The object "o" will have a local_light attached with options "offset" and "color".
+    The local_light will constantly be positioned at o.pos plus the offset.
+    '''
+    if not isinstance(o.pos, vector): raise AttributeError("Cannot attach a light to an object that has no pos attribute.")
+    if 'color' in args:
+        if not isinstance(args['color'], vector): raise AttributeError("The color attribute must be a vector.")
+    else:
+        args['color'] = o.color # default color
+    if 'offset' in args:
+        if not isinstance(args['offset'], vector): raise AttributeError('The attach_light attribute "offset" must be a vector.')
+    else:
+        args['offset'] = vector(0,0,0) # default offset
+    a = local_light(pos=o.pos+args['offset'], attach_idx=o.idx, color=args['color'], offset=args['offset'])
     return a
 
 class attach_trail(standardAttributes):
@@ -3349,6 +3369,24 @@ class local_light(standardAttributes):
 
         if (canvas.get_selected() is not None):
             canvas.get_selected()._lights.append(self)
+
+    @property
+    def offset(self):
+        return self._offset
+    @offset.setter
+    def offset(self, value):
+        self._offset = vector(value)
+        if not self._constructing:
+            self.addattr('offset')
+
+    @property
+    def attach_idx(self):
+        return self._attach_idx
+    @attach_idx.setter
+    def attach_idx(self, value):
+        self._attach_idx = vector(value)
+        if not self._constructing:
+            self.addattr('attach_idx')
 
 class distant_light(standardAttributes):
     def __init__(self, **args):
