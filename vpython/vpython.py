@@ -98,7 +98,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
           'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G', 'depth':'H',
-          'round':'I', 'name':'J', 'offset':'K', 'L':'attach_idx'}
+          'round':'I', 'name':'J', 'offset':'K', 'attach_idx':'L'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
