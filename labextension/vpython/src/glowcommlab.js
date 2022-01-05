@@ -807,7 +807,6 @@ function handle_cmds(dcmds) {
 			}
 			case 'local_light': {
 				let g = glowObjs[idx] = local_light(cfg)
-				console.log(g)
 				if (cfg.offset !== undefined) { // mocking up attach_light
 					g.__obj = glowObjs[cfg.attach_idx]
 					g.canvas.attached_lights.push(g)
