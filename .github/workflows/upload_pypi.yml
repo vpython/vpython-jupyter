@@ -84,7 +84,7 @@ jobs:
     - name: Python wheels manylinux build
       uses: RalfG/python-wheels-manylinux-build@v0.4.2-manylinux2014_aarch64
       with:
-        python-versions: 'cp36-cp36m cp37-cp37m cp38-cp38'
+        python-versions: 'cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
         build-requirements: 'setuptools cython'
     - name: Build and publish wheel
       env:
