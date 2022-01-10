@@ -25,6 +25,7 @@ We are certain the list is incomplete; please let one of us know by opening an [
 + Craig C. Wiegert ([@wigie](https://github.com/wigie))
 + [@jonschull](https://github.com/jonschull)
 + [@KHALAK](https://github.com/KHALAK)
++ [@odidev](https://github.com/odidev)
 + [@qazwsxedcrfvtg14](https://github.com/qazwsxedcrfvtg14)
 + [@russkel](https://github.com/russkel)
 + Kyle Dunn ([@kdunn926](https://github.com/kdunn926))
