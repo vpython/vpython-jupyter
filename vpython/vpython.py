@@ -383,15 +383,14 @@ class GlowWidget(object):
                 elif evt['widget'] == 'winput':
                     obj._text = evt['text']
                     obj._number = evt['value']
+
                 # inspect the bound function and see what it's expecting
-                if _ispython3: # Python 3
-                    a = signature(obj._bind)
-                    if str(a) != '()': obj._bind( obj )
-                    else: obj._bind()
-                else: # Python 2
-                    a = getargspec(obj._bind)
-                    if len(a.args) > 0: obj._bind( obj )
-                    else: obj._bind()
+                a = signature(obj._bind)
+                if str(a) != '()':
+                    obj._bind( obj )
+                else:
+                    obj._bind()
+
             else:   ## a canvas event
                 if 'trigger' not in evt:
                     cvs = baseObj.object_registry[evt['canvas']]
@@ -3232,14 +3231,12 @@ class canvas(baseObj):
                 del evt['height']
                 for fct in self._binds['resize']:
                     # inspect the bound function and see what it's expecting
-                    if _ispython3: # Python 3
-                        a = signature(fct)
-                        if str(a) != '()': fct( evt )
-                        else: fct()
-                    else: # Python 2
-                        a = getargspec(fct)
-                        if len(a.args) > 0: fct( evt )
-                        else: fct()
+                    a = signature(fct)
+                    if str(a) != '()':
+                        fct(evt)
+                    else:
+                        fct()
+
         else: # pause/waitfor, update_canvas
             if 'pos' in evt:
                 pos = evt['pos']
@@ -3259,14 +3256,12 @@ class canvas(baseObj):
                 evt1 = event_return(evt)  ## turn it into an object
                 for fct in self._binds[ev]:
                     # inspect the bound function and see what it's expecting
-                    if _ispython3: # Python 3
-                        a = signature(fct)
-                        if str(a) != '()': fct( evt1 )
-                        else: fct()
-                    else: # Python 2
-                        a = getargspec(fct)
-                        if len(a.args) > 0: fct( evt1 )
-                        else: fct()
+                    a = signature(fct)
+                    if str(a) != '()':
+                        fct( evt1 )
+                    else:
+                        fct()
+
                 self._waitfor = evt1 # what pause and waitfor are looking for
             else:  ## user can change forward (spin), range/autoscale (zoom), up (touch), center (pan)
                 if 'forward' in evt and self.userspin and not self._set_forward:
