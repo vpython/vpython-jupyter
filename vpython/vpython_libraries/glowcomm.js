@@ -505,12 +505,7 @@ function decode(data) {
                 }
 			} else if (textattrs.indexOf(attr) > -1) {
 				if (attr == 'choices') {          // menu choices are wrapped in a list
-					val = m[3].slice(1, -1)       // remove outer brackets
-					val = val.replace(/'/g, '')   // remove quotes
-					val = val.replace(/, /g, ',') // remove spaces after commas
-					let s = val.split(',')
-					val = []
-					for (let a of s) { val.push(a) }
+					val = m[3].slice(2, -2).split("', '") // choices separated by ', '
                 } else {
                     // '\n' doesn't survive JSON transmission, so in vpython.py we replace '\n' with '<br>'
                     val = m[3].replace(/<br>/g, "\n")
