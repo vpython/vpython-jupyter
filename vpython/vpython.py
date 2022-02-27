@@ -2934,7 +2934,10 @@ class canvas(baseObj):
         baseObj._canvas_constructing = False
 
     def follow(self, obj):    ## should allow a function also
-        self.addmethod('follow', obj.idx)
+        if obj is None:
+            self.addmethod('follow', 'None')
+        else:
+            self.addmethod('follow', obj.idx)
 
     def select(self):
         canvas.selected = self
