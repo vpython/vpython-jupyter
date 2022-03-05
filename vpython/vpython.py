@@ -188,7 +188,8 @@ class baseObj(object):
     updates = {'cmds':[], 'methods':[], 'attrs':{}}
     object_registry = {}    ## idx -> instance
     attach_arrows = []
-    attach_trails = []  ## needed only for functions
+    attach_trails = []  # needed only for functions
+    follow_objects = [] # entries are [invisible object to follow, function to call for pos, prevous pos]
     attrs = set()  # each element is (idx, attr name)
 
     @classmethod
@@ -231,6 +232,15 @@ class baseObj(object):
             if ( isinstance(aa._last_val, vector) and aa._last_val.equals(fval) ):
                 continue
             aa._last_val = fval
+
+        ## update every scene.camera.follow(function)
+        for aa in cls.follow_objects:
+            obj = aa[0]
+            val = aa[1]()
+            lastpos = aa[2]
+            if val != lastpos:
+                aa[2] = val 
+                obj.pos = val
 
     def __init__(self, **kwargs):
         if not (baseObj._view_constructed or
@@ -1338,7 +1348,7 @@ class arrow(standardAttributes):
         return self._round
     @round.setter
     def round(self,value):
-        raise AttributeError('Cannot change the "round" attribute of an attach_arrow.')
+        raise AttributeError('Cannot change the "round" attribute of an arrow.')
 
     @property
     def scale(self):
@@ -2770,7 +2780,6 @@ class Mouse(baseObj):
 class Camera(object):
     def __init__(self, canvas):
         self._canvas = canvas
-        self._followthis = None
         self._pos = None
 
     @property
@@ -2933,9 +2942,13 @@ class canvas(baseObj):
         distant_light(direction=vector(-0.88, -0.22, -0.44), color=color.gray(0.3))
         baseObj._canvas_constructing = False
 
-    def follow(self, obj):    ## should allow a function also
+    def follow(self, obj):
         if obj is None:
             self.addmethod('follow', 'None')
+        elif callable(obj):
+            b = box(visible=False)
+            baseObj.follow_objects.append([b, obj, vector(1.2e15,3.4e14,-5.6e13)])
+            self.addmethod('follow', b.idx)
         else:
             self.addmethod('follow', obj.idx)
 
