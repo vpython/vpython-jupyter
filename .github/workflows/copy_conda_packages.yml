@@ -25,6 +25,6 @@ jobs:
         BINSTAR_TOKEN: ${{ secrets.BINSTAR_TOKEN }}
       shell: bash -l {0}
       run: |
-        git clone git://github.com/glue-viz/conda-sync.git
+        git clone https://github.com/glue-viz/conda-sync.git
         mv conda-sync/sync.py .
         python drive_copy.py
