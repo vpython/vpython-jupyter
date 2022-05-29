@@ -19,7 +19,7 @@ except ImportError:
 import versioneer
 
 install_requires = ['jupyter', 'jupyter-server-proxy', 'numpy', 'ipykernel',
-                    'autobahn>=18.8.2']
+                    'autobahn>=18.8.2, <=21.11.1']
 
 setup_args = dict(
     name='vpython',
