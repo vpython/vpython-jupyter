@@ -16,6 +16,14 @@ from ._notebook_helpers import _isnotebook
 from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
                                     adjust_axis, object_rotate)
 
+def Exit():
+    zero = 0.
+    print('exit')
+    a = 1.0/zero
+
+import atexit
+atexit.register(Exit)
+
 # List of names that will be imported from this file with import *
 __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'attach_arrow',
            'attach_light', 'attach_trail', 'baseObj', 'box', 'bumpmaps', 'button',
@@ -389,7 +397,7 @@ class GlowWidget(object):
                 elif evt['widget'] == 'checkbox':
                     obj._checked = evt['value']
                 elif evt['widget'] == 'radio':
-                    obj._checked = evt['value']
+                    obj.checked = evt['value']
                 elif evt['widget'] == 'winput':
                     obj._text = evt['text']
                     obj._number = evt['value']
@@ -3591,6 +3599,7 @@ class checkbox(controls):
         args['_objName'] = 'checkbox'
         self._checked = False
         self._text = ''
+        self._name = ''
         super(checkbox, self).setup(args)
 
     @property
@@ -3611,12 +3620,22 @@ class checkbox(controls):
         if not self._constructing:
             self.addattr('checked')
 
+_radio_groups = {} # radio buttons grouped by name
+
 class radio(controls):
     def __init__(self, **args):
         args['_objName'] = 'radio'
         self._checked = False
         self._text = ''
+        self._name = ''
         super(radio, self).setup(args)
+        if type(self._name) != str:
+            raise AttributeError("A radio group name must be a string.")
+        if self._name != '':
+            if self._name in _radio_groups:
+                _radio_groups[self._name].append(self)
+            else:
+                _radio_groups[self._name] = [self]
 
     @property
     def text(self):
@@ -3632,6 +3651,10 @@ class radio(controls):
         return self._checked
     @checked.setter
     def checked(self, value):
+        if self._checked == value: return
+        if len(self._name) > 0:
+            for r in _radio_groups[self.name]:
+                r._checked = False
         self._checked = value
         if not self._constructing:
             self.addattr('checked')
