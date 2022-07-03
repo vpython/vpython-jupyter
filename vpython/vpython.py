@@ -571,7 +571,8 @@ class standardAttributes(baseObj):
                          [],
                          ['location', 'text'],
                          []],
-                 'extrusion':[ ['pos', 'color', 'start_face_color', 'end_face_color', 'start_normal', 'end_normal'],
+                 'extrusion':[ ['pos', 'color', 'start_face_color', 'end_face_color',
+                        'start_normal', 'end_normal'],
                         [ 'axis', 'size', 'up' ],
                         ['path', 'shape', 'visible', 'opacity','shininess', 'emissive',
                          'show_start_face', 'show_end_face', 'smooth', 'smooth_joints', 'sharp_joints',
@@ -2092,6 +2093,8 @@ class gobj(baseObj):
         self._label = ''
         self._legend = False
         self._interval = -1
+        self._iterations = 0
+        self._firstplot = True
         self._graph = None
         self._data = []
         self._visible = True
@@ -2134,6 +2137,7 @@ class gobj(baseObj):
         cmd = {"cmd": objName, "idx": self.idx}
 
         for a in argsToSend:
+            if a == 'interval': continue # do not send to browser; handle here instead
             aval = getattr(self,a)
             if isinstance(aval, vector):
                 aval = aval.value
@@ -2205,7 +2209,7 @@ class gobj(baseObj):
     @interval.setter
     def interval(self,val):
         self._interval = val
-        self.addattr('interval')
+        self._iterations = 0
 
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
@@ -2247,15 +2251,26 @@ class gobj(baseObj):
             raise AttributeError("Must be plot(x,y) or plot(pos=[x,y]) or plot([x,y]) or plot([x,y], ...) or plot([ [x,y], ... ])")
 
     def plot(self, *args1, **args2):
+        if self._interval == 0:
+            return
+        if self._interval > 0:
+            self._iterations += 1
+            if self._firstplot:
+                self._firstplot = False
+            elif self._iterations < self._interval:
+                return
+            self._iterations = 0
         if len(args1) > 0:
             p = self.preresolve1(args1)
         else:
             p = self.preresolve2(args2)
         self._data = self._data + p
         self.addmethod('plot', p)
-
+        
     def delete(self):
         self.addmethod('delete', 'None')
+        self._firstplot = True
+        self._iterations = 0
 
     @property
     def label(self): return self._label
