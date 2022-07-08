@@ -17,7 +17,7 @@ jobs:
 
     steps:
 
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
@@ -40,7 +40,7 @@ jobs:
   linux_wheels:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
@@ -69,7 +69,7 @@ jobs:
   linux_aarch64_wheels:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
@@ -96,7 +96,7 @@ jobs:
   sdist:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
