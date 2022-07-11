@@ -11,7 +11,7 @@ except ImportError:
 
 
 install_requires = ['jupyter', 'jupyter-server-proxy', 'numpy', 'ipykernel',
-                    'autobahn>=18.8.2, <=21.11.1']
+                    'autobahn>=22.6.1, <27']
 
 setup_args = dict(
     name='vpython',
