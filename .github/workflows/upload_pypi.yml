@@ -18,6 +18,8 @@ jobs:
     steps:
 
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
@@ -27,20 +29,22 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install setuptools wheel twine Cython
+        pip install setuptools wheel twine Cython build
 
     - name: Build and publish wheel
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_UPLOAD_TOKEN }}
       run: |
-        python setup.py bdist_wheel
-        twine upload dist/*
+        python -m build
+        twine upload dist/*.whl
 
   linux_wheels:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
@@ -58,7 +62,7 @@ jobs:
       uses: RalfG/python-wheels-manylinux-build@v0.4.2
       with:
         python-versions: 'cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
-        build-requirements: 'setuptools cython'
+        build-requirements: 'setuptools cython setuptools_scm'
     - name: Build and publish wheel
       env:
         TWINE_USERNAME: __token__
@@ -70,6 +74,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
@@ -85,7 +91,7 @@ jobs:
       uses: RalfG/python-wheels-manylinux-build@v0.4.2-manylinux2014_aarch64
       with:
         python-versions: 'cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
-        build-requirements: 'setuptools cython'
+        build-requirements: 'setuptools cython setuptools_scm'
     - name: Build and publish wheel
       env:
         TWINE_USERNAME: __token__
@@ -104,11 +110,11 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install setuptools wheel twine Cython
+        pip install setuptools wheel twine Cython build
     - name: Build and publish
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_UPLOAD_TOKEN }}
       run: |
-        python setup.py sdist
-        twine upload dist/*
+        python -m build
+        twine upload dist/*.tar.gz
