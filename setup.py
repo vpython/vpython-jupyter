@@ -16,7 +16,6 @@ try:
 except ImportError:
     extensions = [Extension('vpython.cyvector', ['vpython/cyvector.c'])]
 
-import versioneer
 
 install_requires = ['jupyter', 'jupyter-server-proxy', 'numpy', 'ipykernel',
                     'autobahn>=18.8.2, <=21.11.1']
@@ -24,8 +23,6 @@ install_requires = ['jupyter', 'jupyter-server-proxy', 'numpy', 'ipykernel',
 setup_args = dict(
     name='vpython',
     packages=['vpython'],
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
     description='VPython for Jupyter Notebook',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
