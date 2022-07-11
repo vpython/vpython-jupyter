@@ -1,11 +1,4 @@
-import sys
-
-try:
-    from setuptools import setup  # try first in case it's already there.
-except ImportError:
-    from ez_setup import use_setuptools
-    use_setuptools()
-    from setuptools import setup
+from setuptools import setup
 
 from distutils.extension import Extension
 
@@ -16,16 +9,13 @@ try:
 except ImportError:
     extensions = [Extension('vpython.cyvector', ['vpython/cyvector.c'])]
 
-import versioneer
 
 install_requires = ['jupyter', 'jupyter-server-proxy', 'numpy', 'ipykernel',
-                    'autobahn>=18.8.2, <=21.11.1']
+                    'autobahn>=22.6.1, <27']
 
 setup_args = dict(
     name='vpython',
     packages=['vpython'],
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
     description='VPython for Jupyter Notebook',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
