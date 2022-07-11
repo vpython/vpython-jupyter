@@ -1,11 +1,4 @@
-import sys
-
-try:
-    from setuptools import setup  # try first in case it's already there.
-except ImportError:
-    from ez_setup import use_setuptools
-    use_setuptools()
-    from setuptools import setup
+from setuptools import setup
 
 from distutils.extension import Extension
 
