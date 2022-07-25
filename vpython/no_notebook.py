@@ -334,6 +334,7 @@ def stop_server():
     """Shuts down all threads and exits cleanly."""
     global __server
     __server.shutdown()
+
     event_loop = txaio.config.loop
     event_loop.stop()
     # We've told the event loop to stop, but it won't shut down until we poke
@@ -354,11 +355,11 @@ def stop_server():
     if threading.main_thread().is_alive():
         sys.exit(0)
     else:
-        pass
         # If the main thread has already stopped, the python interpreter
         # is likely just running .join on the two remaining threads (in
         # python/threading.py:_shutdown). Since we just stopped those threads,
         # we'll now exit.
+        sys.exit(0)  # but just in case....
 
 
 GW = GlowWidget()

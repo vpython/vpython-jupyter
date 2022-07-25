@@ -16,14 +16,6 @@ from ._notebook_helpers import _isnotebook
 from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
                                     adjust_axis, object_rotate)
 
-def Exit():
-    zero = 0.
-    print('exit')
-    a = 1.0/zero
-
-import atexit
-atexit.register(Exit)
-
 # List of names that will be imported from this file with import *
 __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'attach_arrow',
            'attach_light', 'attach_trail', 'baseObj', 'box', 'bumpmaps', 'button',
