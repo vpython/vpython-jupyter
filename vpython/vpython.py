@@ -20,7 +20,7 @@ from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
 def Exit():
     print("in atexit")
     while True:
-        rate(60)
+        time.sleep(.1)
 
 import atexit
 
