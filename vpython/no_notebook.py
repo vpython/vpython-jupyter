@@ -14,8 +14,6 @@ import txaio
 import copy
 import socket
 import multiprocessing
-import pdb
-
 
 import signal
 from urllib.parse import unquote
@@ -215,8 +213,12 @@ class WSserver(WebSocketServerProtocol):
                 try:
                     await loop.run_in_executor(None, GW.handle_msg, msg)
                 except:
+                    #
+                    # this will throw a runtime exception after the main Thread
+                    # has stopped, but we don't really case since the main thread
+                    # is no longer there to do anything anyway.
                     pass
-
+                    
     def onClose(self, wasClean, code, reason):
         """Called when browser tab is closed."""
         global websocketserving
