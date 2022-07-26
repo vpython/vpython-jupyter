@@ -368,7 +368,7 @@ def stop_server():
                 print("but it's not my thread, so I'll join...")
                 __t.join()
             else:
-                print("__t is alive, but that's my thread! Yikes.")
+                print("__t is alive, but that's my thread! So skip it.")
 
         # If the main thread has already stopped, the python interpreter
         # is likely just running .join on the two remaining threads (in
