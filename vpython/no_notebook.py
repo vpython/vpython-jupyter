@@ -14,6 +14,7 @@ import txaio
 import copy
 import socket
 import multiprocessing
+import pdb
 
 
 import signal
@@ -50,7 +51,6 @@ if _in_spyder:
 # Check for Ctrl+C. SIGINT will also be sent by our code if WServer is closed.
 def signal_handler(signal, frame):
     stop_server()
-
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -211,7 +211,10 @@ class WSserver(WebSocketServerProtocol):
                 # message format used by notebook
                 msg = {'content': {'data': [m]}}
                 loop = asyncio.get_event_loop()
-                await loop.run_in_executor(None, GW.handle_msg, msg)
+                try:
+                    await loop.run_in_executor(None, GW.handle_msg, msg)
+                except:
+                    pass
 
     def onClose(self, wasClean, code, reason):
         """Called when browser tab is closed."""
@@ -355,17 +358,23 @@ def stop_server():
     if threading.main_thread().is_alive():
         sys.exit(0)
     else:
+        #
+        # check to see if the event loop is still going, if so join it.
+        #
+        if __t.is_alive():
+            __t.join()
+
         # If the main thread has already stopped, the python interpreter
         # is likely just running .join on the two remaining threads (in
         # python/threading.py:_shutdown). Since we just stopped those threads,
         # we'll now exit.
-        sys.exit(0)  # but just in case....
-
-
+        
 GW = GlowWidget()
 
 while not (httpserving and websocketserving):  # try to make sure setup is complete
     rate(60)
 
+
 # Dummy variable to import
 _ = None
+
