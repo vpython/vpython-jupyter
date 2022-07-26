@@ -217,7 +217,10 @@ class WSserver(WebSocketServerProtocol):
                     # this will throw a runtime exception after the main Thread
                     # has stopped, but we don't really case since the main thread
                     # is no longer there to do anything anyway.
-                    pass
+                    if threading.main_thread().is_alive():
+                        raise
+                    else:
+                        pass
                     
     def onClose(self, wasClean, code, reason):
         """Called when browser tab is closed."""
