@@ -362,7 +362,8 @@ def stop_server():
         # check to see if the event loop is still going, if so join it.
         #
         if __t.is_alive():
-            __t.join()
+            if threading.get_ident() != __t.ident:
+                __t.join()
 
         # If the main thread has already stopped, the python interpreter
         # is likely just running .join on the two remaining threads (in
