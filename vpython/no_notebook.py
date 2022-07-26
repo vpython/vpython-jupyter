@@ -50,6 +50,7 @@ if _in_spyder:
 
 # Check for Ctrl+C. SIGINT will also be sent by our code if WServer is closed.
 def signal_handler(signal, frame):
+    print("in signal handler, calling stop server")
     stop_server()
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -362,8 +363,12 @@ def stop_server():
         # check to see if the event loop is still going, if so join it.
         #
         if __t.is_alive():
+            print("__t is alive still")
             if threading.get_ident() != __t.ident:
+                print("but it's not my thread, so I'll join...")
                 __t.join()
+            else:
+                print("__t is alive, but that's my thread! Yikes.")
 
         # If the main thread has already stopped, the python interpreter
         # is likely just running .join on the two remaining threads (in
