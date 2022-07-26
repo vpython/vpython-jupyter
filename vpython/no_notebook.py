@@ -20,6 +20,7 @@ from urllib.parse import unquote
 
 from .rate_control import rate
 
+makeDaemonic = (platform.system() == "Windows")
 
 # Redefine `Thread.run` to not show a traceback for Spyder when stopping
 # the server by raising a KeyboardInterrupt or SystemExit.
@@ -302,7 +303,7 @@ if _browsertype == 'pyqt':
     __m = multiprocessing.Process(target=start_Qapp, args=(__HTTP_PORT,))
     __m.start()
 
-__w = threading.Thread(target=__server.serve_forever)
+__w = threading.Thread(target=__server.serve_forever, daemon=makeDaemonic)
 __w.start()
 
 
@@ -335,12 +336,13 @@ def start_websocket_server():
 # Put the websocket server in a separate thread running its own event loop.
 # That works even if some other program (e.g. spyder) already running an
 # async event loop.
-__t = threading.Thread(target=start_websocket_server)
+__t = threading.Thread(target=start_websocket_server, daemon=makeDaemonic)
 __t.start()
 
 
 def stop_server():
     """Shuts down all threads and exits cleanly."""
+    print("in stop server")
     global __server
     __server.shutdown()
 
@@ -362,11 +364,13 @@ def stop_server():
         raise KeyboardInterrupt
 
     if threading.main_thread().is_alive():
+        print("main is alive...")
         sys.exit(0)
     else:
         #
         # check to see if the event loop is still going, if so join it.
         #
+        print("main is dead..")
         if __t.is_alive():
             print("__t is alive still")
             if threading.get_ident() != __t.ident:
@@ -374,6 +378,9 @@ def stop_server():
                 __t.join()
             else:
                 print("__t is alive, but that's my thread! So skip it.")
+        else:
+            if makeDaemonic:
+                sys.exit(0)
 
         # If the main thread has already stopped, the python interpreter
         # is likely just running .join on the two remaining threads (in

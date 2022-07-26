@@ -15,6 +15,17 @@ from . import __version__, __gs_version__
 from ._notebook_helpers import _isnotebook
 from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
                                     adjust_axis, object_rotate)
+                                    
+
+def Exit():
+    print("in atexit")
+    while True:
+        rate(60)
+
+import atexit
+
+if platform.system() == 'Windows':
+    atexit.register(Exit)
 
 # List of names that will be imported from this file with import *
 __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'attach_arrow',
