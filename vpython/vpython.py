@@ -18,7 +18,9 @@ from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
                                     
 
 def Exit():
-    print("in atexit")
+    # no infinite loop here so build processs can finish.
+    # print("in atexit")
+    pass
 
 import atexit
 
