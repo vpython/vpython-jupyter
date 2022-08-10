@@ -14,6 +14,7 @@ import txaio
 import copy
 import socket
 import multiprocessing
+import time
 
 import signal
 from urllib.parse import unquote
@@ -38,7 +39,8 @@ if _in_spyder:
             try:
                 run_old(*args, **kwargs)
             except (KeyboardInterrupt, SystemExit):
-                print("VPython server stopped.")
+                pass
+                # ("VPython server stopped.")
             except:
                 raise
         threading.Thread.run = run
@@ -49,7 +51,7 @@ if _in_spyder:
 
 # Check for Ctrl+C. SIGINT will also be sent by our code if WServer is closed.
 def signal_handler(signal, frame):
-    print("in signal handler, calling stop server")
+    #print("in signal handler, calling stop server")
     stop_server()
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -342,7 +344,7 @@ __t.start()
 
 def stop_server():
     """Shuts down all threads and exits cleanly."""
-    print("in stop server")
+    #print("in stop server")
     global __server
     __server.shutdown()
 
@@ -364,20 +366,21 @@ def stop_server():
         raise KeyboardInterrupt
 
     if threading.main_thread().is_alive():
-        print("main is alive...")
+        #print("main is alive...")
         sys.exit(0)
     else:
         #
         # check to see if the event loop is still going, if so join it.
         #
-        print("main is dead..")
+        #print("main is dead..")
         if __t.is_alive():
-            print("__t is alive still")
+            #print("__t is alive still")
             if threading.get_ident() != __t.ident:
-                print("but it's not my thread, so I'll join...")
+                #print("but it's not my thread, so I'll join...")
                 __t.join()
             else:
-                print("__t is alive, but that's my thread! So skip it.")
+                #print("__t is alive, but that's my thread! So skip it.")
+                pass
         else:
             if makeDaemonic:
                 sys.exit(0)
@@ -390,7 +393,7 @@ def stop_server():
 GW = GlowWidget()
 
 while not (httpserving and websocketserving):  # try to make sure setup is complete
-    rate(60)
+    time.sleep(0.1)
 
 
 # Dummy variable to import
