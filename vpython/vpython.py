@@ -533,7 +533,7 @@ class standardAttributes(baseObj):
                          ['red', 'green', 'blue','length', 'width', 'height']],
                  'points':[['color'],
                          [],
-                         ['visible', 'shininess', 'emissive', 'radius', 'retain', 'pickable', 'size_units'],
+                         ['visible', 'opacity', 'shininess', 'emissive', 'radius', 'retain', 'pickable', 'size_units'],
                          ['red', 'green', 'blue']],
                  'label':[['pos', 'color', 'background', 'linecolor'],
                          [],
@@ -1825,12 +1825,15 @@ class curveMethods(standardAttributes):
         c = None
         r = None
         vis = None
+        op = None
         if 'color' in args:
             c = args['color']
         if 'radius' in args:
             r = args['radius']
         if 'visible' in args:
             vis = args['visible']
+        if 'opacity' in args:
+            op = args['opacity']
         if len(args1) > 0:
             if len(args1) == 1:
                 tpos = self.parse_pos(args1[0])
