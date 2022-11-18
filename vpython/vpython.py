@@ -42,7 +42,7 @@ __all__ = ['Camera', 'GlowWidget', 'version', 'GSversion', 'Mouse', 'arrow', 'at
            'local_light', 'menu', 'meta_canvas', 'points', 'pyramid',
            'quad', 'radio', 'ring', 'set_browser', 'simple_sphere', 'sleep', 'slider', 'sphere',
            'standardAttributes', 'text', 'textures', 'triangle', 'vertex',
-           'wtext', 'winput', 'keysdown']
+           'wtext', 'winput', 'keysdown', 'sign']
 
 
 from inspect import signature # Python 3; needed to allow zero arguments in a bound function
