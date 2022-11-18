@@ -10,6 +10,11 @@ import time
 # vpython provides clock in its namespace
 clock = time.perf_counter
 
+def sign(x): # for compatibility with Web VPython
+    if x > 0: return 1
+    if x < 0: return -1
+    return 0
+
 import sys
 from . import __version__, __gs_version__
 from ._notebook_helpers import _isnotebook
@@ -1851,9 +1856,12 @@ class curveMethods(standardAttributes):
             col = c
             rad = r
             vi = vis
+            opaq = None
             cp = {'pos':pt['pos'].value}
             if 'color' in pt:
                 col = pt['color']
+            if 'opacity' in pt:
+                opaq = pt['opacity']
             if 'radius' in pt:
                 rad = pt['radius']
             if 'visible' in pt:
@@ -1867,6 +1875,9 @@ class curveMethods(standardAttributes):
             if vi is not None:
                 pt['visible'] = vi
                 cp['visible'] = vi
+            if opaq is not None:
+                pt['opacity'] = opaq
+                cp['opacity'] = opaq
             pts.append(pt)
             cps.append(cp)
         return [pts, cps]
@@ -2059,7 +2070,7 @@ class points(curveMethods):
         if 'pos' in args:
             tpos = args['pos']
             del args['pos']
-
+            
         super(curveMethods, self).setup(args)
 
         if tpos is not None:
@@ -3206,7 +3217,14 @@ class canvas(baseObj):
 
     @property
     def pixel_to_world(self):
-        return self._pixel_to_world
+        # Convert number of pixels into distance in real-world coordinates
+        w = self._width
+        h = self._height
+        d = 2*self._range
+        if w >= h:
+            return d/h
+        else:
+            return d/w
     @pixel_to_world.setter
     def pixel_to_world(self, value):
         raise AttributeError('pixel_to_world is read-only')
