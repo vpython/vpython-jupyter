@@ -143,7 +143,11 @@ API_NAMES = [
     'version',
     'vertex',
     'winput',
-    'wtext'
+    'wtext',
+    'wtext',
+    'winput',
+    'keysdown',
+    'sign'
 ]
 
 
