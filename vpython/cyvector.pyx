@@ -58,7 +58,7 @@ cdef class vector(object):
         return self
 
     def __repr__(self):
-        return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
+        return 'vector({:.6g}, {:.6g}, {:.6g})'.format(self._x, self._y, self._z)
 
     def __str__(self):
         return '<{:.6g}, {:.6g}, {:.6g}>'.format(self._x, self._y, self._z)
