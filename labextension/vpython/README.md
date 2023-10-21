@@ -1,65 +1,61 @@
-# vpython
+# jupyterlab_vpython
 
-VPython labextension
+A VPython extension for JupyterLab
 
+## Requirements
 
-## Prerequisites
+- JupyterLab >= 3.0.0
+- VPython >= 7.6.4
 
-* JupyterLab ^0.35.0
-* VPython Package >=7.4.8     (pip install vpython) or (conda install -c vpython vpython)
+## Install
 
-## Installation
+To install the extension, execute:
 
 ```bash
-jupyter labextension install vpython
+pip install jupyterlab_vpython
+```
+
+## Uninstall
+
+To remove the extension, execute:
+
+```bash
+pip uninstall jupyterlab_vpython
 ```
 
 ## Development
 
 For a development install use the instructions for creating a custom jupyter labextension as a guide:
 
-https://jupyterlab.readthedocs.io/en/stable/developer/extension_tutorial.html#extension-tutorial
+https://jupyterlab.readthedocs.io/en/latest/extension/extension_tutorial.html
 
-Except where the tutorial says: `conda install -c conda-forge jupyterlab=2`, use `jupyterlab=1`
-and tailor the instructions for creating a vpython labextension. Also, the tutorial command
-`jupyter lab --watch` will fail. Just use `jupyter lab`.
+Follow the steps in the tutorial
 
-The original instructions below caused trouble for me (steve, I got various React errors) but this is what worked:
+Step 1:
 
-1) Create and activate a conda environment, and then install jupyterlab:
+```bash
+conda create -n jupyterlab-ext --override-channels --strict-channel-priority -c conda-forge -c nodefaults jupyterlab=4 nodejs=18 git copier=7 jinja2-time
+```
 
-    conda create -n jupyterlab-ext --override-channels --strict-channel-priority -c conda-forge -c anaconda jupyterlab cookiecutter nodejs git
+Step 2:
 
-    conda activate jupyterlab-ext
+```bash
+conda activate jupyterlab-ext
+```
 
-    conda install -c conda-forge jupyterlab=1
+Step 3: Get the jupyterlab_vpython repository
 
-2) git clone the repository (the branch from the pull request) somewhere using whatever git machinery you prefer.
+```bash
+git clone https://github.com/jcoady/jupyterlab_vpython.git
+```
 
-Then “cd” into the ‘vpython-jupyter/labextension/vpython’ of that repository.
+Step 4:
 
-3) In the ‘vpython-jupyter/labextension/vpython’ directory of that repository execute:
+```bash
+cd jupyterlab_vpython
+```
 
-    cp -r ../../vpython/vpython_{libraries,data} .
-
-    yarn install
-
-    jupyter labextension install .
-
-4) Install vpyton in this virtual environment:
-
-   cd ../..
-
-   pip install -e .
-   
-And then to run a lab notebook:
-
-    jupyter lab
-
-Then you should be able to import vpython now and run notebooks in jupyterlab.
-
-Original instructions:
-
+Step 5:
 ```bash
 jlpm install
 jlpm add @jupyterlab/application
@@ -67,17 +63,46 @@ jlpm add @jupyterlab/apputils
 jlpm add @jupyterlab/coreutils
 jlpm add @jupyterlab/docregistry
 jlpm add @jupyterlab/notebook
-jlpm add @phosphor/disposable
+jlpm add @lumino/disposable
+jlpm add file-loader
+jlpm add plotly.js-dist-min
 jlpm add script-loader
 
 cp -r ../../vpython/vpython_{libraries,data} .
 jlpm run build
-jupyter labextension install .
 ```
 
-To rebuild the package and the JupyterLab app:
+Step 6: install the extension into the JupyterLab environment.
 
 ```bash
-jlpm run build
-jupyter lab build
+pip install -ve .
+```
+
+Step 7: After the install completes, open a second terminal. 
+Run these commands to activate the jupyterlab-ext environment 
+and start JupyterLab in your default web browser.
+
+```bash
+conda activate jupyterlab-ext
+jupyter lab
+```
+
+Step 8: Packaging the extension.
+
+Before generating a package, we first need to install build.
+
+```bash
+pip install build
+```
+
+To create a Python source package (.tar.gz) in the dist/ directory, do:
+
+```bash
+python -m build -s
+```
+
+To create a Python wheel package (.whl) in the dist/ directory, do:
+
+```bash
+python -m build
 ```
