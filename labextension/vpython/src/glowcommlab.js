@@ -1,7 +1,8 @@
 import 'script-loader!../vpython_libraries/jquery.min.js';
 import 'script-loader!../vpython_libraries/jquery-ui.custom.min.js';
 import 'script-loader!../vpython_libraries/glow.min.js';
-import 'script-loader!../vpython_libraries/plotly.min.js';
+//import 'script-loader!../vpython_libraries/plotly.min.js';
+import Plotly from 'plotly.js-dist-min'
 import '../style/jquery-ui.custom.css'
 import '../style/ide.css'
 import img from '../vpython_data/flower_texture.jpg'     // use this to get the path to vpython_data
@@ -85,6 +86,7 @@ var url = new URL(img);
 var datadir = url.pathname.substring(0, url.pathname.lastIndexOf('/')) + "/vpython_data/";   // path to vpython_data dir
 window.Jupyter_VPython = datadir // prefix used by glow.min.js for textures
 url = null
+window.Plotly = Plotly
 
 function fontloading() {
     "use strict";
@@ -1010,5 +1012,3 @@ function handle_attrs(dattrs) {
 	} // end of attributes
 }
 console.log("END OF GLOWCOMM")
-
-//});

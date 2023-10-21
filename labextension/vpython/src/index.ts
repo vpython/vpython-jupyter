@@ -37,11 +37,11 @@ class VPythonExtension implements DocumentRegistry.IWidgetExtension<NotebookPane
 
     Promise.all([panel.revealed, panel.sessionContext.ready, context.ready]).then(function() {
 		const session = context.sessionContext.session;
-		const kernelInstance = session.kernel;
+		const kernelInstance = session?.kernel;
 		(<any>window).JLab_VPython = true;
 
  		try {
-			kernelInstance.registerCommTarget('glow', (vp_comm: any, commMsg: any) => {
+			kernelInstance?.registerCommTarget('glow', (vp_comm: any, commMsg: any) => {
 				// Use Dynamic import() Expression to import glowcomm when comm is opened
 				import("./glowcommlab").then(glowcommlab => {
 					glowcommlab.comm = vp_comm
@@ -60,7 +60,11 @@ class VPythonExtension implements DocumentRegistry.IWidgetExtension<NotebookPane
 			});
 		}
 		catch(err) {
-			console.log("register glow error : ",err.message);
+			if (err instanceof Error) {
+				console.log("register glow error : ",err.message);
+			} else {
+				console.log('Unexpected error', err);
+			}
 		}
 		
     });
