@@ -1,0 +1,3 @@
+[submodule "labextension/jupyterlab-vpython"]
+	path = labextension/jupyterlab-vpython
+	url = https://github.com/jcoady/jupyterlab_vpython.git
