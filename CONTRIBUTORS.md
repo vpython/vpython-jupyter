@@ -32,8 +32,10 @@ We are certain the list is incomplete; please let one of us know by opening an [
 + Brian Su ([@brianbbsu](https://github.com/brianbbsu))
 + [@0dminnimda](https://github.com/0dminnimda)
 + Mike Miller ([@Axe319](https://github.com/axe319))
-+ Dan Miller ([@danx0r(https://github.com/danx0r))
++ Danny Staple ([@dannystaple](https://github.com/dannystaple))
++ Dan Miller ([@danx0r](https://github.com/danx0r))
 + Alex Herrera ([@aherrera1721](https://github.com/aherrera1721))
++ Michał Górny ([@mgorny](https://github.com/mgorny))
 
 ## Full timeline of vpython development
 
