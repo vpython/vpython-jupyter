@@ -107,7 +107,7 @@ if ('nbextensions' in os.listdir(jd)) and (notebook.__version__ <= '6.5.5'):
     display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");});}else{element.textContent = ' ';}"""))
     display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");});}else{element.textContent = ' ';}"""))
 
-if transfer:
+if transfer and (notebook.__version__ <= '6.5.5'):
     time.sleep(4)      # allow some time for javascript code above to run after nbextensions update before attempting to setup Comm Channel
 else:
     time.sleep(2)      # allow some time for javascript code above to run before attempting to setup Comm Channel
