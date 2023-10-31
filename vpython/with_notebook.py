@@ -68,7 +68,7 @@ else:
             pass
 
 
-if 'nbextensions' in os.listdir(jd):
+if ('nbextensions' in os.listdir(jd)) and (notebook.__version__ <= '6.5.5'):
     ldir = os.listdir(nbdir)
     if ('vpython_data' in ldir and len(os.listdir(nbdata)) == datacnt and
        'vpython_libraries' in ldir and len(os.listdir(nblib)) == libcnt and
@@ -76,7 +76,7 @@ if 'nbextensions' in os.listdir(jd):
         v = open(nbdir+'/vpython_version.txt').read()
         transfer = (v != __version__) # need not transfer files to nbextensions if correct version's files already there
 
-if transfer:
+if transfer and (notebook.__version__ <= '6.5.5'):
     notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_data",overwrite = True,user = True,verbose = 0)
     notebook.nbextensions.install_nbextension(path = package_dir+"/vpython_libraries",overwrite = True,user = True,verbose = 0)
 
@@ -98,13 +98,14 @@ if transfer:
     fd.write(__version__)
     fd.close()
 
-display(Javascript("""if (typeof Jupyter !== "undefined") {require.undef("nbextensions/vpython_libraries/glow.min");}else{element.textContent = ' ';}"""))
-display(Javascript("""if (typeof Jupyter !== "undefined") {require.undef("nbextensions/vpython_libraries/glowcomm");}else{element.textContent = ' ';}"""))
-display(Javascript("""if (typeof Jupyter !== "undefined") {require.undef("nbextensions/vpython_libraries/jquery-ui.custom.min");}else{element.textContent = ' ';}"""))
+if ('nbextensions' in os.listdir(jd)) and (notebook.__version__ <= '6.5.5'):
+    display(Javascript("""if (typeof Jupyter !== "undefined") {require.undef("nbextensions/vpython_libraries/glow.min");}else{element.textContent = ' ';}"""))
+    display(Javascript("""if (typeof Jupyter !== "undefined") {require.undef("nbextensions/vpython_libraries/glowcomm");}else{element.textContent = ' ';}"""))
+    display(Javascript("""if (typeof Jupyter !== "undefined") {require.undef("nbextensions/vpython_libraries/jquery-ui.custom.min");}else{element.textContent = ' ';}"""))
 
-display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/glow.min"], function(){console.log("GLOW LOADED");});}else{element.textContent = ' ';}"""))
-display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");});}else{element.textContent = ' ';}"""))
-display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");});}else{element.textContent = ' ';}"""))
+    display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/glow.min"], function(){console.log("GLOW LOADED");});}else{element.textContent = ' ';}"""))
+    display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/glowcomm"], function(){console.log("GLOWCOMM LOADED");});}else{element.textContent = ' ';}"""))
+    display(Javascript("""if (typeof Jupyter !== "undefined") {require(["nbextensions/vpython_libraries/jquery-ui.custom.min"], function(){console.log("JQUERY LOADED");});}else{element.textContent = ' ';}"""))
 
 if transfer:
     time.sleep(4)      # allow some time for javascript code above to run after nbextensions update before attempting to setup Comm Channel
