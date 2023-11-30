@@ -77,7 +77,7 @@ keysdownlist = [] # list of keys currently pressed
 # attrs are X in {'a': '23X....'}
 __attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: comma, but maybe that would cause trouble
          'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h',
-         'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 'dot_color':'m',
+         'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 
          'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 'resizable':'+',
 
          # scalar attributes
@@ -120,7 +120,7 @@ __methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # un
              'delete':'M', 'capture':'N'}
 
 __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
-            'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail',
+            'direction', 'linecolor', 'bumpaxis', 'ambient', 'add_to_trail',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
             'marker_color', 'offset']
 
@@ -2101,7 +2101,6 @@ class gobj(baseObj):
         super(gobj, self).__init__()
     ## default values of shared attributes
         self._color = vector(0,0,0)
-        self._dot_color = vector(0,0,0)
         self._marker_color = vector(0,0,0)
         self._dot = False
         self._delta = 1
@@ -2133,7 +2132,7 @@ class gobj(baseObj):
             del args['pos']
 
         ## override default vector attributes
-        vectorAttributes = ['color', 'dot_color', 'marker_color']
+        vectorAttributes = ['color', 'marker_color']
         for a in vectorAttributes:
             if a in args:
                 argsToSend.append(a)
@@ -2340,14 +2339,6 @@ class gcurve(gobj):
     def dot(self,val):
         self._dot = val
         self.addattr('dot')
-
-    @property
-    def dot_color(self): return self._dot_color
-    @dot_color.setter
-    def dot_color(self,val):
-        if not isinstance(val, vector): raise TypeError('dot_color must be a vector')
-        self._dot_color = vector(val)
-        self.addattr('dot_color')
 
     @property
     def dot_radius(self): return self._dot_radius

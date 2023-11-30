@@ -9,7 +9,7 @@ var isopen = false
 
 window.Plotly = Plotly
 
-console.log('START OF GLOWCOMM')
+console.log('START OF GLOWCOMM JS')
 
 IPython.notebook.kernel.comm_manager.register_target('glow',
     function(commChannel, msg) {
