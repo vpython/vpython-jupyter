@@ -77,7 +77,7 @@ keysdownlist = [] # list of keys currently pressed
 # attrs are X in {'a': '23X....'}
 __attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: comma, but maybe that would cause trouble
          'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h',
-         'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 
+         'direction':'j', 'linecolor':'k', 'bumpaxis':'l',
          'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 'resizable':'+',
 
          # scalar attributes
@@ -109,7 +109,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
           'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G', 'depth':'H',
-          'round':'I', 'name':'J', 'offset':'K', 'attach_idx':'L'}
+          'round':'I', 'name':'J', 'offset':'K', 'attach_idx':'L', 'ccw':'M'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -529,7 +529,7 @@ class standardAttributes(baseObj):
                  'helix':[['pos', 'color', 'trail_color'],
                          ['axis', 'size', 'up'],
                          ['visible', 'opacity','shininess', 'emissive',
-                         'make_trail', 'trail_type', 'interval',
+                         'make_trail', 'trail_type', 'interval', 'ccw',
                          'retain', 'trail_color', 'trail_radius', 'coils', 'thickness', 'pickable'],
                          ['red', 'green', 'blue','length', 'width', 'height', 'radius']],
                  'curve':[['origin', 'color'],
@@ -1137,7 +1137,7 @@ class standardAttributes(baseObj):
                     'visible':True, 'pickable':self._pickable}
         elif objName == 'helix':
             oldargs = {'pos':self.pos, 'color':self._color,
-                    'thickness':self._thickness, 'coils':self._coils,
+                    'thickness':self._thickness, 'coils':self._coils, 'ccw':self._ccw,
                     'size':self._size, 'axis':self._axis, 'up':self._up,
                     'shininess':self._shininess, 'emissive':self._emissive,
                     'visible':True, 'pickable':self._pickable}
@@ -1503,6 +1503,7 @@ class helix(standardAttributes):
         args['_objName'] = 'helix'
         args['_default_size'] = vector(1,2,2)
         self._coils = 5
+        self._ccw = True
         self._thickness = 1/20  ## radius/20
 
         super(helix, self).setup(args)
@@ -1524,6 +1525,15 @@ class helix(standardAttributes):
         self._coils =value
         if not self._constructing:
             self.addattr('coils')
+
+    @property
+    def ccw(self):
+        return self._ccw
+    @ccw.setter
+    def ccw(self,value):
+        self._ccw =value
+        if not self._constructing:
+            self.addattr('ccw')
 
     @property
     def radius(self):
