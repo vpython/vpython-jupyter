@@ -3,7 +3,6 @@ import vpython
 
 API_NAMES = [
     'Camera',
-    'GSprint',
     'GSversion',
     'GlowWidget',
     'Mouse',
