@@ -116,7 +116,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
 __methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused eghijklmnopvxyzCDFABu
              'plot':'q', 'add_to_trail':'s',
              'follow':'t', 'clear_trail':'w',
-             'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 'GSprint':'L',
+             'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 
              'delete':'M', 'capture':'N'}
 
 __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
@@ -125,7 +125,7 @@ __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin',
             'marker_color', 'offset']
 
 __textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label', 'capture', 'name',
-                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
+                 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'choices']
 
 def _encode_attr2(sendval, val, ismethods):
     s = ''

@@ -22,18 +22,16 @@ from ._notebook_helpers import __is_spyder
 from .vpython import canvas
 
 # Need to initialize canvas before user does anything and before
-# importing GSprint
 scene = canvas()
 
 from .vpython import *
 from .shapespaths import *
 from ._vector_import_helper import *
 from .rate_control import rate
-from .gsprint import GSprint
 
-# gsprint and vpython are showing up in the
+# vpython is showing up in the
 # namespace, so delete them
-del gsprint, vpython
+del vpython
 
 # cyvector may be in the namespace. Get rid of it
 try:
