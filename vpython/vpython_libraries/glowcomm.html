@@ -406,7 +406,7 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
 var methods = {'a':'select', 'b':'pos', 'c':'start', 'd':'stop', 'f':'clear', // unused eghijklmnopvxyzCDFAB
 			   'q':'plot', 's':'add_to_trail',
                't':'follow', 'u':'_attach_arrow', 'w':'clear_trail',
-               'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 'L':'GSprint',
+               'G':'bind', 'H':'unbind', 'I':'waitfor', 'J':'pause', 'K':'pick', 
 		       'M':'delete', 'N':'capture'}
          
 var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '_attach_arrow',
@@ -415,7 +415,7 @@ var vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', '
                 'marker_color']
                 
 var textattrs = ['text', 'align', 'caption', 'title', 'title_align', 'xtitle', 'ytitle', 'selected', 'capture',
-                 'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'GSprint', 'choices']
+                 'label', 'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'choices']
 
 // patt gets idx and attr code; vpatt gets x,y,z of a vector            
 var patt = /(\d+)(.)(.*)/
@@ -839,9 +839,7 @@ async function handle_methods(dmeth) {
 		var val = cmd.val
 		var obj = glowObjs[idx]
 
-		if (method == 'GSprint') {
-			GSprint(val)
-		} else if (val == 'None') {
+		if  (val == 'None') {
 			if (method == 'delete') obj['remove']()
 			else obj[method]()
 		} else if (method === 'rotate') {
