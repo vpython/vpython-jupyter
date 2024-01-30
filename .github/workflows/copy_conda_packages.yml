@@ -1,4 +1,5 @@
 on:
+  workflow_dispatch:  # Allows manual triggering
   schedule:
     # Run once a day at 22:40 UTC
     - cron: '55 22 * * *'
@@ -8,12 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - uses: actions/checkout@v4
+    - name: checkout
+      uses: actions/checkout@v4
 
-    - uses: conda-incubator/setup-miniconda@v3
+    - name: Install conda
+      uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
-        python-version: 3.10
+        python-version: 3.11
 
     - name: Install dependencies
       shell: bash -l {0}
