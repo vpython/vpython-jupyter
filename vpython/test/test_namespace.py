@@ -177,6 +177,11 @@ def test_names_in_base_namspace():
         for name in ['cbrt', 'exp2']:
             api_name_set.add(name)
 
+    # Python 3.12 adds one more new math function.
+    if python_version.major == 3 and python_version.minor >= 12:
+        for name in ['sumprod']:
+            api_name_set.add(name)
+
     print(sorted(api_name_set - current_names))
 
     # We may have added new names, so start with this weaker test

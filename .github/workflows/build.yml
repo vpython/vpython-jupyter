@@ -1,6 +1,16 @@
 name: Test/build
 
-on: [push, pull_request]
+on:
+  workflow_dispatch:  # Allows manual triggering
+  push:  # only build on pusheess to the main branch
+    branches:
+      - master
+  pull_request:
+
+# Stop current actions if there is a new push to the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -9,8 +19,18 @@ jobs:
       max-parallel: 4
       fail-fast: false
       matrix:
-        python-version: [3.8, 3.9, '3.10', 3.11]
+        python-version: [3.11, 3.12]
         platform: [ubuntu-latest, macos-latest, windows-latest]
+        # The include below adds jobs on older versions of python,
+        # but just on one platform. Windows is probably the most widely
+        # used for vpython, so test on that.
+        include:
+          - python-version: "3.8"
+            platform: windows-latest
+          - python-version: "3.9"
+            platform: windows-latest
+          - python-version: "3.10"
+            platform: windows-latest
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -62,7 +82,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [cp37-cp37m, cp38-cp38, cp39-cp39, cp310-cp310, cp311-cp311]
+        python-version: [cp38-cp38, cp39-cp39, cp310-cp310, cp311-cp311, cp312-cp312]
     runs-on: ubuntu-latest
     env:
       py: /opt/python/${{ matrix.python-version }}/bin/python
@@ -84,9 +104,9 @@ jobs:
            source .env/bin/activate && \
            echo -e "\e[1;34m Install dependencies \e[0m" && \
            python -m pip install --upgrade pip && \
-           pip install pytest Cython wheel && \
+           pip install pytest Cython wheel build && \
            echo -e "\e[1;34m Build wheel \e[0m" && \
-           python setup.py bdist_wheel && \
+           python -m build && \
            echo -e "\e[1;34m Install vpython \e[0m" && \
            pip install . && \
            echo -e "\e[1;34m Run tests \e[0m" && \
