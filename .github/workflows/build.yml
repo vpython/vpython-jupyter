@@ -104,9 +104,9 @@ jobs:
            source .env/bin/activate && \
            echo -e "\e[1;34m Install dependencies \e[0m" && \
            python -m pip install --upgrade pip && \
-           pip install pytest Cython wheel && \
+           pip install pytest Cython wheel build && \
            echo -e "\e[1;34m Build wheel \e[0m" && \
-           python setup.py bdist_wheel && \
+           python -m build && \
            echo -e "\e[1;34m Install vpython \e[0m" && \
            pip install . && \
            echo -e "\e[1;34m Run tests \e[0m" && \
