@@ -36,6 +36,7 @@ We are certain the list is incomplete; please let one of us know by opening an [
 + Dan Miller ([@danx0r](https://github.com/danx0r))
 + Alex Herrera ([@aherrera1721](https://github.com/aherrera1721))
 + Michał Górny ([@mgorny](https://github.com/mgorny))
++ Ryder Johnson ([@UZ9](https://github.com/UZ9))
 
 ## Full timeline of vpython development
 
