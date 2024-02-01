@@ -85,6 +85,12 @@ cdef class vector(object):
             return vector(self * other._x, self * other._y, self * other._z)
         return NotImplemented
 
+    def __rmul__(self, other): # required to prevent y * x error
+        if isinstance(other, (float, int)):
+            return vector(self._x * other, self._y * other, self._z * other)        
+        
+        return NotImplemented
+
     def __eq__(self,other):
         if type(self) is vector and type(other) is vector:
             return self.equals(other)
