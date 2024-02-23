@@ -446,7 +446,7 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'u':'logx', 'v':'logy', 'w':'dot', 'x':'dot_radius', 
               'y':'markers', 'z':'legend', 'A':'label','B':'delta', 'C':'marker_color',
               'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices', 'H':'depth', 'I':'round',
-			  'J':'name', 'K':'offset', 'L':'attach_idx','M':'ccw'
+			  'J':'name', 'K':'offset', 'L':'attach_idx', 'M':'ccw', 'N':'dot_color'
 			}
 
 // methods are X in {'m': '23X....'}
