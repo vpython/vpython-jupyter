@@ -77,7 +77,7 @@ keysdownlist = [] # list of keys currently pressed
 # attrs are X in {'a': '23X....'}
 __attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: comma, but maybe that would cause trouble
          'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h',
-         'direction':'j', 'linecolor':'k', 'bumpaxis':'l',
+         'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 'dot_color':'m',
          'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 'resizable':'+',
 
          # scalar attributes
@@ -116,11 +116,11 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
 __methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # unused eghijklmnopvxyzCDFABu
              'plot':'q', 'add_to_trail':'s',
              'follow':'t', 'clear_trail':'w',
-             'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K', 
+             'bind':'G', 'unbind':'H', 'waitfor':'I', 'pause':'J', 'pick':'K',
              'delete':'M', 'capture':'N'}
 
-__vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
-            'direction', 'linecolor', 'bumpaxis', 'ambient', 'add_to_trail',
+__vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin',
+            'direction', 'linecolor', 'bumpaxis', 'dot_color', 'ambient', 'add_to_trail',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
             'marker_color', 'offset']
 
@@ -2117,6 +2117,7 @@ class gobj(baseObj):
     ## default values of shared attributes
         self._color = vector(0,0,0)
         self._marker_color = vector(0,0,0)
+        self._dot_color = vector(0,0,0)
         self._dot = False
         self._delta = 1
         self._width = 2
@@ -2147,7 +2148,7 @@ class gobj(baseObj):
             del args['pos']
 
         ## override default vector attributes
-        vectorAttributes = ['color', 'marker_color']
+        vectorAttributes = ['color', 'dot_color', 'marker_color']
         for a in vectorAttributes:
             if a in args:
                 argsToSend.append(a)
@@ -2361,6 +2362,14 @@ class gcurve(gobj):
     def dot_radius(self,val):
         self._dot_radius = val
         self.addattr('dot_radius')
+
+    @property
+    def dot_color(self): return self._dot_color
+    @dot_color.setter
+    def dot_color(self,val):
+        if not isinstance(val, vector): raise TypeError('dot_color must be a vector')
+        self._dot_color = vector(val)
+        self.addattr('dot_color')
 
 class gdots(gobj):
     def __init__(self, **args):
