@@ -109,7 +109,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
           'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G', 'depth':'H',
-          'round':'I', 'name':'J', 'offset':'K', 'attach_idx':'L', 'ccw':'M'}
+          'round':'I', 'name':'J', 'offset':'K', 'attach_idx':'L', 'ccw':'M', 'dot_color':'N'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -2118,6 +2118,7 @@ class gobj(baseObj):
         self._color = vector(0,0,0)
         self._marker_color = vector(0,0,0)
         self._dot = False
+        self._dot_color = vector(0,0,0)
         self._delta = 1
         self._width = 2
         self._radius = 3
@@ -2361,6 +2362,13 @@ class gcurve(gobj):
     def dot_radius(self,val):
         self._dot_radius = val
         self.addattr('dot_radius')
+
+    @property
+    def dot_color(self): return self._dot_color
+    @dot_color.setter
+    def dot_color(self,val):
+        self._dot_color = val
+        self.addattr('dot_color')
 
 class gdots(gobj):
     def __init__(self, **args):
