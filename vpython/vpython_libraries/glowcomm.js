@@ -411,7 +411,7 @@ function control_handler(obj) {  // button, menu, slider, radio, checkbox, winpu
 	events.push(evt)
 }
 
-// attrs are X in {'a': '23X....'} avaiable: none
+// attrs are X in {'a': '23X....'} available: none
 var attrs = {'a':'pos', 'b':'up', 'c':'color', 'd':'trail_color', // don't use single and double quotes; available: comma, but maybe that would cause trouble
          'e':'ambient', 'f':'axis', 'g':'size', 'h':'origin', 'i':'textcolor',
          'j':'direction', 'k':'linecolor', 'l':'bumpaxis', 'm':'dot_color',
@@ -446,7 +446,7 @@ var attrsb = {'a':'userzoom', 'b':'userspin', 'c':'range', 'd':'autoscale', 'e':
               'u':'logx', 'v':'logy', 'w':'dot', 'x':'dot_radius', 
               'y':'markers', 'z':'legend', 'A':'label','B':'delta', 'C':'marker_color',
               'D':'size_units', 'E':'userpan', 'F':'scroll', 'G':'choices', 'H':'depth', 'I':'round',
-			  'J':'name', 'K':'offset', 'L':'attach_idx', 'M':'ccw', 'N':'dot_color'
+			  'J':'name', 'K':'offset', 'L':'attach_idx', 'M':'ccw'
 			}
 
 // methods are X in {'m': '23X....'}
