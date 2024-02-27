@@ -77,7 +77,7 @@ keysdownlist = [] # list of keys currently pressed
 # attrs are X in {'a': '23X....'}
 __attrs = {'pos':'a', 'up':'b', 'color':'c', 'trail_color':'d', # don't use single and double quotes; available: comma, but maybe that would cause trouble
          'ambient':'e', 'axis':'f', 'size':'g', 'origin':'h',
-         'direction':'j', 'linecolor':'k', 'bumpaxis':'l',
+         'direction':'j', 'linecolor':'k', 'bumpaxis':'l', 'dot_color':'m',
          'foreground':'n', 'background':'o', 'ray':'p', 'center':'E', 'forward':'#', 'resizable':'+',
 
          # scalar attributes
@@ -109,7 +109,7 @@ __attrsb = {'userzoom':'a', 'userspin':'b', 'range':'c', 'autoscale':'d', 'fov':
           'logx':'u', 'logy':'v', 'dot':'w', 'dot_radius':'x',
           'markers':'y', 'legend':'z', 'label':'A', 'delta':'B', 'marker_color':'C',
           'size_units':'D', 'userpan':'E', 'scroll':'F', 'choices':'G', 'depth':'H',
-          'round':'I', 'name':'J', 'offset':'K', 'attach_idx':'L', 'ccw':'M', 'dot_color':'N'}
+          'round':'I', 'name':'J', 'offset':'K', 'attach_idx':'L', 'ccw':'M'}
 
 # methods are X in {'m': '23X....'}
 # pos is normally updated as an attribute, but for interval-based trails, it is updated (multiply) as a method
@@ -122,7 +122,7 @@ __methods = {'select':'a', 'pos':'b', 'start':'c', 'stop':'d', 'clear':'f', # un
 __vecattrs = ['pos', 'up', 'color', 'trail_color', 'axis', 'size', 'origin', 
             'direction', 'linecolor', 'bumpaxis', 'ambient', 'add_to_trail',
             'foreground', 'background', 'ray', 'ambient', 'center', 'forward', 'normal',
-            'marker_color', 'offset']
+            'marker_color', 'offset', 'dot_color']
 
 __textattrs = ['text', 'align', 'caption', 'title', 'xtitle', 'ytitle', 'selected', 'label', 'capture', 'name',
                  'append_to_caption', 'append_to_title', 'bind', 'unbind', 'pause', 'choices']
