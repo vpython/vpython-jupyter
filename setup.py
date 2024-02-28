@@ -10,7 +10,7 @@ except ImportError:
     extensions = [Extension('vpython.cyvector', ['vpython/cyvector.c'])]
 
 
-install_requires = ['jupyter', 'jupyter-server-proxy', 'numpy', 'ipykernel',
+install_requires = ['jupyter', 'jupyter-server-proxy', 'jupyterlab-vpython', 'numpy', 'ipykernel',
                     'autobahn>=22.6.1, <27']
 
 setup_args = dict(
