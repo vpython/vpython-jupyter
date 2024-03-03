@@ -1078,7 +1078,11 @@ class standardAttributes(baseObj):
                 self.addattr('pos')
 
     def bounding_box(self):
-        centered = ['box', 'compound', 'ellipsoid', 'sphere', 'simple_sphere', 'ring']
+        centered = False
+        if self._objName in ['box', 'ellipsoid', 'sphere', 'simple_sphere', 'ring']:
+            centered = True
+        elif self._objName[:8] == 'compound': # compound ObjName has trailing index
+            centered = True
         x = norm(self._axis)
         y = norm(self._up)
         z = norm(cross(x,y))
@@ -1086,8 +1090,8 @@ class standardAttributes(baseObj):
         H = self._size.y
         W = self._size.z
         p = vector(self._pos) # make a copy of pos, so changes to p won't affect the object
-        if self._objName not in centered:
-            p = p + 0.5*L*x # move to center
+        if not centered:
+            p += 0.5*L*x # move to center
         pts = []
         for dx in [-L/2, L/2]:
             for dy in [-H/2, H/2]:
