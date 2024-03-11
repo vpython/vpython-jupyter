@@ -6,4 +6,4 @@
 - name: txaio
 - name: vpython
 - name: python_abi
-- name: jpuyterlab-vpython
+- name: jupyterlab-vpython
