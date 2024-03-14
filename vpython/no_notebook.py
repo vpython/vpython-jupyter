@@ -60,6 +60,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 def find_free_port(port):
     s = socket.socket()
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind(('', port))
     return s.getsockname()[1]
 
