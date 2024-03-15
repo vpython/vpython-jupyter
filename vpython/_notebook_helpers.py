@@ -4,7 +4,18 @@ import sys
 
 def __is_spyder():
     return any('SPYDER' in name for name in os.environ)
+        
+def __is_idle():
+    return 'idlelib' in sys.modules
+    
+def __is_PyCharm():
+    return "PYCHARM_HOSTED" in os.environ
 
+def __is_vscode():
+    return 'TERM_PROGRAM' in os.environ.keys() and os.environ['TERM_PROGRAM'] == 'vscode'
+
+def __is_spyder_or_similar_IDE():
+    return __is_idle() or __is_spyder() or __is_PyCharm()
 
 def _spyder_run_setting_is_correct():
     try:
@@ -59,3 +70,4 @@ def __checkisnotebook():
 # IMPORTANT NOTE: this is evaluated ONCE the first time this is imported.
 _isnotebook = __checkisnotebook()
 _in_spyder = __is_spyder()
+_in_spyder_or_similar_IDE = __is_spyder_or_similar_IDE()

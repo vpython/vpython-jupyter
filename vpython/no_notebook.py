@@ -1,5 +1,5 @@
 from .vpython import GlowWidget, baseObj, vector, canvas, _browsertype
-from ._notebook_helpers import _in_spyder, _undo_vpython_import_in_spyder
+from ._notebook_helpers import _in_spyder, _undo_vpython_import_in_spyder, _in_spyder_or_similar_IDE
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
@@ -14,17 +14,18 @@ import txaio
 import copy
 import socket
 import multiprocessing
-
+import time
 
 import signal
 from urllib.parse import unquote
 
 from .rate_control import rate
 
+makeDaemonic = (platform.system() == "Windows")
 
 # Redefine `Thread.run` to not show a traceback for Spyder when stopping
 # the server by raising a KeyboardInterrupt or SystemExit.
-if _in_spyder:
+if _in_spyder_or_similar_IDE:
     def install_thread_stopped_message():
         """
         Workaround to prevent showing a traceback when VPython server stops.
@@ -38,7 +39,8 @@ if _in_spyder:
             try:
                 run_old(*args, **kwargs)
             except (KeyboardInterrupt, SystemExit):
-                print("VPython server stopped.")
+                pass
+                # ("VPython server stopped.")
             except:
                 raise
         threading.Thread.run = run
@@ -49,8 +51,8 @@ if _in_spyder:
 
 # Check for Ctrl+C. SIGINT will also be sent by our code if WServer is closed.
 def signal_handler(signal, frame):
+    #print("in signal handler, calling stop server")
     stop_server()
-
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -58,14 +60,23 @@ signal.signal(signal.SIGINT, signal_handler)
 #    get glowcomm.html, library .js files, images, or font files
 
 
-def find_free_port(port):
+def find_free_port(port=0):
     s = socket.socket()
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind(('', port))
+    #if hasattr(socket, 'SO_REUSEPORT'):        # This may be required on systems that support it. Needs testing.
+    #    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    try :
+        s.bind(('', port))  # bind to a port
+    except:
+        raise
     return s.getsockname()[1]
 
-__HTTP_PORT = find_free_port(4200)
-__SOCKET_PORT = find_free_port(4201)
+if "VPYTHON_HTTP_PORT" in os.environ:
+    __HTTP_PORT = int(os.environ["VPYTHON_HTTP_PORT"])
+else:
+    __HTTP_PORT = find_free_port()
+
+__SOCKET_PORT = find_free_port()
 
 try:
     if platform.python_implementation() == 'PyPy':
@@ -74,17 +85,17 @@ try:
 except:
     pass
 
-# try: # machinery for reusing ports (2023/12/09 always use 4200 and 4201)
-#     fd = open('free_ports')
-#     __HTTP_PORT = int(fd.readline())
-#     __SOCKET_PORT = int(fd.readline())
+# try: # machinery for reusing ports
+    # fd = open('free_ports')
+    # __HTTP_PORT = int(fd.readline())
+    # __SOCKET_PORT = int(fd.readline())
 # except:
-#     __HTTP_PORT = find_free_port()
-#     __SOCKET_PORT = find_free_port()
-#     fd = open('free_ports', 'w') # this writes to user program's directory
-#     fd.write(str(__HTTP_PORT))
-#     fd.write('\n')
-#     fd.write(str(__SOCKET_PORT))
+    # __HTTP_PORT = find_free_port()
+    # __SOCKET_PORT = find_free_port()
+    # fd = open('free_ports', 'w') # this writes to user program's directory
+    # fd.write(str(__HTTP_PORT))
+    # fd.write('\n')
+    # fd.write(str(__SOCKET_PORT))
 
 # Make it possible for glowcomm.html to find out what the websocket port is:
 js = __file__.replace(
@@ -211,8 +222,18 @@ class WSserver(WebSocketServerProtocol):
                 # message format used by notebook
                 msg = {'content': {'data': [m]}}
                 loop = asyncio.get_event_loop()
-                await loop.run_in_executor(None, GW.handle_msg, msg)
-
+                try:
+                    await loop.run_in_executor(None, GW.handle_msg, msg)
+                except:
+                    #
+                    # this will throw a runtime exception after the main Thread
+                    # has stopped, but we don't really case since the main thread
+                    # is no longer there to do anything anyway.
+                    if threading.main_thread().is_alive():
+                        raise
+                    else:
+                        pass
+                    
     def onClose(self, wasClean, code, reason):
         """Called when browser tab is closed."""
         global websocketserving
@@ -229,14 +250,14 @@ class WSserver(WebSocketServerProtocol):
         # need it here because in spyder the script may have stopped on its
         # own ( because it has no infinite loop in it ) so the only signal
         # that the tab has been closed comes via the websocket.
-        if _in_spyder:
+        if _in_spyder_or_similar_IDE:
             _undo_vpython_import_in_spyder()
 
         # We want to exit, but the main thread is running.
         # Only the main thread can properly call sys.exit, so have a signal
         # handler call it on the main thread's behalf.
         if platform.system() == 'Windows':
-            if threading.main_thread().is_alive() and not _in_spyder:
+            if threading.main_thread().is_alive() and not _in_spyder_or_similar_IDE:
                 # On windows, if we get here then this signal won't be caught
                 # by our signal handler. Just call it ourselves.
                 os.kill(os.getpid(), signal.CTRL_C_EVENT)
@@ -247,19 +268,24 @@ class WSserver(WebSocketServerProtocol):
 
 
 try:
+    no_launch = os.environ.get("VPYTHON_NO_LAUNCH_BROWSER", False)
+    if no_launch=="0":
+        no_launch=False
     if platform.python_implementation() == 'PyPy':
         server_address = ('', 0)      # let HTTPServer choose a free port
         __server = HTTPServer(server_address, serveHTTP)
         port = __server.server_port   # get the chosen port
         # Change the global variable to store the actual port used
         __HTTP_PORT = port
-        _webbrowser.open('http://localhost:{}'.format(port)
+        if not no_launch:
+            _webbrowser.open('http://localhost:{}'.format(port)
                          )  # or webbrowser.open_new_tab()
     else:
         __server = HTTPServer(('', __HTTP_PORT), serveHTTP)
         # or webbrowser.open_new_tab()
-        if _browsertype == 'default':  # uses default browser
-            _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT))
+        if not no_launch:
+            if _browsertype == 'default':  # uses default browser
+                _webbrowser.open('http://localhost:{}'.format(__HTTP_PORT))
 
 except:
     pass
@@ -293,7 +319,7 @@ if _browsertype == 'pyqt':
     __m = multiprocessing.Process(target=start_Qapp, args=(__HTTP_PORT,))
     __m.start()
 
-__w = threading.Thread(target=__server.serve_forever)
+__w = threading.Thread(target=__server.serve_forever, daemon=makeDaemonic)
 __w.start()
 
 
@@ -326,14 +352,16 @@ def start_websocket_server():
 # Put the websocket server in a separate thread running its own event loop.
 # That works even if some other program (e.g. spyder) already running an
 # async event loop.
-__t = threading.Thread(target=start_websocket_server)
+__t = threading.Thread(target=start_websocket_server, daemon=makeDaemonic)
 __t.start()
 
 
 def stop_server():
     """Shuts down all threads and exits cleanly."""
+    #print("in stop server")
     global __server
     __server.shutdown()
+
     event_loop = txaio.config.loop
     event_loop.stop()
     # We've told the event loop to stop, but it won't shut down until we poke
@@ -343,28 +371,45 @@ def stop_server():
     # If we are in spyder, undo our import. This gets done in the websocket
     # server onClose above if the browser tab is closed but is not done
     # if the user stops the kernel instead.
-    if _in_spyder:
+    if _in_spyder_or_similar_IDE:
         _undo_vpython_import_in_spyder()
 
     # We don't want Ctrl-C to try to sys.exit inside spyder, i.e.
     # in an ipython console with a separate python kernel running.
-    if _in_spyder:
+    if _in_spyder_or_similar_IDE:
         raise KeyboardInterrupt
 
     if threading.main_thread().is_alive():
+        #print("main is alive...")
         sys.exit(0)
     else:
-        pass
+        #
+        # check to see if the event loop is still going, if so join it.
+        #
+        #print("main is dead..")
+        if __t.is_alive():
+            #print("__t is alive still")
+            if threading.get_ident() != __t.ident:
+                #print("but it's not my thread, so I'll join...")
+                __t.join()
+            else:
+                #print("__t is alive, but that's my thread! So skip it.")
+                pass
+        else:
+            if makeDaemonic:
+                sys.exit(0)
+
         # If the main thread has already stopped, the python interpreter
         # is likely just running .join on the two remaining threads (in
         # python/threading.py:_shutdown). Since we just stopped those threads,
         # we'll now exit.
-
-
+        
 GW = GlowWidget()
 
 while not (httpserving and websocketserving):  # try to make sure setup is complete
-    rate(60)
+    time.sleep(0.1)
+
 
 # Dummy variable to import
 _ = None
+
