@@ -52,7 +52,12 @@ if _in_spyder_or_similar_IDE:
 # Check for Ctrl+C. SIGINT will also be sent by our code if WServer is closed.
 def signal_handler(signal, frame):
     #print("in signal handler, calling stop server")
-    stop_server()
+    try:
+        stop_server()
+    except (KeyboardInterrupt):
+        pass
+    except:
+        raise
 
 signal.signal(signal.SIGINT, signal_handler)
 
