@@ -1,4 +1,4 @@
-from pkg_resources import get_distribution, DistributionNotFound
+from importlib.metadata import version as get_distribution, PackageNotFoundError as DistributionNotFound
 
 from .gs_version import glowscript_version
 
