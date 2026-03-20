@@ -1,17 +1,17 @@
-from importlib.metadata import version as get_distribution, PackageNotFoundError as DistributionNotFound
+from importlib.metadata import version, PackageNotFoundError
 
 from .gs_version import glowscript_version
 
 try:
-    __version__ = get_distribution(__name__).version
-except DistributionNotFound:
+    __version__ = version(__name__)
+except PackageNotFoundError:
     # package is not installed
     pass
 __gs_version__ = glowscript_version()
 
 del glowscript_version
-del get_distribution
-del DistributionNotFound
+del version
+del PackageNotFoundError
 
 # Keep the remaining imports later to  ensure that __version__ and
 #  __gs_version__ exist before importing vpython, which itself imports
