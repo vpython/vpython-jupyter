@@ -26,11 +26,15 @@ cdef class vector(object):
     def random():
         return vector(-1 + 2*random(), -1 + 2*random(), -1 + 2*random())
 
-    def __init__(self, *args):
+    def __init__(self, *args, x=None, y=None, z=None):
         if len(args) == 3:
             self._x = args[0] # make sure it's a float; could be numpy.float64?
             self._y = args[1]
             self._z = args[2]
+        elif len(args) == 0 and x is not None and y is not None and z is not None:
+            self._x = float(x)
+            self._y = float(y)
+            self._z = float(z)
         elif len(args) == 1 and isinstance(args[0], vector): # make a copy of a vector
             other = args[0]
             self._x = other._x
