@@ -64,35 +64,55 @@ function createGlowFrontend(opts) {
     // Comm. Wiring them to opts.send is a later task; until then they are loud.
     // ---------------------------------------------------------------------------
 
-    function not_wired(feature, events) {
+    function not_wired(feature) {
         if (typeof console !== 'undefined') console.warn('glowcomm_host: ' + feature + ' not wired yet');
-        if (send) send(events);
     }
 
+    // These two CAN be forwarded: the payloads below are byte-faithful to
+    // glowcomm.js, so Python's handle_msg understands them as-is. Both are
+    // synchronous barriers on the Python side (it blocks for the answer), so a
+    // host that supplies send() gets working compound/text/extrusion and pick
+    // even before the full event channel is ported.
+
     function send_pick(cvs, p, seg) {
-        not_wired('pick', [{event: 'pick', 'canvas': cvs, 'pick': p, 'segment': seg}]);
+        not_wired('pick');
+        var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg};
+        if (send) send([evt]);
     }
 
     function send_compound(cvs, pos, size, up) {
-        not_wired('compound/extrusion/text measurement', [{event: '_compound', 'canvas': cvs,
-            'pos': [pos.x, pos.y, pos.z],
-            'size': [size.x, size.y, size.z], 'up': [up.x, up.y, up.z]}]);
+        not_wired('compound/extrusion/text measurement');
+        var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z],
+            'size': [size.x, size.y, size.z], 'up': [up.x, up.y, up.z]};
+        if (send) send([evt]);
     }
 
+    // These four must NOT forward anything. Their real payloads are built by the
+    // deleted process()/control_handler(), which read live mouse/key/widget state;
+    // anything this file could synthesize is a partial event, and a partial event
+    // does not fail politely on the Python side. vpython.py handle_msg() sends
+    // every event without a 'widget' key down `cvs = object_registry[evt['canvas']]`
+    // (vpython.py:425) and then canvas.handle_event()'s `ev = evt['event']`
+    // (vpython.py:3288); an event WITH a 'widget' key indexes object_registry by
+    // evt['idx'] and then reads evt['value']/evt['text'], and calls the user's
+    // bind callback. Either way a synthesized stub raises KeyError inside the
+    // kernel's message loop. Warning and dropping is the honest behaviour until
+    // Task 9 ports the real event capture.
+
     function process_binding(event) {  // event associated with a previous bind command
-        not_wired('event bindings', [{event: event && event.type, bind: true}]);
+        not_wired('event bindings');
     }
 
     function process_waitfor(event) {
-        not_wired('waitfor', [{event: event && event.type, bind: true}]);
+        not_wired('waitfor');
     }
 
     function process_pause() {
-        not_wired('pause', [{event: 'click'}]);
+        not_wired('pause');
     }
 
     function control_handler(obj) {  // button, menu, slider, radio, checkbox, winput
-        not_wired('widgets', [{idx: obj && obj.idx, widget: obj && obj.objName}]);
+        not_wired('widgets');
     }
 
     var waitfor_canvas = null;
@@ -443,8 +463,25 @@ function createGlowFrontend(opts) {
                     // glowcomm.js looked up Jupyter's '#glowscript' div here. The
                     // host tells us where its scene goes instead; GlowScript reads
                     // the mount point off the global __context.
+                    //
+                    // Two things matter. (1) __context is GlowScript's own scratch
+                    // space — canvas_selected, canvas_all, print_container — so
+                    // merge into it; replacing it wipes state belonging to canvases
+                    // already on the page (upstream did the lookup at most once,
+                    // this runs on every canvas cmd). (2) glow stores a *jQuery*
+                    // object (`glowscript_container` set does $(value), and the
+                    // print-area path calls container.css(...)), so a raw element
+                    // has to be wrapped or the first print() throws.
                     if (container !== null) {
-                        globalThis.__context = { glowscript_container: container };
+                        var jq = glow.$ || globalThis.$ || globalThis.jQuery;
+                        var ctx = globalThis.__context || (globalThis.__context = {});
+                        if (jq) ctx.glowscript_container = jq(container);
+                        else {
+                            if (typeof console !== 'undefined') console.warn(
+                                'glowcomm_host: no jQuery found to wrap the container; ' +
+                                'GlowScript expects $(container) and print() will fail');
+                            ctx.glowscript_container = container;
+                        }
                     }
                     glowObjs[idx] = glow.canvas(cfg);
                     glowObjs[idx]['idx'] = idx;
