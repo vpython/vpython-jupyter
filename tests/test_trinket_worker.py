@@ -131,6 +131,62 @@ def test_sleep_returns_a_coroutine(worker_env):
     asyncio.run(c)
 
 
+def test_sleep_flushes_updates_to_the_host(worker_env):
+    """sleep() is a pacing call too: the first one must push buffered work out."""
+    vp, sent = worker_env
+    before = len(sent)
+    asyncio.run(vp.sleep(0.001))
+    assert len(sent) > before
+
+
+def test_sleep_honours_the_same_render_cap_as_rate(worker_env):
+    """`while True: sleep(0.001)` must not flood the page.
+
+    rate() was capped; sleep() sat next to it flushing on every call, which is
+    ~1000 packages/second for a shape a beginner reaches by accident. Both now
+    share one gate, so this asserts the same property as
+    test_rate_honours_the_render_cap.
+    """
+    vp, sent = worker_env
+    from vpython import rate_control
+
+    calls = 40
+    before = len(sent)
+    started = time.monotonic()
+
+    async def burst():
+        for _ in range(calls):
+            await vp.sleep(0.001)
+
+    asyncio.run(burst())
+    elapsed = time.monotonic() - started
+    flushes = len(sent) - before
+
+    assert flushes < calls, 'no render cap: every sleep() flushed'
+    assert flushes <= elapsed * rate_control.MAX_RENDERS + 2
+
+
+def test_rate_and_sleep_share_one_flush_gate(worker_env):
+    """One cap for the pair, not one each — a loop mixing them still obeys it."""
+    vp, sent = worker_env
+    from vpython import rate_control
+
+    calls = 40
+    before = len(sent)
+    started = time.monotonic()
+
+    async def burst():
+        for _ in range(calls):
+            await vp.rate(1000)
+            await vp.sleep(0.001)
+
+    asyncio.run(burst())
+    elapsed = time.monotonic() - started
+    flushes = len(sent) - before
+
+    assert flushes <= elapsed * rate_control.MAX_RENDERS + 2
+
+
 @pytest.mark.filterwarnings('ignore::pytest.PytestUnraisableExceptionWarning')
 def test_pause_raises_with_the_message(worker_env):
     vp, _ = worker_env
@@ -175,6 +231,75 @@ def test_every_widget_class_defers(worker_env, name, kwargs):
     vp, _ = worker_env
     with pytest.raises(NotImplementedError, match="widgets"):
         getattr(vp, name)(bind=lambda: None, **kwargs)
+
+
+# --- the synchronous barriers that used to deadlock silently ----------------
+#
+# Each of these waits for a browser reply that, in a worker, can only be
+# delivered by the very thread doing the waiting. Before they were patched they
+# hung — at 100% CPU, because `_wait` polls with `rate(30)` and rate is now a
+# coroutine factory that never sleeps when called from synchronous library code.
+# Decision V5: a deferral must be LOUD. These assert the noise.
+
+
+@pytest.mark.filterwarnings('ignore::pytest.PytestUnraisableExceptionWarning')
+def test_compound_defers(worker_env):
+    vp, _ = worker_env
+    with pytest.raises(NotImplementedError) as exc:
+        vp.compound([])
+    assert str(exc.value) == 'compound' + DEFERRAL_SUFFIX
+
+
+@pytest.mark.filterwarnings('ignore::pytest.PytestUnraisableExceptionWarning')
+def test_text_defers(worker_env):
+    vp, _ = worker_env
+    with pytest.raises(NotImplementedError) as exc:
+        vp.text(text='hello')
+    assert str(exc.value) == 'text' + DEFERRAL_SUFFIX
+
+
+@pytest.mark.filterwarnings('ignore::pytest.PytestUnraisableExceptionWarning')
+def test_extrusion_defers(worker_env):
+    vp, _ = worker_env
+    with pytest.raises(NotImplementedError) as exc:
+        vp.extrusion(path=[vp.vec(0, 0, 0), vp.vec(0, 0, -1)],
+                     shape=vp.shapes.circle(radius=1))
+    assert str(exc.value) == 'extrusion' + DEFERRAL_SUFFIX
+
+
+@pytest.mark.filterwarnings('ignore::pytest.PytestUnraisableExceptionWarning')
+def test_clone_defers(worker_env):
+    """Patched on standardAttributes, so every drawable object is covered.
+
+    clone() is the intermittent one: it spins only `while not baseObj.empty()`,
+    so whether it hangs depends on where the last flush fell. Raising always is
+    the point — a construct that deadlocks one run in three is harder to
+    diagnose than one that deadlocks every time.
+    """
+    vp, _ = worker_env
+    from vpython import vpython as _vp
+    ball = object.__new__(vp.sphere)             # no wire traffic needed
+    with pytest.raises(NotImplementedError) as exc:
+        _vp.standardAttributes.clone(ball)
+    assert str(exc.value) == 'obj.clone' + DEFERRAL_SUFFIX
+
+
+@pytest.mark.filterwarnings('ignore::pytest.PytestUnraisableExceptionWarning')
+def test_mouse_pick_defers(worker_env):
+    """A property, so the deferral has to fire on ATTRIBUTE ACCESS, not a call."""
+    vp, _ = worker_env
+    with pytest.raises(NotImplementedError) as exc:
+        vp.scene.mouse.pick
+    assert str(exc.value) == 'scene.mouse.pick' + DEFERRAL_SUFFIX
+
+
+@pytest.mark.filterwarnings('ignore::pytest.PytestUnraisableExceptionWarning')
+def test_the_module_level_waiter_defers_as_a_backstop(worker_env):
+    """text/extrusion/pick are every caller today; a future one must not hang."""
+    vp, _ = worker_env
+    from vpython import vpython as _vp
+    with pytest.raises(NotImplementedError, match='waiting for a scene event'):
+        _vp._wait(None)
 
 
 def test_the_fixture_leaves_no_emscripten_build_cached():

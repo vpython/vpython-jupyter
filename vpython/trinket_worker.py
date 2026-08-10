@@ -92,11 +92,22 @@ def apply_worker_patches():
     _render_period = 1.0 / rate_control.MAX_RENDERS
     _last_flush = [float('-inf')]
 
-    async def _async_rate(maxRate):
+    def _flush_if_due():
+        """Flush buffered updates, at most MAX_RENDERS times a second.
+
+        Shared by rate() and sleep(): both are pacing calls in a student's loop,
+        and both must therefore obey the same render cap. Without it,
+        ``while True: sleep(0.001)`` — a shape a beginner reaches by accident —
+        floods the page with ~1000 update packages a second, each one a
+        postMessage plus a handle() on the main thread.
+        """
         now = time.monotonic()
         if now - _last_flush[0] >= _render_period:
             _last_flush[0] = now
             baseObj.trigger()                  # flush buffered updates
+
+    async def _async_rate(maxRate):
+        _flush_if_due()
         await asyncio.sleep(1.0 / float(maxRate))
 
     def _rate(self, maxRate=100):
@@ -114,7 +125,7 @@ def apply_worker_patches():
     rate_control._RateKeeper2.__call__ = _rate
 
     async def _async_sleep(dt):
-        baseObj.trigger()
+        _flush_if_due()
         await asyncio.sleep(dt)
     _vp.sleep = _async_sleep                   # BEFORE __init__'s star-import binds it
 
@@ -129,6 +140,39 @@ def apply_worker_patches():
     # defines its own __init__ that calls `controls.setup` — setup, not
     # __init__, is the one shared entry point, so that is what gets patched.
     _vp.controls.setup = _deferred('widgets (button/slider/menu/checkbox/radio/winput)')
+
+    # The OTHER synchronous barriers — the ones that look like ordinary drawing
+    # rather than like waiting, which is exactly why they have to be loud.
+    #
+    # Each of these spins the one and only thread until the browser answers, and
+    # in a worker the browser's answer arrives *on that thread* (via
+    # __trinket_vpython_dispatch). So the wait can never end: they deadlock.
+    # Worse, they do it at 100% CPU — `_wait()` polls with `rate(30)`, and rate
+    # is now a coroutine factory, so called from synchronous library code it
+    # builds a coroutine and throws it away without ever sleeping.
+    #
+    #   compound(...)        vpython.py: `while not baseObj.sent: time.sleep(.001)`
+    #   text(...)            vpython.py: _wait(canvas)  — measures the glyph run
+    #   extrusion(...)       vpython.py: _wait(canvas)  — measures the swept shape
+    #   scene.mouse.pick     vpython.py: _wait(canvas)  — waits for setpick
+    #   obj.clone()          vpython.py: `while not baseObj.empty(): rate(60)`
+    #
+    # A student who hits one of these gets no scene, no error and a Stop button
+    # that works — the silent no-op decision V5 exists to forbid. Making them
+    # raise costs the feature and keeps the diagnosis. (`clone` is the one that
+    # only *sometimes* hangs, depending on whether the buffer happens to be
+    # empty; a construct that deadlocks intermittently is worse than one that
+    # always does, not better.)
+    _vp.compound.__init__ = _deferred('compound')
+    _vp.text.__init__ = _deferred('text')
+    _vp.extrusion.__init__ = _deferred('extrusion')
+    _vp.standardAttributes.clone = _deferred('obj.clone')
+    # pick is a property; keep the original setter, which already refuses.
+    _vp.Mouse.pick = property(_deferred('scene.mouse.pick'), _vp.Mouse.pick.fset)
+    # Backstop for any other caller of the module-level waiter: the four above
+    # are every one in the package today, but a future one would otherwise hang
+    # silently rather than say so.
+    _vp._wait = _deferred('waiting for a scene event')
 
 
 # GlowWidget() records itself as baseObj.glow. Outside a notebook it sets the

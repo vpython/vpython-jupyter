@@ -19,11 +19,22 @@
 //   fe.reset()       // forget every object (new scene generation)
 //   fe.destroy()     // reset + ask the objects to remove themselves
 //
+//   createGlowFrontend.version   // vpython-jupyter version this file ships with
+//
 // Mouse/key event capture IS ported (see "the event channel" below). Widgets,
 // pause and waitfor are not: those are deferred by design (spec V5, they raise
 // NotImplementedError on the Python side) and their call sites warn and drop.
 
 'use strict';
+
+// The half of the pair that is NOT the wheel. This file and the wheel are built
+// from the same checkout and copied into a host by hand
+// (trinket: scripts/sync-vpython-worker.sh), so the one question a running
+// deploy has to be able to answer is "are these two the same vintage?".
+// Carrying the vpython-jupyter version here lets a host log it next to the wheel
+// filename and see a mismatch instead of debugging one. Keep it in step with
+// SETUPTOOLS_SCM_PRETEND_VERSION when the wheel is rebuilt.
+var GLOWCOMM_HOST_VERSION = '7.6.5';
 
 function createGlowFrontend(opts) {
     opts = opts || {};
@@ -997,6 +1008,8 @@ function createGlowFrontend(opts) {
              reset: reset, destroy: destroy, _objs: _objs };
 }
 
-var api = { createGlowFrontend: createGlowFrontend };
+createGlowFrontend.version = GLOWCOMM_HOST_VERSION;
+
+var api = { createGlowFrontend: createGlowFrontend, version: GLOWCOMM_HOST_VERSION };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof self !== 'undefined') self.createGlowFrontend = createGlowFrontend;
