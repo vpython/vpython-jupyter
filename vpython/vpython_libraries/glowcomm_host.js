@@ -14,6 +14,7 @@
 //   var fe = createGlowFrontend({container: el, send: fn, glow: window})
 //   fe.handle(ops)   // ops is the parsed {cmds, methods, attrs} package, or 'trigger'
 //   fe.tick()        // one pacing tick: sample the canvas, drain queued events
+//   fe.poll()        // like tick(), but silent when there is nothing to say
 //   fe.pacingStopped() // the host's clock has stopped; flush and stay flushing
 //   fe.reset()       // forget every object (new scene generation)
 //   fe.destroy()     // reset + ask the objects to remove themselves
@@ -238,6 +239,19 @@ function createGlowFrontend(opts) {
     // reports once per render instead of once per pixel. Widgets are deferred
     // (see control_handler above) so it stays empty, but update_canvas' half of
     // that mechanism is ported whole rather than left as a hole to re-derive.
+    //
+    // WHOEVER WIRES control_handler, READ THIS. Upstream reports a slider ONLY
+    // through update_canvas(), i.e. only when something else causes a message to
+    // go out. That was safe in the notebook, where the clock never stops. Here
+    // the host's clock belongs to the RUN (trinket's does), and flush() —
+    // deliberately — returns early on an empty queue rather than polling the
+    // canvas, so once a program has ended a slider drag would sit in this object
+    // until some unrelated mouse event happened to flush it. The fix at that
+    // point is for control_handler to queue() a widget event for the slider (the
+    // shape vpython.py handle_msg reads: {'idx':…,'value':…,'widget':'slider'})
+    // instead of relying on this poll — which is what upstream's control_handler
+    // already does for every OTHER widget: only the slider branch returns early
+    // instead of ending in events.push(evt).
     var sliders;
 
     function vzero() { return (typeof glow.vec === 'function') ? glow.vec(0, 0, 0) : null; }
@@ -360,6 +374,25 @@ function createGlowFrontend(opts) {
         var out = drain();
         if (out.length === 0) out = [{event:'update_canvas', 'trigger':1}];
         if (send) send(out);
+        return out;
+    }
+
+    // One tick of the host's clock that is NOT the request half of a
+    // request/reply. When the PROGRAM is already flushing on its own — vpython's
+    // rate() triggers a render at up to MAX_RENDERS a second from inside the
+    // animation loop — the handshake above buys nothing and costs one message per
+    // tick on the hottest path in the system (measured: ~30 host messages a
+    // second on top of the ~85 the loop was already sending). The half of a tick
+    // that is still needed is the browser's own half: queued events, and the
+    // camera/mouse state only update_canvas() knows. So: drain, send if there is
+    // anything, and otherwise stay quiet.
+    //
+    // last_tick is still stamped, because the host's clock IS running: events
+    // must keep batching into the next tick rather than each paying a round trip.
+    function poll() {
+        last_tick = now_ms();
+        var out = drain();
+        if (out.length > 0 && send) send(out);
         return out;
     }
 
@@ -960,7 +993,7 @@ function createGlowFrontend(opts) {
     // Not part of the host contract — do not use it from page code.
     function _objs() { return glowObjs; }
 
-    return { handle: handle, tick: tick, pacingStopped: pacing_stopped,
+    return { handle: handle, tick: tick, poll: poll, pacingStopped: pacing_stopped,
              reset: reset, destroy: destroy, _objs: _objs };
 }
 
