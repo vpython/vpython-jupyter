@@ -183,13 +183,23 @@ def test_rate_subtracts_user_code_time_from_the_period(worker_env):
         'rate(%d) with %.0f ms of user code took %.3f s for %d iterations; '
         'flat-sleep behaviour is ~%.3f s, compensated is ~%.3f s'
         % (target, work * 1000, elapsed, iterations, flat, ideal))
+    # The other side of it, or "compensation" that just stopped sleeping whenever
+    # the body did any work at all would pass the assertion above. Subtracting
+    # the body's cost must not turn rate(N) into a free-running loop.
+    assert elapsed > ideal * 0.7, (
+        'rate(%d) with user code ran at %.1f Hz — it stopped pacing rather than '
+        'compensating' % (target, iterations / elapsed))
 
 
 def test_rate_still_yields_when_user_code_overruns_the_period(worker_env):
     """Safety: over-period work must not turn rate() into a non-yielding return.
 
-    If it stops yielding, the worker's event loop never runs — no scene events
-    get dispatched, and the Stop button dies. That matters more than the pacing.
+    In a worker the host delivers browser events by CALLING the transport's
+    dispatch, which only gets a turn when the running coroutine gives one up. A
+    rate() that returns without awaiting therefore freezes the scene — no events
+    dispatched, no flush — while the program runs flat out. (Stop survives it:
+    that is worker.terminate() on the page side and needs nothing from this
+    thread. Which makes the symptom subtler, not milder.)
     """
     vp, _ = worker_env
     calls = 5
@@ -214,7 +224,9 @@ def test_rate_still_yields_when_user_code_overruns_the_period(worker_env):
     gained = asyncio.run(loop())
     assert gained >= calls, (
         'rate() yielded %d times in %d over-period calls — a loop that stops '
-        'yielding starves the worker (no events, no Stop)' % (gained, calls))
+        'yielding starves the event loop, so no browser event is dispatched and '
+        'no update is flushed: the scene freezes while the program runs on'
+        % (gained, calls))
 
 
 def test_rate_does_not_accumulate_debt_after_an_overrun(worker_env):

@@ -128,10 +128,21 @@ def apply_worker_patches():
         # flush we just issued onto the page without an added wait.
         remaining = 0.0 if last is None else (last + period) - time.monotonic()
         # Always await, even at zero. When user code overruns the period the
-        # remainder is negative and there is nothing to wait for — but a bare
-        # return would never yield to the event loop, and a worker whose loop
-        # never yields dispatches no scene events and cannot be stopped.
-        # asyncio.sleep(0) yields; clamping at 0 also means a loop that falls
+        # remainder is negative and there is nothing left to wait for — but a
+        # bare return would never yield to the event loop, and in a worker run
+        # nothing else does either: the host delivers browser events by CALLING
+        # __trinket_vpython_dispatch, and that call only gets a turn when the
+        # running coroutine gives one up. A rate() that stops yielding therefore
+        # freezes the scene — no events dispatched, no flush, a program running
+        # flat out with a picture that never changes.
+        #
+        # It does NOT break Stop: Stop is worker.terminate() on the page side,
+        # which is unconditional and needs no cooperation from this thread
+        # (trinket's worker-client.js says so at the top). That makes the
+        # symptom subtler, not milder — a frozen animation from a program that
+        # is still running reads as "vpython is broken" rather than as a hang.
+        #
+        # asyncio.sleep(0) yields. Clamping at 0 also means a loop that falls
         # behind simply stays behind rather than banking debt and then bursting
         # through a batch of zero-sleep iterations to catch up.
         await asyncio.sleep(remaining if remaining > 0.0 else 0.0)
