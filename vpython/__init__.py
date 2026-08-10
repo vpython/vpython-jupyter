@@ -25,6 +25,13 @@ from ._notebook_helpers import __is_spyder
 
 from .vpython import canvas
 
+import sys as _sys
+if _sys.platform == 'emscripten':
+    # Boot the wasm transport EAGERLY: its patches must land before the
+    # star-imports below bind rate/sleep into the package namespace.
+    from . import trinket_worker as _tw
+del _sys
+
 # Need to initialize canvas before user does anything and before
 scene = canvas()
 
