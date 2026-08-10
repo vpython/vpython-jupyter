@@ -13,11 +13,13 @@
 //
 //   var fe = createGlowFrontend({container: el, send: fn, glow: window})
 //   fe.handle(ops)   // ops is the parsed {cmds, methods, attrs} package, or 'trigger'
+//   fe.tick()        // one pacing tick: sample the canvas, drain queued events
 //   fe.reset()       // forget every object (new scene generation)
 //   fe.destroy()     // reset + ask the objects to remove themselves
 //
-// Event capture (mouse/key/widget events and canvas polling) is NOT ported yet:
-// the call sites that need it are stubbed and warn — see "not wired yet" below.
+// Mouse/key event capture IS ported (see "the event channel" below). Widgets,
+// pause and waitfor are not: those are deferred by design (spec V5, they raise
+// NotImplementedError on the Python side) and their call sites warn and drop.
 
 'use strict';
 
@@ -59,48 +61,123 @@ function createGlowFrontend(opts) {
     }
 
     // ---------------------------------------------------------------------------
-    // Deferred: the event/control channel back to Python. glowcomm.js implemented
-    // these by pushing onto an `events` list that a paced send() drained over the
-    // Comm. Wiring them to opts.send is a later task; until then they are loud.
+    // The event channel back to Python.
+    //
+    // glowcomm.js pushed events onto a module-global list and drained it from a
+    // free-running setTimeout loop that also owned the render pacing. Here the
+    // HOST owns when a tick happens (it calls tick() off its own clock) and this
+    // file owns what goes in it. The event objects themselves are byte-faithful
+    // to glowcomm.js, because those shapes ARE the wire contract that
+    // vpython.py's handle_msg (:394-425) and canvas.handle_event (:3287) read.
     // ---------------------------------------------------------------------------
 
-    function not_wired(feature) {
-        if (typeof console !== 'undefined') console.warn('glowcomm_host: ' + feature + ' not wired yet');
+    var events = [];              // queued outbound events, drained by tick()/flush()
+    var last_tick = -Infinity;    // when the host last called tick()
+
+    // How long after a tick() we keep assuming the host's clock is running.
+    // Hosts pace at glowcomm.js's ~33 ms `interval`, so this is three misses.
+    var PACING_GRACE_MS = 100;
+
+    function now_ms() {
+        if (typeof performance !== 'undefined' && performance.now) return performance.now();
+        return Date.now();
     }
 
-    // These two CAN be forwarded: the payloads below are byte-faithful to
-    // glowcomm.js, so Python's handle_msg understands them as-is. Both are
-    // synchronous barriers on the Python side (it blocks for the answer), so a
-    // host that supplies send() gets working compound/text/extrusion and pick
-    // even before the full event channel is ported.
+    function flush() {
+        if (events.length === 0) return;
+        var out = events;
+        events = [];
+        if (send) send(out);
+    }
+
+    // Queue one event for Python. While the host is ticking, tick() drains this
+    // within a frame and the events coalesce — that batching is the only reason
+    // glowcomm.js has a queue at all. When the host is NOT ticking, nothing will
+    // ever drain the queue, so the event goes out on its own.
+    //
+    // That second case is not a corner: a host whose pacing clock belongs to the
+    // RUN (trinket's does) has no clock at all by the time the user clicks, and
+    // `scene.bind('click', f)` followed by the end of the program is exactly
+    // what an interactive VPython example looks like. The click has to carry
+    // itself.
+    function queue(evt) {
+        events.push(evt);
+        if (now_ms() - last_tick > PACING_GRACE_MS) flush();
+    }
+
+    // pick and compound/text/extrusion are synchronous barriers: Python is
+    // blocked inside _wait() until the answer comes back. They never wait for a
+    // tick, even when one is due — but they go out with anything already queued,
+    // so ordering is preserved.
 
     function send_pick(cvs, p, seg) {
-        not_wired('pick');
         var evt = {event: 'pick', 'canvas': cvs, 'pick': p, 'segment':seg};
-        if (send) send([evt]);
+        events.push(evt);
+        flush();
     }
 
     function send_compound(cvs, pos, size, up) {
-        not_wired('compound/extrusion/text measurement');
         var evt = {event: '_compound', 'canvas': cvs, 'pos': [pos.x, pos.y, pos.z],
             'size': [size.x, size.y, size.z], 'up': [up.x, up.y, up.z]};
-        if (send) send([evt]);
+        events.push(evt);
+        flush();
     }
 
-    // These four must NOT forward anything. Their real payloads are built by the
-    // deleted process()/control_handler(), which read live mouse/key/widget state;
-    // anything this file could synthesize is a partial event, and a partial event
-    // does not fail politely on the Python side. vpython.py handle_msg() sends
-    // every event without a 'widget' key down `cvs = object_registry[evt['canvas']]`
-    // (vpython.py:425) and then canvas.handle_event()'s `ev = evt['event']`
-    // (vpython.py:3288); an event WITH a 'widget' key indexes object_registry by
-    // evt['idx'] and then reads evt['value']/evt['text'], and calls the user's
-    // bind callback. Either way a synthesized stub raises KeyError inside the
-    // kernel's message loop. Warning and dropping is the honest behaviour until
-    // Task 9 ports the real event capture.
+    // glowcomm.js process() (:311-346): one browser event, in the shape
+    // canvas.handle_event() destructures. `event` is GlowScript's event object.
+    function process(event) {
+        // mouse events: mouseup, mousedown, mousemove, mouseenter, mouseleave, click
+        // key events: keydown, keyup
+        // other: resize
+        var etype = event.type;
+        var evt = {event:etype};
+        var idx = event.canvas['idx'];
+        evt.canvas = idx;
+        if (etype != 'resize') {
+            if (etype.slice(0,3) == 'key') {
+                evt.key = event.key;
+                evt.which = event.which;
+                evt.alt = event.alt;
+                evt.ctrl = event.ctrl;
+                evt.shift = event.shift;
+            } else {
+                var pos = event.pos;
+                evt.pos = [pos.x, pos.y, pos.z];
+                evt.press = event.press;
+                evt.release = event.release;
+                evt.which = event.which;
+                var ray = event.canvas.mouse.ray;
+                evt.ray = [ ray.x, ray.y, ray.z ];
+                evt.alt = event.canvas.mouse.alt;
+                evt.ctrl = event.canvas.mouse.ctrl;
+                evt.shift = event.canvas.mouse.shift;
+            }
+        } else {
+            evt.width = event.canvas.width;
+            evt.height = event.canvas.height;
+        }
+        if ('bind' in event) evt.bind = true;
+        queue(evt);
+    }
 
     function process_binding(event) {  // event associated with a previous bind command
-        not_wired('event bindings');
+        event.bind = true;
+        process(event);
+    }
+
+    // These three must NOT forward anything. pause, waitfor and widgets are
+    // deferred by design (spec V5): the Python side raises NotImplementedError
+    // before any of them can reach the browser, so these handlers are reachable
+    // only if that deferral is lifted without porting them. Anything this file
+    // could synthesize would be a PARTIAL event, and a partial event does not
+    // fail politely: handle_msg indexes object_registry by evt['idx'] and reads
+    // evt['value']/evt['text'] for widgets (vpython.py:400-415), and
+    // handle_event reads evt['alt']/['shift']/['ctrl'] for a mouse event
+    // (vpython.py:3335) — a stub raises KeyError inside the kernel's message
+    // loop. Warning and dropping is the honest behaviour.
+
+    function not_wired(feature) {
+        if (typeof console !== 'undefined') console.warn('glowcomm_host: ' + feature + ' not wired yet');
     }
 
     function process_waitfor(event) {
@@ -120,6 +197,147 @@ function createGlowFrontend(opts) {
     // possible event types to bind:
     var binds = ['mousedown', 'mouseup', 'mousemove', 'click', 'mouseenter', 'mouseleave',
                  'keydown', 'keyup', 'redraw', 'draw_complete', 'resize'];
+
+    // ---------------------------------------------------------------------------
+    // Canvas polling: the half of the state only the BROWSER knows.
+    // ---------------------------------------------------------------------------
+
+    // The previous sample, so a still scene sends nothing. glowcomm.js kept these
+    // as module globals seeded with vec(0,0,0); here they are per-front-end and
+    // re-seeded by reset(), because a new scene generation starts from scratch.
+    var lastpos, lastray, lastforward, lastup, lastcenter;
+    var lastrange, lastautoscale, lastsliders, lastkeysdown;
+    // glowcomm.js's control_handler() samples slider values in here so a drag
+    // reports once per render instead of once per pixel. Widgets are deferred
+    // (see control_handler above) so it stays empty, but update_canvas' half of
+    // that mechanism is ported whole rather than left as a hole to re-derive.
+    var sliders;
+
+    function vzero() { return (typeof glow.vec === 'function') ? glow.vec(0, 0, 0) : null; }
+
+    function reset_canvas_state() {
+        lastpos = vzero(); lastray = vzero(); lastforward = vzero();
+        lastup = vzero(); lastcenter = vzero();
+        lastrange = 1;
+        lastautoscale = true;
+        lastsliders = {};
+        lastkeysdown = [];
+        sliders = {};
+    }
+    reset_canvas_state();
+
+    // glowcomm.js update_canvas() (:193-275). Mouse position and camera state
+    // for the canvas the mouse is over, diffed against the last sample; returns
+    // an array of events, or null when nothing changed.
+    function update_canvas() {
+        var dosend = false;
+        var evt = null;
+        // `canvas.hasmouse` is a static on GlowScript's canvas class — the only
+        // way it changes is with the mouse.
+        var cvs = glow.canvas ? glow.canvas.hasmouse : null;
+        // ...and being a class static, it OUTLIVES a scene: after reset() it can
+        // still point at a canvas from a torn-down generation, whose idx now
+        // means something else (or nothing) in Python's object_registry. Only
+        // report a canvas this front-end still owns.
+        if (cvs && glowObjs[cvs.idx] !== cvs) cvs = null;
+
+        if (cvs !== null && cvs !== undefined) {
+            evt = {event:'update_canvas'};
+            var idx = cvs.idx;
+            evt.canvas = idx;
+            var pos = cvs.mouse.pos;
+            if (!lastpos || !pos.equals(lastpos)) {evt.pos = [pos.x,pos.y,pos.z]; dosend=true;}
+            lastpos = pos;
+            var ray = cvs.mouse.ray;
+            if (!lastray || !ray.equals(lastray)) {evt.ray = [ray.x,ray.y,ray.z]; dosend=true;}
+            lastray = ray;
+
+            // glowcomm.js calls the bare global keysdown(); a host that supplied
+            // its own registry may not have it, in which case report no change.
+            var k = (typeof glow.keysdown === 'function') ? glow.keysdown() : lastkeysdown;
+            var test = true; // assume keysdown() is same as lastkeysdown
+            if (k.length !== lastkeysdown.length) test = false;
+            else {
+                for (var i=0; i<k.length; i++) {
+                    if (k[i] !== lastkeysdown[i]) {
+                        test = false;
+                        break;
+                    }
+                }
+            }
+            if (!test) {
+                evt.keysdown = lastkeysdown = k;
+                dosend = true;
+            }
+
+            // forward and range may be changed by user (and up with touch), and autoscale (by zoom)
+            if (cvs.userspin) {
+                var forward = cvs.forward;
+                if (!lastforward || !forward.equals(lastforward)) {
+                    evt.forward = [forward.x,forward.y,forward.z];
+                    dosend=true;
+                }
+                lastforward = forward;
+                var up = cvs.up;
+                if (!lastup || !up.equals(lastup)) {
+                    evt.up = [up.x,up.y,up.z];
+                    dosend=true;
+                }
+                lastup = up;
+            }
+            if (cvs.userpan) {
+                var center = cvs.center;
+                if (!lastcenter || !center.equals(lastcenter)) {
+                    evt.center = [center.x,center.y,center.z];
+                    dosend=true;
+                }
+                lastcenter = center;
+            }
+            if (cvs.userzoom) {
+                var range = cvs.range;
+                if (range !== lastrange) {evt.range=range; dosend=true;}
+                lastrange = range;
+                var autoscale = cvs.autoscale;
+                if (autoscale !== lastautoscale) {evt.autoscale = autoscale; dosend=true;}
+                lastautoscale = autoscale;
+            }
+            if (dosend) evt = [evt];
+        }
+        var output_sliders = [];
+        for (var ss in sliders) {
+            var ev = sliders[ss];
+            if (ss in lastsliders && ev.value !== lastsliders[ss].value)
+                output_sliders.push(ev); // avoid sending an unchanged slider value
+            lastsliders[ss] = ev;
+        }
+        if (output_sliders.length > 0) {
+            if (dosend) evt = evt.concat(output_sliders);
+            else evt = output_sliders;
+            dosend = true;
+        }
+        if (dosend) return evt;
+        else return null;
+    }
+
+    // glowcomm.js send() (:150-170) — the WHAT of one pacing tick. Upstream's
+    // send() also owned the WHEN (it re-armed its own setTimeout); that half is
+    // the host's, which is why this is a method it calls rather than a loop.
+    //
+    // Note the fallback. An empty tick still sends {event:'update_canvas',
+    // trigger:1}: the transport treats a 'trigger' entry as pacing and processes
+    // nothing, but the MESSAGE is the request half of a request/reply — it is
+    // what makes the kernel flush the updates it has buffered. A tick that sent
+    // nothing would stall a program that never calls rate().
+    function tick() {
+        last_tick = now_ms();
+        var update = update_canvas();
+        var out = events;
+        events = [];
+        if (update !== null) out = out.concat(update);
+        if (out.length === 0) out = [{event:'update_canvas', 'trigger':1}];
+        if (send) send(out);
+        return out;
+    }
 
     // ---------------------------------------------------------------------------
     // The wire format. Ported verbatim from glowcomm.js.
@@ -688,10 +906,16 @@ function createGlowFrontend(opts) {
     }
 
     // Forget every object: the next scene generation reuses idx 0, 1, 2, ...
+    // Queued events go with them — they name idxs that no longer mean anything —
+    // and the canvas diff starts over, so the new scene's first tick reports its
+    // own state rather than a delta against the old one.
     function reset() {
         glowObjs = [];
         waitfor_canvas = null;
         waitfor_options = null;
+        events = [];
+        last_tick = -Infinity;
+        reset_canvas_state();
     }
 
     // reset(), plus a best-effort ask for the objects to take themselves off the
@@ -712,7 +936,7 @@ function createGlowFrontend(opts) {
     // Not part of the host contract — do not use it from page code.
     function _objs() { return glowObjs; }
 
-    return { handle: handle, reset: reset, destroy: destroy, _objs: _objs };
+    return { handle: handle, tick: tick, reset: reset, destroy: destroy, _objs: _objs };
 }
 
 var api = { createGlowFrontend: createGlowFrontend };
