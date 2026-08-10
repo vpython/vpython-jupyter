@@ -79,17 +79,39 @@ def apply_worker_patches():
     or made to fail loudly rather than hang.
     """
     import asyncio
+    import time
     from . import rate_control
     from . import vpython as _vp
 
+    # Upstream RateKeeper decouples the rate() call frequency from the render
+    # frequency: however often the loop asks, at most MAX_RENDERS renders go out
+    # per second (rate_control.py:153). Keep that contract — rate(1000) must
+    # still pace at 1000 Hz, but it must not flush 1000 packages/second at the
+    # page. Flushes we skip are not lost: the updates stay buffered and go out
+    # with the next one.
+    _render_period = 1.0 / rate_control.MAX_RENDERS
+    _last_flush = [float('-inf')]
+
     async def _async_rate(maxRate):
-        baseObj.trigger()                      # flush buffered updates
-        await asyncio.sleep(1.0 / max(float(maxRate), 1.0))
+        now = time.monotonic()
+        if now - _last_flush[0] >= _render_period:
+            _last_flush[0] = now
+            baseObj.trigger()                  # flush buffered updates
+        await asyncio.sleep(1.0 / float(maxRate))
+
+    def _rate(self, maxRate=100):
+        # Validate SYNCHRONOUSLY, before building the coroutine: parity with
+        # _RateKeeper2.__call__ (rate_control.py:265), where rate(0) raises at
+        # the call site. Inside the coroutine the error would surface only on
+        # await — and not at all if the program never awaits.
+        if maxRate < 1:
+            raise ValueError("rate value must be greater than or equal to 1")
+        return _async_rate(maxRate)
 
     # rate is a module-level INSTANCE bound into user namespaces at import time
     # (rate_control.py: `rate = _RateKeeper2(...)`); patching the class __call__
     # changes the already-bound object everywhere.
-    rate_control._RateKeeper2.__call__ = lambda self, maxRate=100: _async_rate(maxRate)
+    rate_control._RateKeeper2.__call__ = _rate
 
     async def _async_sleep(dt):
         baseObj.trigger()
@@ -120,10 +142,13 @@ js.__trinket_vpython_dispatch = create_proxy(_dispatch)
 # star-imports bind rate/sleep into the package namespace.
 apply_worker_patches()
 
-# Start the ping-pong exactly as with_notebook does: the first trigger()
-# flushes anything already buffered (the scene canvas constructed during
-# `import vpython` is sitting in the buffer at this point) and sets
-# baseObj.sent, which appendcmd()/addmethod() spin on.
+# Start the ping-pong exactly as with_notebook does. Because __init__.py boots
+# this transport EAGERLY — before `scene = canvas()` — the buffer is empty here,
+# so this first trigger() is the bare 'trigger' handshake rather than a package;
+# the scene canvas and its lights are constructed just afterwards and flush on
+# the next trigger (the first rate() call, or the host's next dispatch ping).
+# What matters either way is that it sets baseObj.sent, which appendcmd() and
+# addmethod() spin on.
 baseObj.trigger()
 
 # Dummy name to import, matching the other transports.

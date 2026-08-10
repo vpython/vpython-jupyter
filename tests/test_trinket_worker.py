@@ -16,6 +16,7 @@ the busy-spinning original and these tests would fail.
 
 import asyncio
 import sys
+import time
 import types
 
 import pytest
@@ -47,14 +48,24 @@ def worker_env(monkeypatch):
     monkeypatch.setitem(sys.modules, 'pyodide.ffi', ffi)
     monkeypatch.setattr(sys, 'platform', 'emscripten')
 
-    # Force a clean import so the eager boot in __init__.py actually runs;
-    # monkeypatch restores whatever was in sys.modules afterwards.
-    for name in [m for m in list(sys.modules) if m == 'vpython' or m.startswith('vpython.')]:
-        monkeypatch.delitem(sys.modules, name)
+    # Force a clean import so the eager boot in __init__.py actually runs -- and
+    # put sys.modules back exactly as found afterwards. The package that comes
+    # up in here is emscripten-flavoured (async sleep, raising widgets); leaving
+    # it cached would hand it to every later `import vpython` in the session,
+    # including whatever else the suite runs on darwin.
+    saved = {k: v for k, v in sys.modules.items()
+             if k == 'vpython' or k.startswith('vpython.')}
+    for name in saved:
+        del sys.modules[name]
 
-    import vpython
-
-    return vpython, sent
+    try:
+        import vpython
+        yield vpython, sent
+    finally:
+        for name in [m for m in list(sys.modules)
+                     if m == 'vpython' or m.startswith('vpython.')]:
+            del sys.modules[name]
+        sys.modules.update(saved)
 
 
 def test_transport_booted_and_sent_the_handshake(worker_env):
@@ -77,6 +88,40 @@ def test_rate_flushes_updates_to_the_host(worker_env):
     before = len(sent)
     asyncio.run(vp.rate(60))
     assert len(sent) > before
+
+
+def test_rate_honours_the_render_cap(worker_env):
+    """rate(1000) must pace at 1000 Hz but still render at most MAX_RENDERS/s.
+
+    Upstream RateKeeper decouples the two (rate_control.py:153); without the
+    same cap a tight rate(1000) loop floods the page with update packages.
+    """
+    vp, sent = worker_env
+    from vpython import rate_control
+
+    calls = 40
+    before = len(sent)
+    started = time.monotonic()
+
+    async def burst():
+        for _ in range(calls):
+            await vp.rate(1000)
+
+    asyncio.run(burst())
+    elapsed = time.monotonic() - started
+    flushes = len(sent) - before
+
+    assert flushes < calls, 'no render cap: every rate() call flushed'
+    # +1 for the flush on the very first call, +1 for scheduling slop.
+    assert flushes <= elapsed * rate_control.MAX_RENDERS + 2
+
+
+@pytest.mark.parametrize('bad', [0, -1])
+def test_rate_rejects_values_below_one(worker_env, bad):
+    """Parity with _RateKeeper2.__call__ -- rate(0) raises, it does not clamp."""
+    vp, _ = worker_env
+    with pytest.raises(ValueError, match='greater than or equal to 1'):
+        vp.rate(bad)
 
 
 def test_sleep_returns_a_coroutine(worker_env):
@@ -130,3 +175,18 @@ def test_every_widget_class_defers(worker_env, name, kwargs):
     vp, _ = worker_env
     with pytest.raises(NotImplementedError, match="widgets"):
         getattr(vp, name)(bind=lambda: None, **kwargs)
+
+
+def test_the_fixture_leaves_no_emscripten_build_cached():
+    """Runs last on purpose: every test above used worker_env.
+
+    If the emscripten-booted package were still in sys.modules, the next
+    `import vpython` anywhere in the session -- on darwin, in some other test
+    file -- would silently get async sleep, raising widgets and a transport
+    talking to a fake `js`. Asserting the cache is clean is both the check and
+    the guarantee that a later import rebuilds the real thing; actually
+    importing vpython here is not an option, since on a desktop platform that
+    starts the no_notebook http server and opens a browser tab.
+    """
+    leaked = sorted(m for m in sys.modules if m == 'vpython' or m.startswith('vpython.'))
+    assert leaked == [], 'worker_env leaked modules into sys.modules: %s' % leaked
