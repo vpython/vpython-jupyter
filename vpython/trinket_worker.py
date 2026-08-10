@@ -128,19 +128,26 @@ def apply_worker_patches():
         # flush we just issued onto the page without an added wait.
         remaining = 0.0 if last is None else (last + period) - time.monotonic()
         # Always await, even at zero. When user code overruns the period the
-        # remainder is negative and there is nothing left to wait for — but a
-        # bare return would never yield to the event loop, and in a worker run
-        # nothing else does either: the host delivers browser events by CALLING
-        # __trinket_vpython_dispatch, and that call only gets a turn when the
-        # running coroutine gives one up. A rate() that stops yielding therefore
-        # freezes the scene — no events dispatched, no flush, a program running
-        # flat out with a picture that never changes.
+        # remainder is negative and there is nothing left to wait for, which
+        # makes an early `return` here look free. It is not, and what it costs
+        # was established by building that version and running it in a browser
+        # (see trinket's worker-vpython.spec.js) rather than by reasoning:
         #
-        # It does NOT break Stop: Stop is worker.terminate() on the page side,
-        # which is unconditional and needs no cooperation from this thread
-        # (trinket's worker-client.js says so at the top). That makes the
-        # symptom subtler, not milder — a frozen animation from a program that
-        # is still running reads as "vpython is broken" rather than as a hang.
+        #   * The scene KEEPS ANIMATING. _flush_if_due() above is synchronous —
+        #     it postMessages without yielding — so outbound updates go out
+        #     exactly as before and the picture moves normally.
+        #   * Stop KEEPS WORKING. That is worker.terminate() on the page side,
+        #     unconditional, needing nothing from this thread (trinket's
+        #     worker-client.js says so at the top).
+        #   * INBOUND EVENTS SILENTLY STOP ARRIVING. The host delivers them by
+        #     CALLING __trinket_vpython_dispatch, and that call only gets a turn
+        #     when the running coroutine gives one up. Nothing else in a worker
+        #     run does. So scene.bind handlers, mouse picks and the rest simply
+        #     never fire.
+        #
+        # Inbound dispatch is the ONLY half that needs this yield, which is what
+        # makes losing it so hard to spot: a scene that animates, a Stop button
+        # that works, and mouse events that quietly do nothing.
         #
         # asyncio.sleep(0) yields. Clamping at 0 also means a loop that falls
         # behind simply stays behind rather than banking debt and then bursting

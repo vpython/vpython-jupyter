@@ -194,12 +194,20 @@ def test_rate_subtracts_user_code_time_from_the_period(worker_env):
 def test_rate_still_yields_when_user_code_overruns_the_period(worker_env):
     """Safety: over-period work must not turn rate() into a non-yielding return.
 
-    In a worker the host delivers browser events by CALLING the transport's
-    dispatch, which only gets a turn when the running coroutine gives one up. A
-    rate() that returns without awaiting therefore freezes the scene — no events
-    dispatched, no flush — while the program runs flat out. (Stop survives it:
-    that is worker.terminate() on the page side and needs nothing from this
-    thread. Which makes the symptom subtler, not milder.)
+    What that costs was measured in a browser, not reasoned about, and it is
+    narrower than it sounds. The scene keeps animating: the flush above is
+    synchronous, so outbound updates go out without any yield. Stop keeps
+    working: that is worker.terminate() on the page side, needing nothing from
+    this thread. The one thing that breaks is INBOUND — the host delivers
+    browser events by CALLING the transport's dispatch, and that call only gets
+    a turn when the running coroutine gives one up, so scene.bind handlers and
+    mouse picks silently never fire.
+
+    That is why this test asserts a bystander coroutine gets to run rather than
+    anything about output: yielding is the property, and in CPython a
+    co-scheduled task is the only visible consequence of it. The browser half
+    (a click handler firing during an over-period loop) lives in trinket's
+    worker-vpython.spec.js; both fail on the same mutation.
     """
     vp, _ = worker_env
     calls = 5
@@ -224,8 +232,9 @@ def test_rate_still_yields_when_user_code_overruns_the_period(worker_env):
     gained = asyncio.run(loop())
     assert gained >= calls, (
         'rate() yielded %d times in %d over-period calls — a loop that stops '
-        'yielding starves the event loop, so no browser event is dispatched and '
-        'no update is flushed: the scene freezes while the program runs on'
+        'yielding starves the event loop, so the host never gets to deliver a '
+        'browser event: the scene still animates and Stop still works, but '
+        'scene.bind handlers and mouse picks silently never fire'
         % (gained, calls))
 
 
