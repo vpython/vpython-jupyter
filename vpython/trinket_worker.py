@@ -106,9 +106,38 @@ def apply_worker_patches():
             _last_flush[0] = now
             baseObj.trigger()                  # flush buffered updates
 
+    # rate(N) means "N iterations per second", not "sleep 1/N between them".
+    # Upstream measures the time spent in user code between rate() returns
+    # (_RateKeeper2.__call__'s `userTime`, rate_control.py:173) and subtracts it
+    # from the delay. A flat sleep does not: rate(60) with 10 ms of physics per
+    # iteration runs at ~37 Hz, visibly slower than the same program elsewhere.
+    # So remember when the last call RETURNED (i.e. when the user's iteration
+    # began) and sleep only the remainder of the period.
+    _last_return = [None]
+
     async def _async_rate(maxRate):
         _flush_if_due()
-        await asyncio.sleep(1.0 / float(maxRate))
+        # Recomputed every call: maxRate may change between calls, and the
+        # period in force is the current one — rate(10) after a rate(1000) loop
+        # must slow down on THIS call, not the next.
+        period = 1.0 / float(maxRate)
+        last = _last_return[0]
+        # FIRST call: nothing has been timed yet, so no part of a period is
+        # owed; yield and return, as upstream's `count == 1` branch does after
+        # callInteract(). It costs one period once per program and gets the
+        # flush we just issued onto the page without an added wait.
+        remaining = 0.0 if last is None else (last + period) - time.monotonic()
+        # Always await, even at zero. When user code overruns the period the
+        # remainder is negative and there is nothing to wait for — but a bare
+        # return would never yield to the event loop, and a worker whose loop
+        # never yields dispatches no scene events and cannot be stopped.
+        # asyncio.sleep(0) yields; clamping at 0 also means a loop that falls
+        # behind simply stays behind rather than banking debt and then bursting
+        # through a batch of zero-sleep iterations to catch up.
+        await asyncio.sleep(remaining if remaining > 0.0 else 0.0)
+        # Anchor on the ACTUAL return, not on `last + period`: that is what makes
+        # the clamp above debt-free.
+        _last_return[0] = time.monotonic()
 
     def _rate(self, maxRate=100):
         # Validate SYNCHRONOUSLY, before building the coroutine: parity with

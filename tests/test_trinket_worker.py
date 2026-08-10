@@ -116,6 +116,148 @@ def test_rate_honours_the_render_cap(worker_env):
     assert flushes <= elapsed * rate_control.MAX_RENDERS + 2
 
 
+# --- pacing: rate(N) must deliver N iterations/second, work included ---------
+#
+# A flat ``asyncio.sleep(1/maxRate)`` sleeps the whole period on top of whatever
+# the student's loop body cost, so rate(60) with 10 ms of physics runs at ~37 Hz.
+# Upstream subtracts the measured user-code time (_RateKeeper2.__call__'s
+# ``userTime``) from the delay; these assert the same property on the worker's
+# fixed-timestep version of it.
+#
+# Wall-clock assertions are deliberately loose: they pin the DIRECTION and rough
+# magnitude, because CI timing is noisy and asyncio.sleep only ever overshoots.
+
+
+def _spin(seconds):
+    """Burn CPU without yielding — synchronous user code, as a student writes it.
+
+    ``asyncio.sleep`` would be a yield point, which is exactly what these tests
+    must not hand the loop for free.
+    """
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        pass
+
+
+def test_rate_paces_at_the_target_with_negligible_user_code(worker_env):
+    """No regression: an empty loop at rate(N) still takes ~iterations/N."""
+    vp, _ = worker_env
+    iterations, target = 10, 50
+    ideal = iterations / target                  # 0.20 s
+
+    async def loop():
+        for _ in range(iterations):
+            await vp.rate(target)
+
+    started = time.monotonic()
+    asyncio.run(loop())
+    elapsed = time.monotonic() - started
+
+    # Lower bound is one period short of ideal: the first call has no previous
+    # return to measure a remainder from and so only yields (see _async_rate).
+    assert elapsed > ideal * 0.7, 'rate(%d) did not pace at all' % target
+    assert elapsed < ideal * 1.6, 'rate(%d) paced far slower than target' % target
+
+
+def test_rate_subtracts_user_code_time_from_the_period(worker_env):
+    """THE FIX: work inside the period must not be added on top of it.
+
+    rate(50) is a 20 ms period; with 10 ms of user code per iteration the loop
+    must still take ~20 ms per iteration, not 30. Ten iterations: 0.2 s, not 0.3.
+    """
+    vp, _ = worker_env
+    iterations, target, work = 10, 50, 0.010
+    ideal = iterations / target                          # 0.20 s — work absorbed
+    flat = iterations * (1.0 / target + work)            # 0.30 s — work added on
+
+    async def loop():
+        for _ in range(iterations):
+            await vp.rate(target)
+            _spin(work)
+
+    started = time.monotonic()
+    asyncio.run(loop())
+    elapsed = time.monotonic() - started
+
+    assert elapsed < (ideal + flat) / 2, (
+        'rate(%d) with %.0f ms of user code took %.3f s for %d iterations; '
+        'flat-sleep behaviour is ~%.3f s, compensated is ~%.3f s'
+        % (target, work * 1000, elapsed, iterations, flat, ideal))
+
+
+def test_rate_still_yields_when_user_code_overruns_the_period(worker_env):
+    """Safety: over-period work must not turn rate() into a non-yielding return.
+
+    If it stops yielding, the worker's event loop never runs — no scene events
+    get dispatched, and the Stop button dies. That matters more than the pacing.
+    """
+    vp, _ = worker_env
+    calls = 5
+    bystander_runs = []
+
+    async def bystander():
+        while True:
+            bystander_runs.append(time.monotonic())
+            await asyncio.sleep(0)
+
+    async def loop():
+        task = asyncio.ensure_future(bystander())
+        await asyncio.sleep(0)                   # let it reach its first await
+        before = len(bystander_runs)
+        for _ in range(calls):
+            await vp.rate(1000)                  # 1 ms period...
+            _spin(0.005)                         # ...and 5 ms of user code
+        gained = len(bystander_runs) - before
+        task.cancel()
+        return gained
+
+    gained = asyncio.run(loop())
+    assert gained >= calls, (
+        'rate() yielded %d times in %d over-period calls — a loop that stops '
+        'yielding starves the worker (no events, no Stop)' % (gained, calls))
+
+
+def test_rate_does_not_accumulate_debt_after_an_overrun(worker_env):
+    """No catch-up burst: falling behind must not buy zero-sleep iterations.
+
+    A deadline advanced by += period would owe five periods after a 100 ms
+    stall and then rush the next five calls through instantly.
+    """
+    vp, _ = worker_env
+    target, catchup = 50, 5
+    period = 1.0 / target
+
+    async def loop():
+        await vp.rate(target)                    # arm the timestep
+        _spin(period * 5)                        # fall five periods behind
+        await vp.rate(target)                    # already late: no sleep owed
+        started = time.monotonic()
+        for _ in range(catchup):
+            await vp.rate(target)
+        return time.monotonic() - started
+
+    elapsed = asyncio.run(loop())
+    assert elapsed > period * catchup * 0.7, (
+        '%d calls to rate(%d) after an overrun took %.3f s — the loop burst '
+        'through them repaying debt' % (catchup, target, elapsed))
+
+
+def test_rate_recomputes_the_period_when_maxrate_changes(worker_env):
+    """maxRate may differ call to call; the period in force is the current one."""
+    vp, _ = worker_env
+
+    async def loop():
+        await vp.rate(1000)                      # arm with a 1 ms period
+        started = time.monotonic()
+        await vp.rate(10)                        # 100 ms period, effective NOW
+        return time.monotonic() - started
+
+    elapsed = asyncio.run(loop())
+    assert elapsed > 0.05, (
+        'rate(10) after rate(1000) slept %.3f s — it reused the old period'
+        % elapsed)
+
+
 @pytest.mark.parametrize('bad', [0, -1])
 def test_rate_rejects_values_below_one(worker_env, bad):
     """Parity with _RateKeeper2.__call__ -- rate(0) raises, it does not clamp."""
