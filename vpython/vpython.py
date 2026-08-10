@@ -263,6 +263,10 @@ class baseObj(object):
                 baseObj._canvas_constructing):
             if _isnotebook:
                 from .with_notebook import _
+            elif sys.platform == 'emscripten':
+                # Pyodide/wasm (e.g. a Web Worker): no Jupyter, no servers, no
+                # threads. The host JS environment supplies the pipe instead.
+                from .trinket_worker import _
             else:
                 from .no_notebook import _
             baseObj._view_constructed = True
