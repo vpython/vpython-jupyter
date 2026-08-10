@@ -2168,6 +2168,20 @@ class gobj(baseObj):
                 val = val.idx
             # elif a == 'fast' and _isnotebook and not val:
                 # raise AttributeError('"fast = False" is currently not available in a Jupyter notebook.')
+            elif a == 'size':
+                # `size` is DERIVED from _radius (see the property below), so the
+                # `_`+name convention does not apply to it: setattr(self,'_size')
+                # writes an attribute nothing ever reads, and the send loop below
+                # then reads the property and ships the DEFAULT. gdots(size=8)
+                # silently plotted 6-pixel dots.
+                #
+                # _radius is set directly rather than through the size setter
+                # because that setter also calls addattr('radius'), which spins
+                # on baseObj.sent — redundant here (this constructor's own cmd
+                # already carries the value) and, on a single-threaded host such
+                # as Pyodide, a deadlock rather than a wait.
+                self._radius = val/2
+                continue
             setattr(self, '_'+a, val)
 
         cmd = {"cmd": objName, "idx": self.idx}
