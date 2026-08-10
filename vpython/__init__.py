@@ -1,6 +1,7 @@
 # importlib.metadata, not pkg_resources: fresh Python 3.12+ environments no
 # longer ship setuptools, so `import pkg_resources` raises ModuleNotFoundError
-# the moment `import vpython` runs (caught by CI's macos-3.12 leg).
+# the moment `import vpython` runs (caught by CI's macos-3.12 leg). The same
+# import is simply absent on Pyodide/wasm, so this also unblocks wasm targets.
 from importlib.metadata import version as _dist_version, PackageNotFoundError
 
 from .gs_version import glowscript_version
