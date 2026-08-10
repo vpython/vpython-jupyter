@@ -14,6 +14,7 @@
 //   var fe = createGlowFrontend({container: el, send: fn, glow: window})
 //   fe.handle(ops)   // ops is the parsed {cmds, methods, attrs} package, or 'trigger'
 //   fe.tick()        // one pacing tick: sample the canvas, drain queued events
+//   fe.pacingStopped() // the host's clock has stopped; flush and stay flushing
 //   fe.reset()       // forget every object (new scene generation)
 //   fe.destroy()     // reset + ask the objects to remove themselves
 //
@@ -74,8 +75,10 @@ function createGlowFrontend(opts) {
     var events = [];              // queued outbound events, drained by tick()/flush()
     var last_tick = -Infinity;    // when the host last called tick()
 
-    // How long after a tick() we keep assuming the host's clock is running.
-    // Hosts pace at glowcomm.js's ~33 ms `interval`, so this is three misses.
+    // Backstop only. The host is expected to SAY when its clock stops
+    // (pacingStopped(), below); this catches a host that forgets to, or one whose
+    // clock dies without warning. Hosts pace at glowcomm.js's ~33 ms `interval`,
+    // so three misses.
     var PACING_GRACE_MS = 100;
 
     function now_ms() {
@@ -83,11 +86,24 @@ function createGlowFrontend(opts) {
         return Date.now();
     }
 
-    function flush() {
-        if (events.length === 0) return;
+    // The contents of one outbound message: everything queued, plus whatever the
+    // canvas poll has to say. glowcomm.js's send() built exactly this list, in
+    // this order, and it built it for EVERY message — there was only one path
+    // out. Keeping the poll on both paths is what makes an event-driven flush
+    // carry current camera/keys state instead of whatever was true when the
+    // host's clock last ran.
+    function drain() {
+        var update = update_canvas();
         var out = events;
         events = [];
-        if (send) send(out);
+        if (update !== null) out = out.concat(update);
+        return out;
+    }
+
+    function flush() {
+        if (events.length === 0) return;   // nothing to say; don't poll, don't send
+        var out = drain();
+        if (out.length > 0 && send) send(out);
     }
 
     // Queue one event for Python. While the host is ticking, tick() drains this
@@ -103,6 +119,17 @@ function createGlowFrontend(opts) {
     function queue(evt) {
         events.push(evt);
         if (now_ms() - last_tick > PACING_GRACE_MS) flush();
+    }
+
+    // The host's clock has stopped. Called BY the host, because only the host
+    // knows: inferring it from PACING_GRACE_MS leaves a window — an event
+    // arriving in the ~100 ms after the final tick looks like it has a tick
+    // coming, so it is queued for one that never arrives and sits there until
+    // some later event happens to flush it. Anything queued goes out now, and
+    // every subsequent event flushes itself.
+    function pacing_stopped() {
+        last_tick = -Infinity;
+        flush();
     }
 
     // pick and compound/text/extrusion are synchronous barriers: Python is
@@ -330,10 +357,7 @@ function createGlowFrontend(opts) {
     // nothing would stall a program that never calls rate().
     function tick() {
         last_tick = now_ms();
-        var update = update_canvas();
-        var out = events;
-        events = [];
-        if (update !== null) out = out.concat(update);
+        var out = drain();
         if (out.length === 0) out = [{event:'update_canvas', 'trigger':1}];
         if (send) send(out);
         return out;
@@ -936,7 +960,8 @@ function createGlowFrontend(opts) {
     // Not part of the host contract — do not use it from page code.
     function _objs() { return glowObjs; }
 
-    return { handle: handle, tick: tick, reset: reset, destroy: destroy, _objs: _objs };
+    return { handle: handle, tick: tick, pacingStopped: pacing_stopped,
+             reset: reset, destroy: destroy, _objs: _objs };
 }
 
 var api = { createGlowFrontend: createGlowFrontend };
