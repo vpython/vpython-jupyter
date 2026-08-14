@@ -1,10 +1,13 @@
-from pkg_resources import get_distribution, DistributionNotFound
+# importlib.metadata, not pkg_resources: fresh Python 3.12+ environments no
+# longer ship setuptools, so `import pkg_resources` raises ModuleNotFoundError
+# the moment `import vpython` runs (caught by CI's macos-3.12 leg).
+from importlib.metadata import version as _dist_version, PackageNotFoundError
 
 from .gs_version import glowscript_version
 
 try:
-    __version__ = get_distribution(__name__).version
-except DistributionNotFound:
+    __version__ = _dist_version(__name__)
+except PackageNotFoundError:
     # package is not installed
     pass
 __gs_version__ = glowscript_version()

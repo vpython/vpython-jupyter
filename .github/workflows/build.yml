@@ -82,11 +82,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [cp38-cp38, cp39-cp39, cp310-cp310, cp311-cp311, cp312-cp312]
+        # cp38 dropped: Python 3.8 is EOL and its leg fails outright.
+        python-version: [cp39-cp39, cp310-cp310, cp311-cp311, cp312-cp312]
     runs-on: ubuntu-latest
     env:
       py: /opt/python/${{ matrix.python-version }}/bin/python
-      img: quay.io/pypa/manylinux2014_aarch64
+      # manylinux_2_28, not manylinux2014: cbor2 (a hard dependency via
+      # autobahn) ships only manylinux_2_28 aarch64 wheels for cp311+, so the
+      # 2014 (glibc 2.17) container can't use them and falls back to a
+      # from-source C build that fails under QEMU.
+      img: quay.io/pypa/manylinux_2_28_aarch64
 
     steps:
 
