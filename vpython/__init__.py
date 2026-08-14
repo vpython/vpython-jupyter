@@ -13,8 +13,8 @@ except PackageNotFoundError:
 __gs_version__ = glowscript_version()
 
 del glowscript_version
-del get_distribution
-del DistributionNotFound
+del _dist_version
+del PackageNotFoundError
 
 # Keep the remaining imports later to  ensure that __version__ and
 #  __gs_version__ exist before importing vpython, which itself imports
