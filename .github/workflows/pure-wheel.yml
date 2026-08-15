@@ -1,0 +1,58 @@
+name: Pure-Python wheel (wasm/Pyodide)
+
+# Builds the VPYTHON_PURE_PYTHON=1 wheel (py3-none-any) that Pyodide/micropip
+# and other wasm targets can install — they cannot use platform wheels.
+# Consumers (e.g. trinket) pin the artifact by URL + sha256; a GitHub release
+# gets the wheel attached automatically so pins survive artifact expiry.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, pyodide-packaging]
+  release:
+    types: [published]
+
+jobs:
+  pure-wheel:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed only for the release-asset upload step
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # setuptools_scm-style dev versions need history
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build pure wheel
+        run: |
+          pip install build
+          VPYTHON_PURE_PYTHON=1 python -m build --wheel --outdir dist
+          ls -l dist
+
+      - name: Verify wheel is py3-none-any and imports
+        run: |
+          python - <<'EOF'
+          import glob, sys
+          w = glob.glob('dist/*.whl')
+          assert w and w[0].endswith('py3-none-any.whl'), f"not a pure wheel: {w}"
+          print("pure wheel:", w[0])
+          EOF
+          pip install dist/*.whl
+          python -c "import vpython; print('import ok', vpython.__version__)"
+
+      - name: Checksum
+        run: shasum -a 256 dist/*.whl | tee dist/SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vpython-pure-wheel
+          path: dist/
+
+      - name: Attach wheel to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/*.whl dist/SHA256SUMS --clobber
