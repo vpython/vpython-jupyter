@@ -2,7 +2,6 @@ name: Upload Python wheel to PyPI
 
 on:
   release:
-    if: ${{ !github.event.release.prerelease }}
     types: [created]
 
 # Pre-releases exist to host pinned artifacts (see pure-wheel.yml) — they must
