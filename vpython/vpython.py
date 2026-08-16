@@ -17,7 +17,7 @@ def sign(x): # for compatibility with Web VPython
 
 import sys
 from . import __version__, __gs_version__
-from ._notebook_helpers import _isnotebook
+from ._notebook_helpers import _isnotebook, _use_ws_frontend
 from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
                                     adjust_axis, object_rotate)
                                     
@@ -262,7 +262,12 @@ class baseObj(object):
         if not (baseObj._view_constructed or
                 baseObj._canvas_constructing):
             if _isnotebook:
-                from .with_notebook import _
+                if _use_ws_frontend():
+                    # VS Code-style hosts: no nbextension JS, no Comm; the
+                    # whole protocol rides the tornado websocket (issue #281).
+                    from .with_wsfrontend import _
+                else:
+                    from .with_notebook import _
             else:
                 from .no_notebook import _
             baseObj._view_constructed = True
@@ -373,10 +378,15 @@ class baseObj(object):
 # and sent as a block to the browser at render times.
 
 class GlowWidget(object):
-    def __init__(self, wsport=None, wsuri=None):
+    def __init__(self, wsport=None, wsuri=None, sender_override=None):
         global sender
         baseObj.glow = self
-        if _isnotebook:
+        if sender_override is not None:
+            # websocket-only frontend (with_wsfrontend): packages go out over
+            # the tornado websocket; there is no Comm and no injected JS.
+            sender = sender_override
+            self.show = True
+        elif _isnotebook:
             from ipykernel.comm import Comm
             if (wsport):
                 self.comm = Comm(target_name='glow', data={'wsport':wsport, 'wsuri':wsuri})
@@ -2918,7 +2928,10 @@ class canvas(baseObj):
 
     def __init__(self, **args):
         baseObj._canvas_constructing = True
-        if _isnotebook:
+        # The ws frontend's renderer owns its own container (announced via a
+        # custom-MIME output in with_wsfrontend); the classic HTML/JS cell
+        # bootstrap below would render as dead output there.
+        if _isnotebook and not _use_ws_frontend():
             from IPython.display import display, HTML, Javascript
             display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
             display(Javascript("""if (typeof Jupyter !== "undefined") { window.__context = { glowscript_container: $("#glowscript").removeAttr("id")};}else{ element.textContent = ' ';}"""))

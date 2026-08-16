@@ -71,3 +71,20 @@ def __checkisnotebook():
 _isnotebook = __checkisnotebook()
 _in_spyder = __is_spyder()
 _in_spyder_or_similar_IDE = __is_spyder_or_similar_IDE()
+
+
+def _use_ws_frontend(environ=None):
+    """Should this notebook kernel speak the whole protocol over the
+    websocket (VS Code style) instead of Comm + nbextension JS?
+
+    VS Code notebooks never run vpython's injected JavaScript and give
+    third-party renderers no Comm access, so they get the websocket-only
+    frontend automatically. VPYTHON_FRONTEND overrides in both directions:
+    'ws' forces it on (other renderer hosts, testing), anything else set
+    ('jupyter', 'classic', ...) forces it off even under VS Code.
+    """
+    environ = os.environ if environ is None else environ
+    override = environ.get('VPYTHON_FRONTEND')
+    if override:
+        return override.strip().lower() == 'ws'
+    return 'VSCODE_PID' in environ or 'VSCODE_CWD' in environ
