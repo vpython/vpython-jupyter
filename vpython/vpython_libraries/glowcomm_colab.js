@@ -19,10 +19,10 @@
 // or between cells) — bounds the message backlog a blocked kernel must
 // swallow when it wakes.
 
-(function () {
+window.__VPYTHON_COLAB_BOOT = function (opts) {
   'use strict';
-  var CDN = '__CDN_BASE__'; // substituted by with_colab.py; ends with '/'
-  var NONCE = '__SESSION_NONCE__'; // this session's token; stale saved frames have an old one
+  var CDN = opts.cdn;     // ends with '/'
+  var NONCE = opts.nonce; // this session's token; stale saved frames have an old one
   var TICK_MS = 33, SLOW_MS = 500, EASE_AFTER_MS = 2000;
 
   var root = document.getElementById('vpython-colab-root');
@@ -159,4 +159,4 @@
       }
     })
     .catch(function (e) { restoreAmd(); fail((e && e.stack) || String(e)); });
-})();
+};

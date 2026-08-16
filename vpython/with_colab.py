@@ -85,11 +85,18 @@ def _open_comm():
 def show():
     """(Re)display the VPython output frame under the current cell.
 
-    Manual recovery: if no scene/status box ever appeared (Colab sometimes
-    drops display output emitted during `import vpython`), run
-    `import vpython.with_colab as wc; wc.show()`."""
-    display(HTML('<div id="vpython-colab-root"></div>'
-                 '<script>' + _read_bootstrap_js() + '</script>'))
+    Manual recovery: if no scene/status box ever appeared, run
+    `import vpython.with_colab as wc; wc.show()`.
+
+    The bootstrap logic loads as an EXTERNAL script from the same CDN as
+    GlowScript; the inline part is one line. (Colab silently declines to
+    activate large inline scripts in display output — observed 2026-08 —
+    while script-src tags and one-liners run fine.)"""
+    display(HTML(
+        '<div id="vpython-colab-root"></div>'
+        '<script src="' + CDN_BASE + 'glowcomm_colab.js"></script>'
+        '<script>window.__VPYTHON_COLAB_BOOT({cdn: "' + CDN_BASE +
+        '", nonce: "' + SESSION_NONCE + '"});</script>'))
 
 
 def _wire_comm(comm):
@@ -130,15 +137,6 @@ def _post_execute():
         show()
         _unconnected_cells = 0
     _open_comm()
-
-
-def _read_bootstrap_js():
-    package_dir = os.path.dirname(__file__)
-    path = os.path.join(package_dir, 'vpython_libraries', 'glowcomm_colab.js')
-    with open(path, encoding='utf-8') as f:
-        return (f.read()
-                .replace('__CDN_BASE__', CDN_BASE)
-                .replace('__SESSION_NONCE__', SESSION_NONCE))
 
 
 # Passive target for the browser-initiated handshake — registered BEFORE the
