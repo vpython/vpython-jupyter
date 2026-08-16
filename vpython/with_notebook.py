@@ -150,8 +150,11 @@ t = Thread(target=start_server, args=())
 t.start()
 # Setup Comm Channel and websocket
 baseObj.glow = GlowWidget(wsport=__SOCKET_PORT, wsuri='/ws')
-while (not wsConnected):
-    time.sleep(0.1)          # wait for websocket to connect
+# Bounded wait (issue #281): in frontends that never run vpython's injected
+# JavaScript — VS Code notebooks, Colab — the old unbounded loop hung the
+# kernel forever inside `import vpython`. Fail loudly instead.
+from ._frontend_wait import wait_for_frontend
+wait_for_frontend(lambda: wsConnected)
 
 baseObj.trigger()  # start the trigger ping-pong process
 
