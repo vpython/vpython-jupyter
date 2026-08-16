@@ -22,6 +22,7 @@
 (function () {
   'use strict';
   var CDN = '__CDN_BASE__'; // substituted by with_colab.py; ends with '/'
+  var NONCE = '__SESSION_NONCE__'; // this session's token; stale saved frames have an old one
   var TICK_MS = 33, SLOW_MS = 500, EASE_AFTER_MS = 2000;
 
   var root = document.getElementById('vpython-colab-root');
@@ -128,7 +129,10 @@
       var comms = google.colab.kernel.comms;
 
       // Fallback: kernel-initiated opens (retried from the kernel idle loop).
-      comms.registerTarget('vpython-glow', function (comm) {
+      comms.registerTarget('vpython-glow', function (comm, openMsg) {
+        // Ignore kernel-initiated opens meant for a different session's frame.
+        var d = openMsg && (openMsg.data || (openMsg.content && openMsg.content.data));
+        if (d && d.nonce && d.nonce !== NONCE) { return; }
         useComm(comm, true); // ack tells the kernel which comm to attach
       });
 
@@ -138,7 +142,7 @@
       // kernel processes the open at its next idle moment and flushes the
       // buffered scene. No races, no retries.
       if (typeof comms.open === 'function') {
-        Promise.resolve(comms.open('vpython-glow-kernel', { hello: 1 }))
+        Promise.resolve(comms.open('vpython-glow-kernel', { nonce: NONCE }))
           .then(function (comm) {
             if (comm && comm.send && comm.messages) { useComm(comm, true); }
             else { setStatus('VPython: comms.open returned unusable comm; ' +

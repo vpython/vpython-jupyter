@@ -26,6 +26,7 @@ idle between executions:
   scene.mouse only update between cells.
 """
 import os
+import uuid
 import asyncio
 
 from IPython import get_ipython
@@ -44,6 +45,12 @@ COMM_TARGET = 'vpython-glow'
 # actually loaded — no races, no retry guessing. The kernel-initiated path
 # below stays as a fallback for hosts whose comms shim cannot open().
 KERNEL_TARGET = 'vpython-glow-kernel'
+
+# Stamped into the bootstrap JS. Colab notebooks saved WITH outputs replay
+# old bootstrap frames on reopen; those zombies happily call comms.open at
+# the new kernel and fight the live frame for the scene (observed). Opens
+# must present the CURRENT session's nonce or be closed immediately.
+SESSION_NONCE = uuid.uuid4().hex
 
 # Where the browser loads GlowScript + fonts/textures from. jsDelivr serves
 # the public vpython/vscode-vpython repo's media/ directory (same assets the
@@ -98,6 +105,13 @@ def _wire_comm(comm):
 
 def _on_target_open(comm, open_msg):
     # Browser-initiated open (preferred path): the JS is ready by definition.
+    data = (open_msg or {}).get('content', {}).get('data', {})
+    if not isinstance(data, dict) or data.get('nonce') != SESSION_NONCE:
+        try:
+            comm.close()  # zombie frame from a previously saved output
+        except Exception:
+            pass
+        return
     _wire_comm(comm)
     sender.attach(comm)
 
@@ -121,7 +135,9 @@ def _read_bootstrap_js():
     package_dir = os.path.dirname(__file__)
     path = os.path.join(package_dir, 'vpython_libraries', 'glowcomm_colab.js')
     with open(path, encoding='utf-8') as f:
-        return f.read().replace('__CDN_BASE__', CDN_BASE)
+        return (f.read()
+                .replace('__CDN_BASE__', CDN_BASE)
+                .replace('__SESSION_NONCE__', SESSION_NONCE))
 
 
 # Passive target for the browser-initiated handshake — registered BEFORE the
