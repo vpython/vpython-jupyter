@@ -75,7 +75,8 @@ def _open_comm():
     (observed live: 600+ buffered packages, permanently disconnected).
     Orphaned opens are cheap; the ack that finally lands picks its comm."""
     global _pending_comm
-    comm = Comm(target_name=COMM_TARGET, data={'version': __version__})
+    comm = Comm(target_name=COMM_TARGET,
+                data={'version': __version__, 'nonce': SESSION_NONCE})
 
     _wire_comm(comm)
     _pending_comm = comm
