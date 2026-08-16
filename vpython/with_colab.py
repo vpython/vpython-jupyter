@@ -93,10 +93,15 @@ def show():
     activate large inline scripts in display output — observed 2026-08 —
     while script-src tags and one-liners run fine.)"""
     display(HTML(
-        '<div id="vpython-colab-root"></div>'
-        '<script src="' + CDN_BASE + 'glowcomm_colab.js"></script>'
-        '<script>window.__VPYTHON_COLAB_BOOT({cdn: "' + CDN_BASE +
-        '", nonce: "' + SESSION_NONCE + '"});</script>'))
+        "<div id='vpython-colab-root'></div>"
+        "<script>(function(){"
+        "var s=document.createElement('script');"
+        "s.src='" + CDN_BASE + "glowcomm_colab.js';"
+        "s.onload=function(){window.__VPYTHON_COLAB_BOOT({cdn:'" + CDN_BASE +
+        "',nonce:'" + SESSION_NONCE + "'});};"
+        "s.onerror=function(){document.getElementById('vpython-colab-root')"
+        ".textContent='VPython: failed to load bootstrap from CDN';};"
+        "document.head.appendChild(s);})();</script>"))
 
 
 def _wire_comm(comm):
