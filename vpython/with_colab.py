@@ -27,7 +27,6 @@ idle between executions:
 """
 import os
 import uuid
-import asyncio
 
 from IPython import get_ipython
 from IPython.display import display, HTML
@@ -153,22 +152,11 @@ show()
 
 baseObj.glow = GlowWidget(sender_override=sender)
 
-# Keep trying to open the comm from the kernel's idle loop: the bootstrap
-# frame loads its JS asynchronously, so opens fired at import/post_execute
-# time routinely race it and are lost. The kernel processes browser messages
-# only while idle — which is exactly when this task runs, so an open, the
-# browser's ack, and the attach all complete within ~a second of any idle
-# moment after the JS is ready. Bounded so an abandoned session goes quiet.
-
-
-async def _retry_until_connected():
-    for _ in range(300):
-        if sender.connected:
-            return
-        _open_comm()
-        await asyncio.sleep(1.0)
-
-asyncio.get_event_loop().create_task(_retry_until_connected())
+# NOTE: no kernel-side retry loop. The browser initiates the handshake
+# (comms.open against the passive target above) the moment its JS is ready,
+# so kernel-initiated opens are pure fallback (one per post_execute). A 1 Hz
+# idle-loop of comm_opens was observed to make Colab silently DROP display
+# outputs emitted near them — it cost us the bootstrap box entirely.
 rate_control._direct_trigger = True
 
 _shell = get_ipython()
