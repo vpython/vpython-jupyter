@@ -80,7 +80,7 @@ window.__VPYTHON_COLAB_BOOT = function (opts) {
         loadFont('NimbusRomNo9L-Med.otf', '__font_serif')
       ]);
     })
-    .then(function () { return loadScript('glowcomm_host.js'); })
+    .then(function () { return loadScript('glowcomm_host.js?v=' + NONCE); })
     .then(function () {
       restoreAmd();
       var jq = window.$ || window.jQuery;

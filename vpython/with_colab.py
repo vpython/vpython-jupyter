@@ -101,7 +101,7 @@ def show():
         "<div id='vpython-colab-root'></div>"
         "<script>(function(){"
         "var s=document.createElement('script');"
-        "s.src='" + CDN_BASE + "glowcomm_colab.js';"
+        "s.src='" + CDN_BASE + "glowcomm_colab.js?v=" + SESSION_NONCE + "';"
         "s.onload=function(){window.__VPYTHON_COLAB_BOOT({cdn:'" + CDN_BASE +
         "',nonce:'" + SESSION_NONCE + "'});};"
         "s.onerror=function(){document.getElementById('vpython-colab-root')"
