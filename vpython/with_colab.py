@@ -129,7 +129,7 @@ def _post_execute():
         _unconnected_cells = 0
         return
     _unconnected_cells += 1
-    if _unconnected_cells >= 2:
+    if _unconnected_cells >= 1:
         # Two whole cells and still no ack: assume the bootstrap frame never
         # rendered (or died) and put up a fresh one. Latest registration wins
         # on the browser side, latest ack wins here — converges cleanly.
@@ -148,7 +148,10 @@ try:
 except Exception:
     pass  # fall back to the kernel-initiated handshake below
 
-show()
+# NOT calling show() here: Colab silently drops display output emitted
+# during `import vpython` (observed consistently; import-time displays
+# never rendered once). The scene box appears either from an explicit
+# wc.show() cell (the demo's cell 3) or from the post_execute self-heal.
 
 baseObj.glow = GlowWidget(sender_override=sender)
 
