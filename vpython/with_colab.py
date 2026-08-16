@@ -55,13 +55,14 @@ _unconnected_cells = 0
 
 def _open_comm():
     """One comm-open attempt. The browser acks every open it sees and the
-    latest one becomes the active channel on both sides."""
+    latest one becomes the active channel on both sides.
+
+    NEVER close previous attempts here. The ack for open N arrives while the
+    kernel is idle — exactly when a retry would be closing comm N to open
+    N+1 — so a close-and-reopen loop drops every ack it ever provokes
+    (observed live: 600+ buffered packages, permanently disconnected).
+    Orphaned opens are cheap; the ack that finally lands picks its comm."""
     global _pending_comm
-    if _pending_comm is not None:
-        try:
-            _pending_comm.close()
-        except Exception:
-            pass
     comm = Comm(target_name=COMM_TARGET, data={'version': __version__})
 
     def _on_msg(msg, comm=comm):
