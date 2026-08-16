@@ -49,6 +49,7 @@ CDN_BASE = os.environ.get(
 
 sender = CommSender()
 _pending_comm = None
+_unconnected_cells = 0
 
 
 def _open_comm():
@@ -73,9 +74,29 @@ def _open_comm():
     _pending_comm = comm
 
 
+def show():
+    """(Re)display the VPython output frame under the current cell.
+
+    Manual recovery: if no scene/status box ever appeared (Colab sometimes
+    drops display output emitted during `import vpython`), run
+    `import vpython.with_colab as wc; wc.show()`."""
+    display(HTML('<div id="vpython-colab-root"></div>'
+                 '<script>' + _read_bootstrap_js() + '</script>'))
+
+
 def _post_execute():
-    if not sender.connected:
-        _open_comm()
+    global _unconnected_cells
+    if sender.connected:
+        _unconnected_cells = 0
+        return
+    _unconnected_cells += 1
+    if _unconnected_cells >= 2:
+        # Two whole cells and still no ack: assume the bootstrap frame never
+        # rendered (or died) and put up a fresh one. Latest registration wins
+        # on the browser side, latest ack wins here — converges cleanly.
+        show()
+        _unconnected_cells = 0
+    _open_comm()
 
 
 def _read_bootstrap_js():
@@ -85,8 +106,7 @@ def _read_bootstrap_js():
         return f.read().replace('__CDN_BASE__', CDN_BASE)
 
 
-display(HTML('<div id="vpython-colab-root"></div>'
-             '<script>' + _read_bootstrap_js() + '</script>'))
+show()
 
 baseObj.glow = GlowWidget(sender_override=sender)
 rate_control._direct_trigger = True
