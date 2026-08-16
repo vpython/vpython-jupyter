@@ -443,6 +443,18 @@ class GlowWidget(object):
         print ("comm closed")
 
 def _wait(cvs): # wait for an event
+    if _use_colab_frontend():
+        # These waits spin until the BROWSER replies (computed extents for
+        # compound/text/extrusion, events for pause/waitfor/pick). Colab's
+        # comm channel only delivers messages when the kernel is idle between
+        # cells, so the reply can never arrive while we spin: a guaranteed
+        # hang. Fail loudly instead (same philosophy as issue #281's fix).
+        raise NotImplementedError(
+            "This operation (compound/text/extrusion geometry, or "
+            "scene.pause/waitfor/mouse picking) needs an immediate reply "
+            "from the browser, which Google Colab's messaging cannot "
+            "deliver while a cell is running. It is not yet supported in "
+            "Colab.")
     cvs._waitfor = None
     if _isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
     while cvs._waitfor is None:
