@@ -62,6 +62,7 @@ CDN_BASE = os.environ.get(
 sender = CommSender()
 _pending_comm = None
 _unconnected_cells = 0
+_bootstrap_shown = False
 
 
 def _open_comm():
@@ -129,7 +130,7 @@ def _post_execute():
         _unconnected_cells = 0
         return
     _unconnected_cells += 1
-    if _unconnected_cells >= 1:
+    if _unconnected_cells >= 1 and not _bootstrap_shown:
         # Two whole cells and still no ack: assume the bootstrap frame never
         # rendered (or died) and put up a fresh one. Latest registration wins
         # on the browser side, latest ack wins here — converges cleanly.
