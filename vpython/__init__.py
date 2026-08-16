@@ -1,6 +1,7 @@
 # importlib.metadata, not pkg_resources: fresh Python 3.12+ environments no
 # longer ship setuptools, so `import pkg_resources` raises ModuleNotFoundError
-# the moment `import vpython` runs (caught by CI's macos-3.12 leg).
+# the moment `import vpython` runs (caught by CI's macos-3.12 leg). The same
+# import is simply absent on Pyodide/wasm, so this also unblocks wasm targets.
 from importlib.metadata import version as _dist_version, PackageNotFoundError
 
 from .gs_version import glowscript_version
@@ -23,6 +24,13 @@ del PackageNotFoundError
 from ._notebook_helpers import __is_spyder
 
 from .vpython import canvas
+
+import sys as _sys
+if _sys.platform == 'emscripten':
+    # Boot the wasm transport EAGERLY: its patches must land before the
+    # star-imports below bind rate/sleep into the package namespace.
+    from . import trinket_worker as _tw
+del _sys
 
 # Need to initialize canvas before user does anything and before
 scene = canvas()

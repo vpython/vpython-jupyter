@@ -4,8 +4,14 @@ on:
   release:
     types: [created]
 
+# Pre-releases exist to host pinned artifacts (see pure-wheel.yml) — they must
+# NEVER publish to PyPI. Guarded per-job because uploads happen per-job: on
+# 2026-08-15 a pre-release tag partially published 7.6.6.dev0 (sdist + mac/win
+# wheels) before the linux legs failed.
+
 jobs:
   wheels:
+    if: ${{ !github.event.release.prerelease }}
 
     strategy:
       max-parallel: 4
@@ -40,6 +46,7 @@ jobs:
         twine upload dist/*.whl
 
   linux_wheels:
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
@@ -71,6 +78,7 @@ jobs:
         twine upload dist/vpython-*-manylinux*.whl
 
   linux_aarch64_wheels:
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
@@ -100,6 +108,7 @@ jobs:
         twine upload dist/vpython-*-manylinux*.whl
 
   sdist:
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
