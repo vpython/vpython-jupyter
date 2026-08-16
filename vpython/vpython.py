@@ -17,7 +17,7 @@ def sign(x): # for compatibility with Web VPython
 
 import sys
 from . import __version__, __gs_version__
-from ._notebook_helpers import _isnotebook, _use_ws_frontend
+from ._notebook_helpers import _isnotebook, _use_ws_frontend, _use_colab_frontend
 from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
                                     adjust_axis, object_rotate)
                                     
@@ -262,7 +262,12 @@ class baseObj(object):
         if not (baseObj._view_constructed or
                 baseObj._canvas_constructing):
             if _isnotebook:
-                if _use_ws_frontend():
+                if _use_colab_frontend():
+                    # Google Colab: comm-only — output frames run our JS and
+                    # Colab shims Jupyter comms into them; no websocket can
+                    # reach the kernel VM.
+                    from .with_colab import _
+                elif _use_ws_frontend():
                     # VS Code-style hosts: no nbextension JS, no Comm; the
                     # whole protocol rides the tornado websocket (issue #281).
                     from .with_wsfrontend import _
@@ -2928,10 +2933,10 @@ class canvas(baseObj):
 
     def __init__(self, **args):
         baseObj._canvas_constructing = True
-        # The ws frontend's renderer owns its own container (announced via a
-        # custom-MIME output in with_wsfrontend); the classic HTML/JS cell
-        # bootstrap below would render as dead output there.
-        if _isnotebook and not _use_ws_frontend():
+        # The ws and colab frontends own their own containers (announced by
+        # with_wsfrontend / with_colab); the classic HTML/JS cell bootstrap
+        # below would render as dead output there.
+        if _isnotebook and not _use_ws_frontend() and not _use_colab_frontend():
             from IPython.display import display, HTML, Javascript
             display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
             display(Javascript("""if (typeof Jupyter !== "undefined") { window.__context = { glowscript_container: $("#glowscript").removeAttr("id")};}else{ element.textContent = ' ';}"""))
