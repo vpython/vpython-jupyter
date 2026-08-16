@@ -39,6 +39,11 @@ from ._notebook_helpers import _use_colab_frontend  # noqa: F401  (re-export for
 from . import __version__
 
 COMM_TARGET = 'vpython-glow'
+# JS-initiated handshake target (preferred): the kernel registers this
+# passively at import and the BROWSER opens the comm once its libraries have
+# actually loaded — no races, no retry guessing. The kernel-initiated path
+# below stays as a fallback for hosts whose comms shim cannot open().
+KERNEL_TARGET = 'vpython-glow-kernel'
 
 # Where the browser loads GlowScript + fonts/textures from. jsDelivr serves
 # the public vpython/vscode-vpython repo's media/ directory (same assets the
@@ -65,14 +70,7 @@ def _open_comm():
     global _pending_comm
     comm = Comm(target_name=COMM_TARGET, data={'version': __version__})
 
-    def _on_msg(msg, comm=comm):
-        data = msg['content']['data']
-        if isinstance(data, dict) and 'ack' in data:
-            sender.attach(comm)  # latest ack wins; backlog flushes here
-            return
-        baseObj.glow.handle_msg(msg)  # event batch from the browser
-
-    comm.on_msg(_on_msg)
+    _wire_comm(comm)
     _pending_comm = comm
 
 
@@ -84,6 +82,24 @@ def show():
     `import vpython.with_colab as wc; wc.show()`."""
     display(HTML('<div id="vpython-colab-root"></div>'
                  '<script>' + _read_bootstrap_js() + '</script>'))
+
+
+def _wire_comm(comm):
+    """Attach a live comm (from either handshake direction) to the sender
+    and route its incoming messages."""
+    def _on_msg(msg, comm=comm):
+        data = msg['content']['data']
+        if isinstance(data, dict) and 'ack' in data:
+            sender.attach(comm)
+            return
+        baseObj.glow.handle_msg(msg)
+    comm.on_msg(_on_msg)
+
+
+def _on_target_open(comm, open_msg):
+    # Browser-initiated open (preferred path): the JS is ready by definition.
+    _wire_comm(comm)
+    sender.attach(comm)
 
 
 def _post_execute():
@@ -107,6 +123,16 @@ def _read_bootstrap_js():
     with open(path, encoding='utf-8') as f:
         return f.read().replace('__CDN_BASE__', CDN_BASE)
 
+
+# Passive target for the browser-initiated handshake — registered BEFORE the
+# bootstrap is displayed, so whenever the JS opens the comm the target exists.
+try:
+    _shell_for_target = get_ipython()
+    if _shell_for_target is not None and getattr(_shell_for_target, 'kernel', None) is not None:
+        _shell_for_target.kernel.comm_manager.register_target(
+            KERNEL_TARGET, _on_target_open)
+except Exception:
+    pass  # fall back to the kernel-initiated handshake below
 
 show()
 

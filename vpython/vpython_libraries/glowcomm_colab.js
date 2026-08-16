@@ -100,9 +100,11 @@
         })();
       }
 
-      google.colab.kernel.comms.registerTarget('vpython-glow', function (comm) {
-        active = comm; // latest open wins; kernel attaches on our ack
-        comm.send({ ack: 1 });
+      // Shared by both handshake directions: bind a live comm as the active
+      // channel, create the frontend on first use, and pump its messages.
+      function useComm(comm, ackFirst) {
+        active = comm; // latest wins on both sides
+        if (ackFirst) { comm.send({ ack: 1 }); }
         if (!fe) {
           fe = window.createGlowFrontend({
             container: container,
@@ -121,9 +123,36 @@
             }
           } catch (e) { /* iterator ends when comm closes; a newer comm takes over */ }
         })();
+      }
+
+      var comms = google.colab.kernel.comms;
+
+      // Fallback: kernel-initiated opens (retried from the kernel idle loop).
+      comms.registerTarget('vpython-glow', function (comm) {
+        useComm(comm, true); // ack tells the kernel which comm to attach
       });
-      setStatus('VPython: ready — waiting for the kernel to connect ' +
-                '(run the next cell if this lingers)…');
+
+      // Preferred: WE open the comm, because only we know when this script
+      // has actually finished loading. The kernel registered the target
+      // before displaying this bootstrap, so it always exists by now. The
+      // kernel processes the open at its next idle moment and flushes the
+      // buffered scene. No races, no retries.
+      if (typeof comms.open === 'function') {
+        Promise.resolve(comms.open('vpython-glow-kernel', { hello: 1 }))
+          .then(function (comm) {
+            if (comm && comm.send && comm.messages) { useComm(comm, true); }
+            else { setStatus('VPython: comms.open returned unusable comm; ' +
+                             'waiting for kernel-initiated connect…'); }
+          })
+          .catch(function (e) {
+            setStatus('VPython: comms.open failed (' + e + '); ' +
+                      'waiting for kernel-initiated connect…');
+          });
+        setStatus('VPython: ready — connecting to the kernel…');
+      } else {
+        setStatus('VPython: ready — waiting for the kernel to connect ' +
+                  '(run the next cell if this lingers)…');
+      }
     })
     .catch(function (e) { restoreAmd(); fail((e && e.stack) || String(e)); });
 })();
