@@ -207,6 +207,7 @@ class baseObj(object):
     attach_trails = []  # needed only for functions
     follow_objects = [] # entries are [invisible object to follow, function to call for pos, prevous pos]
     attrs = set()  # each element is (idx, attr name)
+    _journal = None  # SceneJournal set by replay-capable frontends (colab/ws)
 
     @classmethod
     def initialize(cls):
@@ -299,6 +300,7 @@ class baseObj(object):
     def appendcmd(self,cmd):
         # The following code makes sure that constructors are sent to the front end first.
         cmd['idx'] = self.idx
+        if baseObj._journal is not None: baseObj._journal.record_cmd(cmd)
         while not baseObj.sent: # baseObj.sent is always True in the notebook case
             time.sleep(0.001)
         baseObj.updates['cmds'].append(cmd) # this is an "atomic" (uninterruptable) operation
@@ -309,6 +311,7 @@ class baseObj(object):
         baseObj.updates['methods'].append((self.idx, method, data)) # this is an "atomic" (uninterruptable) operation
 
     def addattr(self, attr):
+        if baseObj._journal is not None: baseObj._journal.record_attr(self.idx, attr)
         while not baseObj.sent: # baseObj.sent is always True in the notebook case
             time.sleep(0.001)
         baseObj.attrs.add((self.idx, attr)) # this is an "atomic" (uninterruptable) operation
@@ -356,6 +359,7 @@ class baseObj(object):
 
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
+        if baseObj._journal is not None: baseObj._journal.record_cmd(cmd)
         if (baseObj.glow is not None and sender is not None):
             sender([cmd])
         else:

@@ -98,3 +98,15 @@ def test_strings_pass_through_unjsonified():
     s('trigger')
     ioloop.run()
     assert handler.sent == ['trigger']
+
+
+def test_attach_with_replay_source_sends_replay_and_drops_backlog():
+    s = WsSender()
+    s('trigger')
+    s([{'cmd': 'canvas', 'idx': 1}])
+    s.replay = lambda: [{'cmds': [{'cmd': 'reset', 'idx': -1}]}]
+    handler, ioloop = FakeHandler(), FakeIOLoop()
+    s.attach(handler, ioloop)
+    ioloop.run()
+    assert [json.loads(t) for t in handler.sent] == [{'cmds': [{'cmd': 'reset', 'idx': -1}]}]
+    assert s.pending() == 0

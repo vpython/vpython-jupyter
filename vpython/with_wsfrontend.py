@@ -35,6 +35,8 @@ import tornado.web
 from .vpython import GlowWidget, baseObj
 from .rate_control import ws_queue
 from ._wssender import WsSender
+from ._scene_journal import SceneJournal
+from ._frontend_replay import make_replay
 from ._frontend_wait import wait_for_frontend
 from . import __version__
 
@@ -51,6 +53,9 @@ __SOCKET_PORT = find_free_port()
 
 wsConnected = False
 sender = WsSender()
+_journal = SceneJournal()
+baseObj._journal = _journal      # record every cmd/attr from here on
+sender.replay = make_replay(_journal)  # every (re)connect rebuilds the scene
 _server_ioloop = None  # the tornado thread's IOLoop, set by start_server
 
 

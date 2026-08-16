@@ -63,3 +63,13 @@ def test_detach_returns_to_buffering():
     comm2 = FakeComm()
     s.attach(comm2)
     assert comm2.sent == [[{'cmd': 'sphere', 'idx': 2}]]
+
+
+def test_attach_with_replay_source_sends_replay_and_drops_backlog():
+    s = CommSender()
+    s([{'cmd': 'canvas', 'idx': 1}])  # stale pre-attach buffering
+    s.replay = lambda: [{'cmds': [{'cmd': 'reset', 'idx': -1}], 'attrs': 'X'}]
+    comm = FakeComm()
+    s.attach(comm)
+    assert comm.sent == [{'cmds': [{'cmd': 'reset', 'idx': -1}], 'attrs': 'X'}]
+    assert s.pending() == 0

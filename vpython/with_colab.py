@@ -35,6 +35,8 @@ from ipykernel.comm import Comm
 from .vpython import GlowWidget, baseObj
 from . import rate_control
 from ._commsender import CommSender
+from ._scene_journal import SceneJournal
+from ._frontend_replay import make_replay
 from ._notebook_helpers import _use_colab_frontend  # noqa: F401  (re-export for tests)
 from . import __version__
 
@@ -60,6 +62,9 @@ CDN_BASE = os.environ.get(
     'https://cdn.jsdelivr.net/gh/vpython/vscode-vpython@main/media/')
 
 sender = CommSender()
+_journal = SceneJournal()
+baseObj._journal = _journal      # record every cmd/attr from here on
+sender.replay = make_replay(_journal)  # every attach rebuilds the scene
 _pending_comm = None
 _unconnected_cells = 0
 _bootstrap_shown = False

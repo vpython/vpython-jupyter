@@ -18,14 +18,21 @@ class CommSender:
     def __init__(self):
         self._comm = None
         self._backlog = []
+        self.replay = None  # callable -> list of wire objdata packages
 
     @property
     def connected(self):
         return self._comm is not None
 
     def attach(self, comm):
-        """The browser acked on this comm: flush the backlog, write-through."""
+        """The browser acked on this comm: replay the scene (if a replay
+        source is set — it supersedes anything buffered), else flush."""
         self._comm = comm
+        if self.replay is not None:
+            self._backlog = []
+            for objdata in self.replay():
+                comm.send(objdata)
+            return
         backlog, self._backlog = self._backlog, []
         for objdata in backlog:
             comm.send(objdata)

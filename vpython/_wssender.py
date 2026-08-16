@@ -22,11 +22,18 @@ class WsSender:
         self._handler = None
         self._ioloop = None
         self._backlog = []
+        self.replay = None  # callable -> list of wire objdata packages
 
     def attach(self, handler, ioloop):
-        """A renderer connected: flush the backlog, then write-through."""
+        """A renderer connected: replay the scene (if a replay source is
+        set — it supersedes anything buffered), else flush the backlog."""
         self._handler = handler
         self._ioloop = ioloop
+        if self.replay is not None:
+            self._backlog = []
+            for objdata in self.replay():
+                ioloop.add_callback(handler.write_message, json.dumps(objdata))
+            return
         backlog, self._backlog = self._backlog, []
         for text in backlog:
             ioloop.add_callback(handler.write_message, text)
