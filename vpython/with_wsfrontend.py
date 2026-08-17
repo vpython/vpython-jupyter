@@ -49,7 +49,22 @@ def find_free_port():
     return s.getsockname()[1]
 
 
-__SOCKET_PORT = find_free_port()
+def _choose_port():
+    # VPYTHON_WS_PORT pins the port. A random port is fine locally, but on a
+    # remote host (Codespace/SSH) the forward and its visibility are
+    # per-port state that a kernel restart would otherwise invalidate —
+    # pinning lets a devcontainer forward and expose the port ONCE.
+    env_port = os.environ.get('VPYTHON_WS_PORT')
+    if env_port:
+        try:
+            return int(env_port)
+        except ValueError:
+            logging.warning('VPYTHON_WS_PORT=%r is not a port number; '
+                            'using a random port', env_port)
+    return find_free_port()
+
+
+__SOCKET_PORT = _choose_port()
 
 wsConnected = False
 sender = WsSender()
