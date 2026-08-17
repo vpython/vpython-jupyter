@@ -55,6 +55,15 @@ wsConnected = False
 sender = WsSender()
 _journal = SceneJournal()
 baseObj._journal = _journal      # record every cmd/attr from here on
+# Backfill: the scene canvas (and anything else) constructed BEFORE this
+# frontend module was imported — baseObj suppresses the frontend import
+# while a canvas is constructing — already emitted cmds into the pending
+# updates buffer. The journal must know about them or replays are missing
+# their canvas.
+for _cmd in baseObj.updates['cmds']:
+    _journal.record_cmd(_cmd)
+for (_idx, _attr) in baseObj.attrs:
+    _journal.record_attr(_idx, _attr)
 sender.replay = make_replay(_journal)  # every (re)connect rebuilds the scene
 _server_ioloop = None  # the tornado thread's IOLoop, set by start_server
 

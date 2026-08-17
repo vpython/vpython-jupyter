@@ -64,6 +64,15 @@ CDN_BASE = os.environ.get(
 sender = CommSender()
 _journal = SceneJournal()
 baseObj._journal = _journal      # record every cmd/attr from here on
+# Backfill: the scene canvas (and anything else) constructed BEFORE this
+# frontend module was imported — baseObj suppresses the frontend import
+# while a canvas is constructing — already emitted cmds into the pending
+# updates buffer. The journal must know about them or replays are missing
+# their canvas.
+for _cmd in baseObj.updates['cmds']:
+    _journal.record_cmd(_cmd)
+for (_idx, _attr) in baseObj.attrs:
+    _journal.record_attr(_idx, _attr)
 sender.replay = make_replay(_journal)  # every attach rebuilds the scene
 _pending_comm = None
 _unconnected_cells = 0
