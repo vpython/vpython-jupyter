@@ -2,39 +2,47 @@
 
 Frontends are ephemeral: Colab re-renders output frames on scroll, VS Code
 can evict outputs, pages reload. The kernel is the only durable holder of
-the scene, so it must be able to replay it — reset, every constructor in
-creation order, then the current value of every attribute that ever
-changed — whenever a (new) frontend attaches.
+the scene, so it must be able to replay it — reset, then every cmd in its
+original emission order, then the current value of every attribute that
+ever changed — whenever a (new) frontend attaches.
+
+Emission order matters: canvas construction emits its ctor, then a
+lights='empty_list' follow-up (wiping glow's built-in default lights), then
+the two standard distant_light ctors. Replaying follow-ups after the
+constructors would run that wipe last and delete the standard lights — the
+scene rebuilds but renders ambient-only (dim).
 
 Pure bookkeeping: no vpython imports (the hooks in vpython.py call in), no
 wire encoding (the caller pushes the returned objdata through
 baseObj.package, the same encoder the live path uses).
 """
 
+_CTOR, _EXTRA = 'ctor', 'extra'
+
 
 class SceneJournal:
     def __init__(self):
-        self._cmds = {}    # idx -> constructor cmd (copy)
-        self._order = []   # idx in creation order
+        self._cmds = {}    # idx -> constructor cmd (live reference)
+        self._log = []     # (_CTOR, idx) | (_EXTRA, cmd) in emission order
         self._dirty = set()  # (idx, attr) ever changed after construction
-        self._extras = []    # follow-up cmds (title/caption/...): no 'cmd' key
 
     def record_cmd(self, cmd):
         idx = cmd.get('idx')
         if cmd.get('cmd') == 'delete':
-            if idx in self._cmds:
-                del self._cmds[idx]
-                self._order.remove(idx)
+            self._cmds.pop(idx, None)
+            self._log = [(kind, ref) for (kind, ref) in self._log
+                         if not (kind == _CTOR and ref == idx)
+                         and not (kind == _EXTRA and ref.get('idx') == idx)]
             self._dirty = {(i, a) for (i, a) in self._dirty if i != idx}
-            self._extras = [e for e in self._extras if e.get('idx') != idx]
             return
         if cmd.get('cmd') is None:
-            # Follow-up on an existing object (title/caption/...): same idx
-            # as its constructor — must NOT clobber it.
-            self._extras.append(cmd)
+            # Follow-up on an existing object (title/caption/lights/...):
+            # same idx as its constructor — must NOT clobber it, and must
+            # keep its place in the emission order.
+            self._log.append((_EXTRA, cmd))
             return
         if idx not in self._cmds:
-            self._order.append(idx)
+            self._log.append((_CTOR, idx))
         # Store the LIVE reference, copy at replay time: constructors are
         # enriched after appendcmd (canvas adds its attrs afterwards), and a
         # record-time copy ships a bare canvas (observed: dim default scene).
@@ -44,10 +52,17 @@ class SceneJournal:
         self._dirty.add((idx, attr))
 
     def constructors(self):
-        return [dict(self._cmds[i]) for i in self._order]
+        return [dict(self._cmds[ref]) for (kind, ref) in self._log
+                if kind == _CTOR]
 
     def dirty_attrs(self):
         return set(self._dirty)
+
+    def _replay_cmds(self):
+        out = [{'cmd': 'reset', 'idx': -1}]
+        for (kind, ref) in self._log:
+            out.append(dict(self._cmds[ref]) if kind == _CTOR else dict(ref))
+        return out
 
     def replay_objdata(self, value_of):
         """Build the {'cmds', 'methods', 'attrs'} objdata that reconstructs
@@ -62,8 +77,7 @@ class SceneJournal:
                 continue
             attrs.setdefault(idx, {})[attr] = val
         return {
-            'cmds': ([{'cmd': 'reset', 'idx': -1}] + self.constructors()
-                     + [dict(e) for e in self._extras]),
+            'cmds': self._replay_cmds(),
             'methods': [],
             'attrs': attrs,
         }

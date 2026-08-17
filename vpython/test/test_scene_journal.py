@@ -74,6 +74,29 @@ def test_empty_journal_still_replays_a_bare_reset():
     assert objdata['attrs'] == {}
 
 
+def test_replay_preserves_live_emission_order_of_followups():
+    # THE Colab dim-scene bug: canvas construction emits, in this order,
+    #   canvas ctor -> lights='empty_list' (wipe glow's built-in defaults)
+    #   -> two distant_light ctors (the standard lighting).
+    # Replaying constructors-then-extras moves the wipe AFTER the standard
+    # lights, deleting them: the scene renders ambient-only (dim). Replay
+    # must preserve the original emission order.
+    j = SceneJournal()
+    j.record_cmd({'cmd': 'canvas', 'idx': 1})
+    j.record_cmd({'lights': 'empty_list', 'idx': 1})
+    j.record_cmd({'cmd': 'distant_light', 'idx': 2, 'canvas': 1})
+    j.record_cmd({'cmd': 'distant_light', 'idx': 3, 'canvas': 1})
+    j.record_cmd({'cmd': 'sphere', 'idx': 4, 'canvas': 1})
+    cmds = j.replay_objdata(lambda i, a: None)['cmds']
+    assert cmds[0] == {'cmd': 'reset', 'idx': -1}
+    wipe_at = next(i for i, c in enumerate(cmds)
+                   if c.get('lights') == 'empty_list')
+    light_at = [i for i, c in enumerate(cmds)
+                if c.get('cmd') == 'distant_light']
+    assert wipe_at < min(light_at), (
+        'lights wipe replayed after the standard lights: scene goes dim')
+
+
 def test_followup_cmds_do_not_clobber_the_constructor():
     j = SceneJournal()
     j.record_cmd({'cmd': 'canvas', 'idx': 1})
