@@ -31,17 +31,20 @@ class SceneJournal:
         if cmd.get('cmd') is None:
             # Follow-up on an existing object (title/caption/...): same idx
             # as its constructor — must NOT clobber it.
-            self._extras.append(dict(cmd))
+            self._extras.append(cmd)
             return
         if idx not in self._cmds:
             self._order.append(idx)
-        self._cmds[idx] = dict(cmd)
+        # Store the LIVE reference, copy at replay time: constructors are
+        # enriched after appendcmd (canvas adds its attrs afterwards), and a
+        # record-time copy ships a bare canvas (observed: dim default scene).
+        self._cmds[idx] = cmd
 
     def record_attr(self, idx, attr):
         self._dirty.add((idx, attr))
 
     def constructors(self):
-        return [self._cmds[i] for i in self._order]
+        return [dict(self._cmds[i]) for i in self._order]
 
     def dirty_attrs(self):
         return set(self._dirty)

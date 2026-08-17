@@ -18,12 +18,17 @@ def test_records_constructors_in_creation_order():
     assert [c['cmd'] for c in cmds] == ['canvas', 'sphere', 'box']
 
 
-def test_constructor_copies_are_isolated_from_caller_mutation():
+def test_late_enriched_constructor_keys_are_included_at_replay():
+    # canvas builds its cmd incrementally AFTER appendcmd; the journal must
+    # reflect the enriched dict, not a bare record-time snapshot.
     j = SceneJournal()
-    cmd = {'cmd': 'sphere', 'idx': 2}
+    cmd = {'cmd': 'canvas', 'idx': 1}
     j.record_cmd(cmd)
-    cmd['radius'] = 99
-    assert 'radius' not in j.constructors()[0]
+    cmd['ambient'] = [0.2, 0.2, 0.2]
+    assert j.constructors()[0]['ambient'] == [0.2, 0.2, 0.2]
+    # but the returned list is still a copy: mutating it is inert
+    j.constructors()[0]['hacked'] = True
+    assert 'hacked' not in j.constructors()[0]
 
 
 def test_delete_removes_object_and_its_dirty_attrs():
