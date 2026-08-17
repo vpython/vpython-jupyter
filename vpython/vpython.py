@@ -17,7 +17,7 @@ def sign(x): # for compatibility with Web VPython
 
 import sys
 from . import __version__, __gs_version__
-from ._notebook_helpers import _isnotebook
+from ._notebook_helpers import _isnotebook, _use_ws_frontend, _use_colab_frontend
 from ._vector_import_helper import (vector, mag, norm, cross, dot, adjust_up,
                                     adjust_axis, object_rotate)
                                     
@@ -207,6 +207,7 @@ class baseObj(object):
     attach_trails = []  # needed only for functions
     follow_objects = [] # entries are [invisible object to follow, function to call for pos, prevous pos]
     attrs = set()  # each element is (idx, attr name)
+    _journal = None  # SceneJournal set by replay-capable frontends (colab/ws)
 
     @classmethod
     def initialize(cls):
@@ -262,7 +263,17 @@ class baseObj(object):
         if not (baseObj._view_constructed or
                 baseObj._canvas_constructing):
             if _isnotebook:
-                from .with_notebook import _
+                if _use_colab_frontend():
+                    # Google Colab: comm-only — output frames run our JS and
+                    # Colab shims Jupyter comms into them; no websocket can
+                    # reach the kernel VM.
+                    from .with_colab import _
+                elif _use_ws_frontend():
+                    # VS Code-style hosts: no nbextension JS, no Comm; the
+                    # whole protocol rides the tornado websocket (issue #281).
+                    from .with_wsfrontend import _
+                else:
+                    from .with_notebook import _
             else:
                 from .no_notebook import _
             baseObj._view_constructed = True
@@ -289,6 +300,7 @@ class baseObj(object):
     def appendcmd(self,cmd):
         # The following code makes sure that constructors are sent to the front end first.
         cmd['idx'] = self.idx
+        if baseObj._journal is not None: baseObj._journal.record_cmd(cmd)
         while not baseObj.sent: # baseObj.sent is always True in the notebook case
             time.sleep(0.001)
         baseObj.updates['cmds'].append(cmd) # this is an "atomic" (uninterruptable) operation
@@ -299,6 +311,7 @@ class baseObj(object):
         baseObj.updates['methods'].append((self.idx, method, data)) # this is an "atomic" (uninterruptable) operation
 
     def addattr(self, attr):
+        if baseObj._journal is not None: baseObj._journal.record_attr(self.idx, attr)
         while not baseObj.sent: # baseObj.sent is always True in the notebook case
             time.sleep(0.001)
         baseObj.attrs.add((self.idx, attr)) # this is an "atomic" (uninterruptable) operation
@@ -346,6 +359,7 @@ class baseObj(object):
 
     def __del__(self):
         cmd = {"cmd": "delete", "idx": self.idx}
+        if baseObj._journal is not None: baseObj._journal.record_cmd(cmd)
         if (baseObj.glow is not None and sender is not None):
             sender([cmd])
         else:
@@ -373,10 +387,15 @@ class baseObj(object):
 # and sent as a block to the browser at render times.
 
 class GlowWidget(object):
-    def __init__(self, wsport=None, wsuri=None):
+    def __init__(self, wsport=None, wsuri=None, sender_override=None):
         global sender
         baseObj.glow = self
-        if _isnotebook:
+        if sender_override is not None:
+            # websocket-only frontend (with_wsfrontend): packages go out over
+            # the tornado websocket; there is no Comm and no injected JS.
+            sender = sender_override
+            self.show = True
+        elif _isnotebook:
             from ipykernel.comm import Comm
             if (wsport):
                 self.comm = Comm(target_name='glow', data={'wsport':wsport, 'wsuri':wsuri})
@@ -428,6 +447,18 @@ class GlowWidget(object):
         print ("comm closed")
 
 def _wait(cvs): # wait for an event
+    if _use_colab_frontend():
+        # These waits spin until the BROWSER replies (computed extents for
+        # compound/text/extrusion, events for pause/waitfor/pick). Colab's
+        # comm channel only delivers messages when the kernel is idle between
+        # cells, so the reply can never arrive while we spin: a guaranteed
+        # hang. Fail loudly instead (same philosophy as issue #281's fix).
+        raise NotImplementedError(
+            "This operation (compound/text/extrusion geometry, or "
+            "scene.pause/waitfor/mouse picking) needs an immediate reply "
+            "from the browser, which Google Colab's messaging cannot "
+            "deliver while a cell is running. It is not yet supported in "
+            "Colab.")
     cvs._waitfor = None
     if _isnotebook: baseObj.trigger() # in notebook environment must send methods immediately
     while cvs._waitfor is None:
@@ -2918,7 +2949,10 @@ class canvas(baseObj):
 
     def __init__(self, **args):
         baseObj._canvas_constructing = True
-        if _isnotebook:
+        # The ws and colab frontends own their own containers (announced by
+        # with_wsfrontend / with_colab); the classic HTML/JS cell bootstrap
+        # below would render as dead output there.
+        if _isnotebook and not _use_ws_frontend() and not _use_colab_frontend():
             from IPython.display import display, HTML, Javascript
             display(HTML("""<div id="glowscript" class="glowscript"></div>"""))
             display(Javascript("""if (typeof Jupyter !== "undefined") { window.__context = { glowscript_container: $("#glowscript").removeAttr("id")};}else{ element.textContent = ' ';}"""))

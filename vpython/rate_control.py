@@ -18,6 +18,11 @@ if _isnotebook:
 
 # Unresolved bug: rate(X) yields only about 0.8X iterations per second.
 
+# Colab (comm-only frontend): the browser's 33 ms pacing triggers arrive as
+# Jupyter comm messages, which a kernel blocked in a cell never processes —
+# so rate() must self-clock the flush. with_colab sets this True.
+_direct_trigger = False
+
 MIN_RENDERS = 10
 MAX_RENDERS = 60
 INTERACT_PERIOD = 1.0/MAX_RENDERS
@@ -259,6 +264,10 @@ class _RateKeeper2(RateKeeper):
                     # Must send events one at a time to GW.handle_msg because bound events need the loop code:
                     msg = {'content':{'data':[m]}} # message format used by notebook
                     self._sender(msg)
+            if _direct_trigger:
+                # Comm-only host: synthesize the pacing trigger the browser
+                # cannot deliver mid-cell, so trigger() flushes updates now.
+                self._sender({'content': {'data': [{'event': 'update_canvas', 'trigger': 1}]}})
 
     def __call__(self, N): # rate(N) calls this function
         self.rval = N

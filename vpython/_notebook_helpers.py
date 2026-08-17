@@ -49,6 +49,15 @@ def _undo_vpython_import_in_spyder():
             del sys.modules[modname]
 
 
+def _is_colab(environ=None):
+    """Google Colab kernel? (its shell class is 'Shell', not
+    ZMQInteractiveShell, so the notebook check below misses it)."""
+    environ = os.environ if environ is None else environ
+    if 'COLAB_RELEASE_TAG' in environ or 'COLAB_GPU' in environ:
+        return True
+    return 'google.colab' in sys.modules
+
+
 def __checkisnotebook():
     """
     Check whether we are running in a notebook or not
@@ -56,6 +65,8 @@ def __checkisnotebook():
     try:
         if __is_spyder():
             return False    # Spyder detected so return False
+        if _is_colab():
+            return True     # notebook-style pacing/flush behavior applies
         shell = get_ipython().__class__.__name__
         if shell == 'ZMQInteractiveShell':  # Jupyter notebook or qtconsole?
             return True
@@ -71,3 +82,34 @@ def __checkisnotebook():
 _isnotebook = __checkisnotebook()
 _in_spyder = __is_spyder()
 _in_spyder_or_similar_IDE = __is_spyder_or_similar_IDE()
+
+
+def _use_ws_frontend(environ=None):
+    """Should this notebook kernel speak the whole protocol over the
+    websocket (VS Code style) instead of Comm + nbextension JS?
+
+    VS Code notebooks never run vpython's injected JavaScript and give
+    third-party renderers no Comm access, so they get the websocket-only
+    frontend automatically. VPYTHON_FRONTEND overrides in both directions:
+    'ws' forces it on (other renderer hosts, testing), anything else set
+    ('jupyter', 'classic', ...) forces it off even under VS Code.
+    """
+    environ = os.environ if environ is None else environ
+    override = environ.get('VPYTHON_FRONTEND')
+    if override:
+        return override.strip().lower() == 'ws'
+    return 'VSCODE_PID' in environ or 'VSCODE_CWD' in environ
+
+
+def _use_colab_frontend(environ=None):
+    """Comm-only frontend for Google Colab: output frames run our JS and
+    Colab shims Jupyter comms into them (google.colab.kernel.comms), but no
+    websocket can reach the kernel VM (the port proxy rejects programmatic
+    fetch/ws from the sandboxed output iframe — probed 2026-08).
+    VPYTHON_FRONTEND='colab' forces it on; any other value forces it off.
+    """
+    environ = os.environ if environ is None else environ
+    override = environ.get('VPYTHON_FRONTEND')
+    if override:
+        return override.strip().lower() == 'colab'
+    return _is_colab(environ)
