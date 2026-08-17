@@ -67,3 +67,13 @@ def test_empty_journal_still_replays_a_bare_reset():
     objdata = j.replay_objdata(lambda i, a: None)
     assert objdata['cmds'] == [{'cmd': 'reset', 'idx': -1}]
     assert objdata['attrs'] == {}
+
+
+def test_followup_cmds_do_not_clobber_the_constructor():
+    j = SceneJournal()
+    j.record_cmd({'cmd': 'canvas', 'idx': 1})
+    j.record_cmd({'title': 'my scene', 'idx': 1})  # canvas.title follow-up
+    assert [c['cmd'] for c in j.constructors()] == ['canvas']
+    objdata = j.replay_objdata(lambda i, a: None)
+    assert objdata['cmds'][1]['cmd'] == 'canvas'
+    assert objdata['cmds'][2] == {'title': 'my scene', 'idx': 1}

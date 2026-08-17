@@ -17,6 +17,7 @@ class SceneJournal:
         self._cmds = {}    # idx -> constructor cmd (copy)
         self._order = []   # idx in creation order
         self._dirty = set()  # (idx, attr) ever changed after construction
+        self._extras = []    # follow-up cmds (title/caption/...): no 'cmd' key
 
     def record_cmd(self, cmd):
         idx = cmd.get('idx')
@@ -25,6 +26,12 @@ class SceneJournal:
                 del self._cmds[idx]
                 self._order.remove(idx)
             self._dirty = {(i, a) for (i, a) in self._dirty if i != idx}
+            self._extras = [e for e in self._extras if e.get('idx') != idx]
+            return
+        if cmd.get('cmd') is None:
+            # Follow-up on an existing object (title/caption/...): same idx
+            # as its constructor — must NOT clobber it.
+            self._extras.append(dict(cmd))
             return
         if idx not in self._cmds:
             self._order.append(idx)
@@ -52,7 +59,8 @@ class SceneJournal:
                 continue
             attrs.setdefault(idx, {})[attr] = val
         return {
-            'cmds': [{'cmd': 'reset', 'idx': -1}] + self.constructors(),
+            'cmds': ([{'cmd': 'reset', 'idx': -1}] + self.constructors()
+                     + [dict(e) for e in self._extras]),
             'methods': [],
             'attrs': attrs,
         }
